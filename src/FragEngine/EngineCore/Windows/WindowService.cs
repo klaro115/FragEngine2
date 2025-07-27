@@ -16,7 +16,7 @@ public sealed class WindowService : IExtendedDisposable
 
 	internal readonly ILogger logger;
 
-	private readonly List<Sdl2Window> windows = new(1);
+	private readonly List<WindowHandle> windows = new(1);
 
 	#endregion
 	#region Properties
@@ -61,9 +61,9 @@ public sealed class WindowService : IExtendedDisposable
 	}
 	private void Dispose(bool _)
 	{
-		CloseAllWindows();
-
 		IsDisposed = true;
+
+		CloseAllWindows();
 	}
 
 	/// <summary>
@@ -71,19 +71,11 @@ public sealed class WindowService : IExtendedDisposable
 	/// </summary>
 	public void CloseAllWindows()
 	{
-		foreach (Sdl2Window window in windows)
+		foreach (WindowHandle handle in windows)
 		{
-			if (!window.Exists) continue;
-
-			try
-			{
-				window.Close();
-			}
-			catch (Exception ex)
-			{
-				logger.LogException("Failed to close window!", ex);
-			}
+			handle.CloseWindow();
 		}
+		windows.Clear();
 	}
 
 	/// <summary>
@@ -107,9 +99,8 @@ public sealed class WindowService : IExtendedDisposable
 		for (int i = 0; i < screenCount; i++)
 		{
 			int errorCode = Sdl2Native.SDL_GetDisplayBounds(i, &screenDesktopBounds);
-			if (errorCode != 0 && SDL2Helper.GetError(out string errorMessage))
+			if (SDL2Helper.CheckAndLogError(logger, errorCode, $"Failed to get bounds of screen {i}!", true))
 			{
-				logger.LogError($"Failed to get bounds of screen {i}! (SDL error: '{errorMessage}')");
 				break;
 			}
 
@@ -237,12 +228,26 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
+		_outHandle = new(this, logger, _newWindow);
 
-		//TODO
-
-
-		_outHandle = null;	//TEMP
+		windows.Add(_outHandle);
 		return true;
+	}
+
+	internal bool RemoveWindow(WindowHandle _handle)
+	{
+		if (IsDisposed)
+		{
+			return false;
+		}
+		if (_handle?.Window is null)
+		{
+			logger.LogError("Cannot unregister null window!");
+			return false;
+		}
+
+		bool removed = windows.Remove(_handle);
+		return removed;
 	}
 
 	#endregion
