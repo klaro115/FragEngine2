@@ -11,9 +11,9 @@ public sealed class WindowHandle : IExtendedDisposable
 	#region Events
 
 	public event Action<WindowHandle>? Closing;
-	public event Action<WindowHandle>? Closed;
-	public event Action<WindowHandle, Rectangle>? Resized;
-	public event Action<WindowHandle, Vector2>? Moved;
+	public event FuncWindowClosed? Closed;
+	public event FuncWindowResized? Resized;
+	public event FuncWindowMoved? Moved;
 
 	#endregion
 	#region Fields
@@ -39,10 +39,15 @@ public sealed class WindowHandle : IExtendedDisposable
 	/// </summary>
 	internal Sdl2Window Window { get; }
 
+	/// <summary>
+	/// A unique ID number for this window.
+	/// </summary>
+	public int WindowId { get; }
+
 	#endregion
 	#region Constructors
 
-	public WindowHandle(WindowService _windowService, ILogger _logger, Sdl2Window _window)
+	internal WindowHandle(WindowService _windowService, ILogger _logger, Sdl2Window _window, int _windowId)
 	{
 		ArgumentNullException.ThrowIfNull(_windowService);
 		ArgumentNullException.ThrowIfNull(_logger);
@@ -51,6 +56,7 @@ public sealed class WindowHandle : IExtendedDisposable
 		windowService = _windowService;
 		logger = _logger;
 		Window = _window;
+		WindowId = _windowId;
 
 		// Register events:
 		Window.Closing += () => Closing?.Invoke(this);

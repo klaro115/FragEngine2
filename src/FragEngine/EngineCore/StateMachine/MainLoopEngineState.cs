@@ -1,4 +1,5 @@
 ﻿using FragEngine.Logging;
+using Veldrid;
 
 namespace FragEngine.EngineCore.StateMachine;
 
@@ -128,12 +129,17 @@ internal abstract class MainLoopEngineState(Engine _engine) : EngineState(_engin
 	/// <returns>True if the update cycle ran without issues, false otherwise.</returns>
 	protected virtual bool ExecuteUpdateCycle(CancellationToken _token)
 	{
-		//TODO 1: Update window logic.
-		//TODO 2: Work off message queue.
-		//TODO 3: Do application logic.
-		//  TODO 3.1: Input
-		//  TODO 3.2: Update
-		//  TODO 3.3: Draw
+		// Update window logic, capture input events:
+		if (!engine.WindowService.Update(out InputSnapshot? inputSnapshot))
+		{
+			return false;
+		}
+
+		//TODO 1: Implement and update input service.
+		//TODO 2: Do application logic.
+		//  TODO 2.1: Input
+		//  TODO 2.2: Update
+		//  TODO 2.3: Draw
 
 		return true;
 	}

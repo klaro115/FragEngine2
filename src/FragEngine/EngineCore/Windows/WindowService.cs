@@ -12,23 +12,63 @@ namespace FragEngine.EngineCore.Windows;
 /// </summary>
 public sealed class WindowService : IExtendedDisposable
 {
+	#region Events
+
+	/// <summary>
+	/// Event that is triggered whenever the window focus changes.
+	/// </summary>
+	public event FuncWindowFocusChanged? WindowFocusChanged;
+	/// <summary>
+	/// Event that triggers whenever a new window is created.
+	/// </summary>
+	public event FuncNewWindowCreated? WindowCreated;
+	/// <summary>
+	/// Event that triggers whenever a window is closed.
+	/// </summary>
+	public event FuncWindowClosed? WindowClosed;
+
+	#endregion
 	#region Fields
 
 	internal readonly ILogger logger;
+	private readonly PlatformService platformService;
 
 	private readonly List<WindowHandle> windows = new(1);
+	private readonly SemaphoreSlim windowSemaphore = new(1, 1);
+
+	private int windowIdCounter = 0;
+
+	private WindowHandle? focusedWindow = null;
 
 	#endregion
 	#region Properties
 
 	public bool IsDisposed { get; private set; } = false;
 
+	/// <summary>
+	/// Gets the application window that is currently focused. Null if all windows are closed or unfocused.
+	/// </summary>
+	public WindowHandle? FocusedWindow
+	{
+		get => focusedWindow;
+		private set
+		{
+			bool changed = focusedWindow != value;
+			focusedWindow = value;
+			if (changed)
+			{
+				WindowFocusChanged?.Invoke(focusedWindow);
+			}
+		}
+	}
+
 	#endregion
 	#region Constructors
 
-	public WindowService(ILogger _logger)
+	public WindowService(ILogger _logger, PlatformService _platformService)
 	{
 		logger = _logger;
+		platformService = _platformService;
 
 		const SDLInitFlags initFlags = SDLInitFlags.GameController | SDLInitFlags.Audio;
 
@@ -51,6 +91,11 @@ public sealed class WindowService : IExtendedDisposable
 		}
 	}
 
+	~WindowService()
+	{
+		if (!IsDisposed) Dispose(false);
+	}
+
 	#endregion
 	#region Methods
 
@@ -64,6 +109,8 @@ public sealed class WindowService : IExtendedDisposable
 		IsDisposed = true;
 
 		CloseAllWindows();
+
+		windowSemaphore.Dispose();
 	}
 
 	/// <summary>
@@ -71,11 +118,15 @@ public sealed class WindowService : IExtendedDisposable
 	/// </summary>
 	public void CloseAllWindows()
 	{
+		windowSemaphore.Wait();
+
 		foreach (WindowHandle handle in windows)
 		{
 			handle.CloseWindow();
 		}
 		windows.Clear();
+
+		windowSemaphore.Release();
 	}
 
 	/// <summary>
@@ -115,6 +166,15 @@ public sealed class WindowService : IExtendedDisposable
 		return false;
 	}
 
+	/// <summary>
+	/// Tries to get the position, resolution, and other metrics of a screen.
+	/// </summary>
+	/// <param name="_screenIdx">The ID of the screen.</param>
+	/// <param name="_outDesktopPosition">Outputs the position in desktop space.
+	/// Your screen may not be located at (0,0) if you have a multi-monitor setup.</param>
+	/// <param name="_outResolution">Outputs the resolution of the screen, in pixels.</param>
+	/// <param name="_outRefreshRate">Outputs the refresh rate of the monitor.</param>
+	/// <returns>True if the screen exists and could be measured, false otherwise.</returns>
 	public unsafe bool GetScreenMetrics(int _screenIdx, out Vector2 _outDesktopPosition, out Vector2 _outResolution, out float _outRefreshRate)
 	{
 		_outDesktopPosition = Vector2.Zero;
@@ -151,6 +211,18 @@ public sealed class WindowService : IExtendedDisposable
 		}
 	}
 
+	/// <summary>
+	/// Creates a new window.
+	/// </summary>
+	/// <remarks>
+	/// Note that this creates an empty window without any swapchain or graphics context.
+	/// </remarks>
+	/// <param name="_title">The title of the window.</param>
+	/// <param name="_position">The position of the window, in desktop space.</param>
+	/// <param name="_resolution">The size of the window, in pixels.</param>
+	/// <param name="_isFullscreen">Whether this is a fullscreen window.</param>
+	/// <param name="_outHandle">Outputs a handle for the newly created windows, or null on failure.</param>
+	/// <returns>True if a new window was created, false otherwise.</returns>
 	public bool CreateWindow(string _title, Vector2 _position, Vector2 _resolution, bool _isFullscreen, out WindowHandle? _outHandle)
 	{
 		if (string.IsNullOrEmpty(_title))
@@ -192,7 +264,16 @@ public sealed class WindowService : IExtendedDisposable
 			flags |= dynamicWindowFlags;
 		}
 
-		//TODO: Add platform-specific flags for graphics APIs!
+		// Add platform-specific flags for graphics APIs:
+		switch (platformService.GraphicsBackend)
+		{
+			case GraphicsBackend.OpenGL:
+			case GraphicsBackend.OpenGLES:
+				flags |= SDL_WindowFlags.OpenGL;
+				break;
+			default:
+				break;
+		}
 
 		// Create the window:
 		Sdl2Window window;
@@ -228,9 +309,14 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
-		_outHandle = new(this, logger, _newWindow);
+		int windowId = windowIdCounter++;
+		_outHandle = new(this, logger, _newWindow, windowId);
 
+		windowSemaphore.Wait();
 		windows.Add(_outHandle);
+		windowSemaphore.Release();
+
+		WindowCreated?.Invoke(_outHandle);
 		return true;
 	}
 
@@ -246,8 +332,58 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
+		windowSemaphore.Wait();
 		bool removed = windows.Remove(_handle);
+		windowSemaphore.Release();
+
+		WindowClosed?.Invoke(_handle);
 		return removed;
+	}
+
+	/// <summary>
+	/// Updates all window states, processes events, and generates input data from the currently focused window.
+	/// </summary>
+	/// <param name="_outInputSnapshot">Outputs a snapshot of all input events since last frame.
+	/// Null if no window is open, or if no application window is currently focused.</param>
+	/// <returns>True if windows were updated successfully, false on error.</returns>
+	internal bool Update(out InputSnapshot? _outInputSnapshot)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError($"Cannot update windows, {nameof(WindowService)} has already been disposed!");
+			_outInputSnapshot = null;
+			return false;
+		}
+
+		_outInputSnapshot = null;
+
+		windowSemaphore.Wait();
+		
+		try
+		{
+			foreach (WindowHandle handle in windows)
+			{
+				if (handle.Window.Focused)
+				{
+					FocusedWindow = handle;
+					_outInputSnapshot = handle.Window.PumpEvents();
+				}
+				else
+				{
+					handle.Window.PumpEvents(null!);
+				}
+			}
+			return true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogException("Failed to pump events and update windows!", ex, LogEntrySeverity.High);
+			return false;
+		}
+		finally
+		{
+			windowSemaphore.Release();
+		}
 	}
 
 	#endregion
