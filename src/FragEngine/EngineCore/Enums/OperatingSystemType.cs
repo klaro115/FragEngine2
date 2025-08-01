@@ -35,6 +35,9 @@ public enum OperatingSystemType
 	/// </summary>
 	Android,
 	//...
+
+	// OTHER:
+	Unknown,
 }
 
 /// <summary>

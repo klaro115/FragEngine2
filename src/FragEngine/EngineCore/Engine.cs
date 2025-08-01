@@ -1,5 +1,6 @@
 ﻿using FragEngine.EngineCore.StateMachine;
 using FragEngine.EngineCore.Windows;
+using FragEngine.Extensions;
 using FragEngine.Graphics;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
@@ -92,22 +93,22 @@ public sealed class Engine : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public Engine(IServiceProvider? _serviceProvider = null)
+	public Engine(IServiceCollection? _serviceCollection = null)
 	{
 		// Initialize DI:
-		if (_serviceProvider is null)
+		if (_serviceCollection is null && !EngineStartupHelper.CreateDefaultServiceCollection(out _serviceCollection))
 		{
-			if (!EngineStartupHelper.CreateDefaultServiceCollection(out IServiceCollection? services))
-			{
-				throw new Exception("Failed to create default service collection!");
-			}
-			if (!EngineStartupHelper.CreateDefaultServiceProvider(services, out _serviceProvider))
-			{
-				throw new Exception("Failed to create default service provider!");
-			}
+			throw new Exception("Failed to create default service collection!");
 		}
-
-		Provider = _serviceProvider!;
+		if (!_serviceCollection!.HasService<EngineConfig>() && !EngineStartupHelper.LoadEngineConfig(out EngineConfig config))
+		{
+			_serviceCollection!.AddSingleton(config);
+		}
+		if (!EngineStartupHelper.CreateDefaultServiceProvider(_serviceCollection, out IServiceProvider? serviceProvider))
+		{
+			throw new Exception("Failed to create default service provider!");
+		}
+		Provider = serviceProvider!;
 
 		// Retrieve core services for easier access:
 		Logger = Provider.GetService<ILogger>() ?? new ConsoleLogger();

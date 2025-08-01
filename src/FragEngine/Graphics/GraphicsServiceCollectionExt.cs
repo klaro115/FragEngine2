@@ -13,7 +13,7 @@ public static class GraphicsServiceCollectionExt
 {
 	#region Methods
 
-	public static ServiceCollection AddGraphics(this ServiceCollection _serviceCollection)
+	public static IServiceCollection AddGraphics(this IServiceCollection _serviceCollection)
 	{
 		ILogger? logger = _serviceCollection.GetLoggerInstance();
 		if (logger is null)
@@ -43,7 +43,7 @@ public static class GraphicsServiceCollectionExt
 		return _serviceCollection;
 	}
 
-	private static bool AddPlatformSpecficServices(ServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
+	private static bool AddPlatformSpecficServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
 		switch (_platformService.GraphicsBackend)
 		{
@@ -64,7 +64,7 @@ public static class GraphicsServiceCollectionExt
 		return true;
 	}
 
-	private static bool AddPlatformAgnosticServices(ServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
+	private static bool AddPlatformAgnosticServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
 		//TODO [later]: Add platform-agnostic services.
 		return true;

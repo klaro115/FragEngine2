@@ -31,7 +31,15 @@ internal sealed class ExitingState(Engine _engine) : EngineState(_engine)
 
 	public override void Shutdown()
 	{
-		//...
+		if (!engine.WindowService.IsDisposed)
+		{
+			engine.WindowService.CloseAllWindows();
+		}
+
+		if (!engine.Graphics.IsDisposed)
+		{
+			engine.Graphics.Shutdown();
+		}
 	}
 
 	public override bool Run(CancellationToken token)

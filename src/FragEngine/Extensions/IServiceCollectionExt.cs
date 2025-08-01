@@ -37,5 +37,19 @@ public static class IServiceCollectionExt
 		return service;
 	}
 
+	/// <summary>
+	/// Checks if a service or implementation of a specific type exists in this collection.
+	/// </summary>
+	/// <typeparam name="TService">The type of the service we're looking for.</typeparam>
+	/// <param name="_services">This service collection.</param>
+	/// <returns>True if the service exists, false otherwise.</returns>
+	public static bool HasService<TService>(this IServiceCollection _services) where TService : class
+	{
+		ArgumentNullException.ThrowIfNull(_services);
+
+		bool hasService = _services.Any(o => o.ServiceType == typeof(TService) || o.ImplementationType == typeof(TService));
+		return hasService;
+	}
+
 	#endregion
 }

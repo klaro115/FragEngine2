@@ -1,8 +1,8 @@
 ﻿using FragEngine.EngineCore;
-using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace FragEngine.Helpers;
 
@@ -13,7 +13,7 @@ public static class EngineStartupHelper
 {
 	#region Constants
 
-	private const int minServiceCount = 4;	// update value as needed.
+	private const int minServiceCount = 5;	// update value as needed.
 
 	#endregion
 	#region Methods
@@ -32,16 +32,9 @@ public static class EngineStartupHelper
 			return false;
 		}
 
-		if (!CreateDefaultServiceProvider(services, out IServiceProvider? serviceProvider))
-		{
-			Console.WriteLine("Failed to create service provider during default engine creation!");
-			_outEngine = null;
-			return false;
-		}
-
 		try
 		{
-			_outEngine = new(serviceProvider);
+			_outEngine = new(services);
 			return !_outEngine.IsDisposed;
 		}
 		catch (Exception ex)
@@ -101,17 +94,17 @@ public static class EngineStartupHelper
 			return false;
 		}
 
-		//TODO: Load engine config file from file.
+		// Load engine config file from file:
+		if (!LoadEngineConfig(out EngineConfig config))
+		{
+			_loggerInstance.LogWarning("Failed to load engine config from file, using default config instead.");
+		}
 
 		try
 		{
-			PlatformService platformService = new(_loggerInstance);
-
 			_outServices = new ServiceCollection()
-				.AddSingleton(_loggerInstance)
-				.AddSingleton(platformService)
-				.AddSingleton<WindowService>()
-				.AddSingleton<GraphicsService>();
+				.AddEngine(_loggerInstance, config)
+				.AddGraphics();
 				//...
 
 			return true;
@@ -122,6 +115,41 @@ public static class EngineStartupHelper
 			_outServices = null;
 			return false;
 		}
+	}
+
+	/// <summary>
+	/// Try to load and parse the engine's config from a JSON file.
+	/// </summary>
+	/// <param name="_outConfig">Outputs the loaded config. If not found or on error, the default config is returned instead.</param>
+	/// <returns>True if the config was loaded from file, false otherwise.</returns>
+	public static bool LoadEngineConfig(out EngineConfig _outConfig)
+	{
+		string rootDirPath = PlatformService.GetRootDirectoryPath();
+		string configFilePath = Path.Combine(rootDirPath, "engineconfig.json");
+
+		if (!File.Exists(configFilePath))
+		{
+			Console.WriteLine($"Engine config JSON file could not be found. (File path: '{configFilePath}')");
+			_outConfig = EngineConfig.CreateDefault();
+			return false;
+		}
+
+		EngineConfig? config;
+		try
+		{
+			string configJson = File.ReadAllText(configFilePath);
+			config = JsonSerializer.Deserialize<EngineConfig>(configJson);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Failed to load engine config JSON from file!\nFile path: '{configFilePath}'\nException: {ex}'");
+			_outConfig = EngineConfig.CreateDefault();
+			return false;
+		}
+
+		_outConfig = config ?? EngineConfig.CreateDefault();
+		return true;
+
 	}
 
 	#endregion

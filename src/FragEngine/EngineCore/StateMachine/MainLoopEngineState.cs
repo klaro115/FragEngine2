@@ -35,7 +35,7 @@ internal abstract class MainLoopEngineState(Engine _engine) : EngineState(_engin
 			engine.Logger.LogError("Cannot initialize main loop state of engine instance that has already been disposed!", LogEntrySeverity.Critical);
 			return false;
 		}
-		if (engine.IsInMainLoop)
+		if (!engine.IsInMainLoop)
 		{
 			engine.Logger.LogError("Cannot initialize main loop; engine is not currently in a main loop state!", LogEntrySeverity.Critical);
 			return false;

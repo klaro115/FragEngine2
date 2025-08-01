@@ -14,7 +14,32 @@ public sealed class EngineConfig
 	/// <summary>
 	/// The graphics configuration.
 	/// </summary>
-	public GraphicsConfig Graphics { get; init; } = new();
+	public required GraphicsConfig Graphics { get; init; } = new() { PreferNativeGraphicsAPI = true };
+
+	/// <summary>
+	/// Whether to create the main window and graphics device immediately on startup. Should be true in most cases.
+	/// </summary>
+	public required bool CreateMainWindowImmediately { get; init; } = true;
+
+	#endregion
+	#region Methods
+
+	/// <summary>
+	/// Creates a very basic one-size-fits-all config. This will be used by default if the config can't be read from file.
+	/// </summary>
+	/// <returns>A default config.</returns>
+	public static EngineConfig CreateDefault()
+	{
+		EngineConfig config = new()
+		{
+			Graphics = new()
+			{
+				PreferNativeGraphicsAPI = true
+			},
+			CreateMainWindowImmediately = true,
+		};
+		return config;
+	}
 
 	#endregion
 }
