@@ -1,4 +1,6 @@
-﻿using FragEngine.EngineCore.StateMachine;
+﻿using FragEngine.EngineCore.Input;
+using FragEngine.EngineCore.StateMachine;
+using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Extensions;
 using FragEngine.Graphics;
@@ -86,6 +88,8 @@ public sealed class Engine : IExtendedDisposable
 	public IServiceProvider Provider { get; }
 	public ILogger Logger { get; }
 	public PlatformService PlatformService { get; }
+	public TimeService TimeService { get; }
+	public InputService InputService { get; }
 	public WindowService WindowService { get; }
 	public GraphicsService Graphics { get; }
 	//...
@@ -113,6 +117,8 @@ public sealed class Engine : IExtendedDisposable
 		// Retrieve core services for easier access:
 		Logger = Provider.GetService<ILogger>() ?? new ConsoleLogger();
 		PlatformService = Provider.GetService<PlatformService>()!;
+		TimeService = Provider.GetService<TimeService>()!;
+		InputService = Provider.GetService<InputService>()!;
 		WindowService = Provider.GetService<WindowService>()!;
 		Graphics = Provider.GetService<GraphicsService>()!;
 		//...

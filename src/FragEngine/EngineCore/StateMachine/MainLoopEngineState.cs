@@ -135,12 +135,34 @@ internal abstract class MainLoopEngineState(Engine _engine) : EngineState(_engin
 			return false;
 		}
 
-		//TODO 1: Implement and update input service.
-		//TODO 2: Do application logic.
-		//  TODO 2.1: Input
-		//  TODO 2.2: Update
-		//  TODO 2.3: Draw
+		// Update time tracking and delta times:
+		if (!engine.TimeService.BeginFrame())
+		{
+			return false;
+		}
 
+		// Update input signals:
+		if (!engine.InputService.UpdateInputSnapshot(inputSnapshot))
+		{
+			return false;
+		}
+
+		//TODO 1: Do application logic.
+		//  TODO 1.1: Input
+		//  TODO 1.2: Update
+		//  TODO 1.3: Draw
+
+		// End frame and update timings:
+		if (!engine.TimeService.EndFrame(out TimeSpan frameSleepTime))
+		{
+			return false;
+		}
+
+		// Sleep the main thread, to cap update cycles to the desired frame rate:
+		if (frameSleepTime > TimeSpan.Zero)
+		{
+			Thread.Sleep(frameSleepTime);
+		}
 		return true;
 	}
 

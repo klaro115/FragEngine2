@@ -11,9 +11,14 @@ namespace FragEngine.Graphics;
 /// </summary>
 public static class GraphicsServiceCollectionExt
 {
+	#region Constants
+
+	public const int defaultServiceCount = 1;
+
+	#endregion
 	#region Methods
 
-	public static IServiceCollection AddGraphics(this IServiceCollection _serviceCollection)
+	public static IServiceCollection UseGraphics(this IServiceCollection _serviceCollection)
 	{
 		ILogger? logger = _serviceCollection.GetLoggerInstance();
 		if (logger is null)

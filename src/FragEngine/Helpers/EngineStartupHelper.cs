@@ -13,7 +13,9 @@ public static class EngineStartupHelper
 {
 	#region Constants
 
-	private const int minServiceCount = 5;	// update value as needed.
+	private const int minServiceCount =
+		EngineServiceCollectionExt.defaultServiceCount +
+		GraphicsServiceCollectionExt.defaultServiceCount;
 
 	#endregion
 	#region Methods
@@ -103,8 +105,8 @@ public static class EngineStartupHelper
 		try
 		{
 			_outServices = new ServiceCollection()
-				.AddEngine(_loggerInstance, config)
-				.AddGraphics();
+				.UseEngine(_loggerInstance, config)
+				.UseGraphics();
 				//...
 
 			return true;
