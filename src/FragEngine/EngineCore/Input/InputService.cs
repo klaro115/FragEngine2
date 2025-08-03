@@ -1,8 +1,9 @@
-﻿using FragEngine.Logging;
-using FragEngine.EngineCore.Windows;
-using Veldrid;
-using FragEngine.EngineCore.Input.Axes;
+﻿using FragEngine.EngineCore.Input.Axes;
+using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Time;
+using FragEngine.EngineCore.Windows;
+using FragEngine.Logging;
+using Veldrid;
 
 namespace FragEngine.EngineCore.Input;
 
@@ -18,7 +19,17 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 	private readonly ILogger logger = _logger;
 	private readonly TimeService timeService = _timeService;
 
+	private readonly InputKeyState[] keyStates = new InputKeyState[maximumKeyCount];
+	private readonly Dictionary<Key, InputKeyEventType> keyEvents = [];
+
 	private readonly Dictionary<string, InputAxis> axes = [];
+
+	private uint versionIdx = 0u;
+
+	#endregion
+	#region Constants
+
+	private const int maximumKeyCount = (int)Key.LastKey + 1;
 
 	#endregion
 	#region Properties
@@ -30,7 +41,7 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 
 	private void Clear()
 	{
-		//TODO
+		keyEvents.Clear();
 	}
 
 	/// <summary>
@@ -44,23 +55,57 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 	/// <returns>True if inputs were updated, false on failure.</returns>
 	internal bool UpdateInputSnapshot(InputSnapshot? snapshot)
 	{
-		Clear();
-
-		if (snapshot is null)
-		{
-			return true;
-		}
-
+		versionIdx++;
+		
 		float deltaTime = timeService.AppDeltaTimeSeconds;
 
-		
-		//TODO
-
+		if (!UpdateKeyStates(snapshot))
+		{
+			return false;
+		}
 
 		if (!UpdateAxes(snapshot, deltaTime))
 		{
 			logger.LogError("Failed to update input axes!");
 			return false;
+		}
+
+		//TODO 1 [later]: Add support for typed string events.
+		//TODO 2 [later]: Add support for controllers & gamepads.
+
+		return true;
+	}
+
+	private bool UpdateKeyStates(InputSnapshot? snapshot)
+	{
+		keyEvents.Clear();
+
+		if (snapshot is null)
+		{
+			foreach (InputKeyState key in keyStates)
+			{
+				key.UpdateState(false, versionIdx);
+			}
+			return true;
+		}
+
+		foreach (KeyEvent keyEvent in snapshot.KeyEvents)
+		{
+			int keyIdx = (int)keyEvent.Key;
+			InputKeyState keyState = keyStates[keyIdx];
+
+			if (keyState.UpdateState(keyEvent.Down, versionIdx))
+			{
+				keyEvents.Add(keyState.key, keyState.EventType);
+			}
+		}
+
+		foreach (InputKeyState keyState in keyStates)
+		{
+			if (keyState.VersionIdx != versionIdx && keyState.UpdateState(false, versionIdx))
+			{
+				keyEvents.Add(keyState.key, keyState.EventType);
+			}
 		}
 
 		return true;
@@ -74,6 +119,12 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 		}
 
 		return true;
+	}
+
+	public bool AddAxis(string _name, Key _negativeKey, Key _positiveKey)
+	{
+		//TODO
+		return false;	//TEMP
 	}
 
 	#endregion

@@ -6,8 +6,13 @@ namespace FragEngine.EngineCore.Input.Axes;
 /// A singular input axis. This can be either a joystick stick axis, or a mapped set of 2 keys.
 /// The current axis value will be in the range [-1;1], and can be read from <see cref="CurrentValue"/>.
 /// </summary>
-public abstract class InputAxis
+public abstract class InputAxis(string _name)
 {
+	#region Fields
+
+	public readonly string name = _name ?? throw new ArgumentNullException(nameof(_name));
+
+	#endregion
 	#region Properties
 
 	/// <summary>
@@ -18,6 +23,7 @@ public abstract class InputAxis
 	/// The previous frame's value of this input axis, in a range from -1 to +1.
 	/// </summary>
 	public float PreviousValue { get; protected set; } = 0.0f;
+
 	/// <summary>
 	/// The size of the dead-zone for this axis. Input values with a magnitude lower than this
 	/// threashold will be treated as 0.
