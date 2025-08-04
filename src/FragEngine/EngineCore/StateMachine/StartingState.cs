@@ -1,9 +1,10 @@
-﻿using FragEngine.Logging;
+﻿using FragEngine.Application;
+using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FragEngine.EngineCore.StateMachine;
 
-internal sealed class StartingState(Engine _engine) : EngineState(_engine)
+internal sealed class StartingState(Engine _engine, IAppLogic _appLogic) : EngineState(_engine, _appLogic)
 {
 	#region Properties
 

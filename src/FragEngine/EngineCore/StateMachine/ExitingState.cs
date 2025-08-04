@@ -1,8 +1,9 @@
-﻿using FragEngine.Logging;
+﻿using FragEngine.Application;
+using FragEngine.Logging;
 
 namespace FragEngine.EngineCore.StateMachine;
 
-internal sealed class ExitingState(Engine _engine) : EngineState(_engine)
+internal sealed class ExitingState(Engine _engine, IAppLogic _appLogic) : EngineState(_engine, _appLogic)
 {
 	#region Properties
 
@@ -40,6 +41,8 @@ internal sealed class ExitingState(Engine _engine) : EngineState(_engine)
 		{
 			engine.Graphics.Shutdown();
 		}
+
+		appLogic.Shutdown();
 	}
 
 	public override bool Run(CancellationToken token)

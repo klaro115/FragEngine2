@@ -1,5 +1,7 @@
-﻿using FragEngine.EngineCore;
+﻿using FragEngine.Application;
+using FragEngine.EngineCore;
 using FragEngine.Graphics;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
@@ -25,8 +27,15 @@ public static class EngineStartupHelper
 	/// </summary>
 	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
 	/// <returns>True if the engine was created successfully, false otherwise.</returns>
-	public static bool CreateDefaultEngine(out Engine? _outEngine)
+	public static bool CreateDefaultEngine(IAppLogic _appLogic, out Engine? _outEngine)
 	{
+		if (_appLogic is null || (_appLogic is IExtendedDisposable disposable && disposable.IsDisposed))
+		{
+			Console.WriteLine("Cannot create default engine using null or disposed app logic!");
+			_outEngine = null;
+			return false;
+		}
+
 		if (!CreateDefaultServiceCollection(out IServiceCollection? services))
 		{
 			Console.WriteLine("Failed to create service collection during default engine creation!");
@@ -36,7 +45,7 @@ public static class EngineStartupHelper
 
 		try
 		{
-			_outEngine = new(services);
+			_outEngine = new(_appLogic, services);
 			return !_outEngine.IsDisposed;
 		}
 		catch (Exception ex)

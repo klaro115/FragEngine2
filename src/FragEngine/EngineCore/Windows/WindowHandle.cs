@@ -10,7 +10,7 @@ public sealed class WindowHandle : IExtendedDisposable
 {
 	#region Events
 
-	public event Action<WindowHandle>? Closing;
+	public event FuncWindowClosed? Closing;
 	public event FuncWindowClosed? Closed;
 	public event FuncWindowResized? Resized;
 	public event FuncWindowMoved? Moved;

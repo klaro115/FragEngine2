@@ -12,14 +12,14 @@ namespace FragEngine.EngineCore.Input;
 /// </summary>
 /// <param name="_logger">The logging service singleton.</param>
 /// <param name="_timeService">The time service singleton.</param>
-public sealed class InputService(ILogger _logger, TimeService _timeService)
+public sealed class InputService
 {
 	#region Fields
 
-	private readonly ILogger logger = _logger;
-	private readonly TimeService timeService = _timeService;
+	private readonly ILogger logger;
+	private readonly TimeService timeService;
 
-	private readonly InputKeyState[] keyStates = new InputKeyState[maximumKeyCount];
+	private readonly InputKeyState[] keyStates;
 	private readonly Dictionary<Key, InputKeyEventType> keyEvents = [];
 
 	private readonly Dictionary<string, InputAxis> axes = [];
@@ -37,12 +37,24 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 	public int AxisCount => axes.Count;
 
 	#endregion
-	#region Methods
+	#region Constructors
 
-	private void Clear()
+	public InputService(ILogger _logger, TimeService _timeService)
 	{
-		keyEvents.Clear();
+		logger = _logger;
+		timeService = _timeService;
+
+		keyStates = new InputKeyState[maximumKeyCount];
+		for (int i = 0; i < maximumKeyCount; i++)
+		{
+			InputKeyState keyState = new((Key)i);
+			keyStates[i] = keyState;
+			keyState.UpdateState(false, versionIdx);
+		}
 	}
+
+	#endregion
+	#region Methods
 
 	/// <summary>
 	/// Resets and initializes all input signals for an upcoming frame.
@@ -80,7 +92,7 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 	{
 		keyEvents.Clear();
 
-		if (snapshot is null)
+		if (snapshot is null || snapshot.KeyEvents.Count == 0)
 		{
 			foreach (InputKeyState key in keyStates)
 			{
@@ -125,6 +137,18 @@ public sealed class InputService(ILogger _logger, TimeService _timeService)
 	{
 		//TODO
 		return false;	//TEMP
+	}
+
+	#endregion
+	#region Methods Getters
+
+	public InputKeyState? GetKeyState(Key _key)
+	{
+		int keyIndex = (int)_key;
+		InputKeyState? keyState = keyIndex >= 0 && keyIndex < maximumKeyCount
+			? keyStates[keyIndex]
+			: null;
+		return keyState;
 	}
 
 	#endregion

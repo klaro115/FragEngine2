@@ -1,5 +1,6 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.Helpers;
+using Sandbox.Application;
 
 Console.WriteLine("\n### BEGIN ###\n");
 
@@ -8,7 +9,9 @@ try
 {
 	Console.WriteLine("Creating engine...");
 
-	if (EngineStartupHelper.CreateDefaultEngine(out engine))
+	TestAppLogic appLogic = new();
+
+	if (EngineStartupHelper.CreateDefaultEngine(appLogic, out engine))
 	{
 		Console.WriteLine("Starting engine...");
 

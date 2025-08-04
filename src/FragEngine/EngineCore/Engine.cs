@@ -1,4 +1,5 @@
-﻿using FragEngine.EngineCore.Input;
+﻿using FragEngine.Application;
+using FragEngine.EngineCore.Input;
 using FragEngine.EngineCore.StateMachine;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
@@ -8,6 +9,7 @@ using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FragEngine.EngineCore;
 
@@ -38,6 +40,10 @@ public sealed class Engine : IExtendedDisposable
 
 	#endregion
 	#region Fields
+
+	// APPLICATION:
+
+	private readonly IAppLogic appLogic;
 
 	// SYNCHRONIZATION:
 
@@ -97,20 +103,16 @@ public sealed class Engine : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public Engine(IServiceCollection? _serviceCollection = null)
+	public Engine(IAppLogic _appLogic, IServiceCollection? _serviceCollection = null)
 	{
+		ArgumentNullException.ThrowIfNull(_appLogic);
+
+		appLogic = _appLogic;
+
 		// Initialize DI:
-		if (_serviceCollection is null && !EngineStartupHelper.CreateDefaultServiceCollection(out _serviceCollection))
+		if (!InitializeDependencyInjection(_serviceCollection, out IServiceProvider? serviceProvider))
 		{
-			throw new Exception("Failed to create default service collection!");
-		}
-		if (!_serviceCollection!.HasService<EngineConfig>() && !EngineStartupHelper.LoadEngineConfig(out EngineConfig config))
-		{
-			_serviceCollection!.AddSingleton(config);
-		}
-		if (!EngineStartupHelper.CreateDefaultServiceProvider(_serviceCollection, out IServiceProvider? serviceProvider))
-		{
-			throw new Exception("Failed to create default service provider!");
+			throw new Exception("Failed to initialize dependency injection!");
 		}
 		Provider = serviceProvider!;
 
@@ -124,18 +126,66 @@ public sealed class Engine : IExtendedDisposable
 		//...
 
 		// Create state machine states:
-		startingState = new(this);
-		loadingState = new(this);
-		runningState = new(this);
-		unloadingState = new(this);
-		exitingState = new(this);
+		startingState = new(this, appLogic);
+		loadingState = new(this, appLogic);
+		runningState = new(this, appLogic);
+		unloadingState = new(this, appLogic);
+		exitingState = new(this, appLogic);
 
 		currentState = startingState;
+
+		// Initialize app logic:
+		if (!appLogic.Initialize(this))
+		{
+			Dispose();
+			throw new Exception("Failed to initialize engine's app logic!");
+		}
 	}
 
 	~Engine()
 	{
 		Dispose(false);
+	}
+
+	private bool InitializeDependencyInjection(IServiceCollection? _serviceCollection, out IServiceProvider? _outServiceProvider)
+	{
+		// If no customized service collection is provided, use a basic default setup:
+		if (_serviceCollection is null && !EngineStartupHelper.CreateDefaultServiceCollection(out _serviceCollection!))
+		{
+			_outServiceProvider = null;
+			return false;
+		}
+
+		// Load or create the main engine config, and register it as a singleton:
+		if (!_serviceCollection.HasService<EngineConfig>() && EngineStartupHelper.LoadEngineConfig(out EngineConfig config))
+		{
+			_serviceCollection.AddSingleton(config);
+		}
+		else
+		{
+			config = _serviceCollection.GetImplementationInstance<EngineConfig>()!;
+		}
+
+		// If requested, add application logic as a service; remove it otherwise:
+		if (config.AddAppLogicToServiceProvider && !_serviceCollection.HasService<IAppLogic>())
+		{
+			_serviceCollection.AddSingleton(appLogic);
+		}
+		else if (_serviceCollection.HasService<IAppLogic>())
+		{
+			_serviceCollection.RemoveAll<EngineConfig>();
+		}
+
+		// Add the engine itself as a singleton:
+		_serviceCollection.AddSingleton(this);
+
+		// Create the final service provider for the engine-wide DI:
+		if (!EngineStartupHelper.CreateDefaultServiceProvider(_serviceCollection, out _outServiceProvider))
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	#endregion
@@ -279,7 +329,7 @@ public sealed class Engine : IExtendedDisposable
 		// Inject unloading/exit state instead, if exit signal has been sent:
 		if (IsExiting)
 		{
-			Logger.LogWarning($"Exit has been requested, aborting state change to '{_newState}'.");
+			EngineStateType originalTargetState = _newState;
 			if (State == EngineStateType.Loading || State == EngineStateType.Running)
 			{
 				_newState = EngineStateType.Unloading;
@@ -287,6 +337,11 @@ public sealed class Engine : IExtendedDisposable
 			else if (State == EngineStateType.Starting)
 			{
 				_newState = EngineStateType.Exiting;
+			}
+
+			if (_newState != originalTargetState)
+			{
+				Logger.LogWarning($"Exit has been requested, aborting state change to '{_newState}'.");
 			}
 		}
 
@@ -302,9 +357,6 @@ public sealed class Engine : IExtendedDisposable
 			return false;
 		}
 
-		// Notify listeners that the state is about to change:
-		StateChanging?.Invoke(State, _newState);
-
 		if (!EndcurrentState(_newState))
 		{
 			Logger.LogError($"Failed to shutdown current engine state! (Current: '{State}', Target: '{_newState}')", LogEntrySeverity.Critical);
@@ -318,19 +370,26 @@ public sealed class Engine : IExtendedDisposable
 		engineStateSemaphore.Release();
 
 		// Initialize new state:
-		if (!StartNewState())
+		if (!StartNewState(prevState))
 		{
 			Logger.LogError($"Failed to initialize new engine state! (Current: '{State}')", LogEntrySeverity.Critical);
 			return false;
 		}
 
-		// Notify listeners that the state has changed:
-		StateChanged?.Invoke(prevState, State);
 		return true;
 	}
 
 	private bool EndcurrentState(EngineStateType _newState)
 	{
+		// Warn the application:
+		if (!appLogic.OnEngineStateChanging(State, _newState))
+		{
+			return false;
+		}
+
+		// Notify listeners that the state is about to change:
+		StateChanging?.Invoke(State, _newState);
+
 		if (!IsExiting && _newState == EngineStateType.Exiting)
 		{
 			engineStateSemaphore.Wait();
@@ -346,7 +405,7 @@ public sealed class Engine : IExtendedDisposable
 		return true;
 	}
 
-	private bool StartNewState()
+	private bool StartNewState(EngineStateType _prevState)
 	{
 		if (State == EngineStateType.Starting)
 		{
@@ -369,6 +428,18 @@ public sealed class Engine : IExtendedDisposable
 		{
 			return false;
 		}
+
+		Logger.LogMessage($"### ENGINE STATE CHANGED: {_prevState} => {State}");
+
+		// Notify the application:
+		if (!appLogic.OnEngineStateChanged(_prevState, State))
+		{
+			return false;
+		}
+
+		// Notify listeners that the state has changed:
+		StateChanged?.Invoke(_prevState, State);
+
 		return true;
 	}
 

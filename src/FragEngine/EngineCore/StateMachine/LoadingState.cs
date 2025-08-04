@@ -1,6 +1,8 @@
-﻿namespace FragEngine.EngineCore.StateMachine;
+﻿using FragEngine.Application;
 
-internal sealed class LoadingState(Engine _engine) : MainLoopEngineState(_engine)
+namespace FragEngine.EngineCore.StateMachine;
+
+internal sealed class LoadingState(Engine _engine, IAppLogic _appLogic) : MainLoopEngineState(_engine, _appLogic)
 {
 	#region Properties
 
@@ -9,7 +11,16 @@ internal sealed class LoadingState(Engine _engine) : MainLoopEngineState(_engine
 	#endregion
 	#region Methods
 
-	//TODO
+	protected override bool ExecuteUpdateCycle(CancellationToken _token)
+	{
+		bool success = appLogic.UpdateLoadingState(out bool _outLoadingIsDone);
+
+		if (_outLoadingIsDone)
+		{
+			internalCancellationSource?.Cancel();
+		}
+		return success;
+	}
 
 	#endregion
 }

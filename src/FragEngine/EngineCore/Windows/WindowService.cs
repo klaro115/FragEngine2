@@ -46,6 +46,11 @@ public sealed class WindowService : IExtendedDisposable
 	public bool IsDisposed { get; private set; } = false;
 
 	/// <summary>
+	/// Gets the total number of windows.
+	/// </summary>
+	public int WindowCount => windows.Count;
+
+	/// <summary>
 	/// Gets the application window that is currently focused. Null if all windows are closed or unfocused.
 	/// </summary>
 	public WindowHandle? FocusedWindow
@@ -111,6 +116,61 @@ public sealed class WindowService : IExtendedDisposable
 		CloseAllWindows();
 
 		windowSemaphore.Dispose();
+	}
+
+	/// <summary>
+	/// Gets a window by index.
+	/// </summary>
+	/// <param name="_windowIndex">The index of the window, may not be negative.</param>
+	/// <param name="_outHandle">Outputs a handle to the window, or null, if the index was invalid.</param>
+	/// <returns>True if an open window exists at that index, false otherwise.</returns>
+	public bool GetWindow(int _windowIndex, out WindowHandle? _outHandle)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot get window from window service that has already been disposed!");
+			_outHandle = null;
+			return false;
+		}
+
+		if (_windowIndex < 0 || _windowIndex >= WindowCount)
+		{
+			logger.LogError("Window index is out of bounds!");
+			_outHandle = null;
+			return false;
+		}
+
+		windowSemaphore.Wait();
+
+		_outHandle = windows[_windowIndex];
+		bool isOpen = _outHandle.IsOpen;
+
+		windowSemaphore.Release();
+		return isOpen;
+	}
+
+	/// <summary>
+	/// Gets a window by ID.
+	/// </summary>
+	/// <param name="_windowId">The ID number of the window.</param>
+	/// <param name="_outHandle">Outputs a handle to the window, or null, if the ID was not found.</param>
+	/// <returns>True if an open window exists with that ID, false otherwise.</returns>
+	public bool GetWindowByID(uint _windowId, out WindowHandle? _outHandle)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot get window from window service that has already been disposed!");
+			_outHandle = null;
+			return false;
+		}
+
+		windowSemaphore.Wait();
+		
+		_outHandle = windows.FirstOrDefault(o => o.WindowId == _windowId);
+		bool foundWindow = _outHandle is not null && _outHandle.IsOpen;
+
+		windowSemaphore.Release();
+		return foundWindow;
 	}
 
 	/// <summary>

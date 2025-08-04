@@ -1,4 +1,5 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.Application;
+using FragEngine.Interfaces;
 
 namespace FragEngine.EngineCore.StateMachine;
 
@@ -6,11 +7,12 @@ namespace FragEngine.EngineCore.StateMachine;
 /// Base class for the states of the engine's main statemachine.
 /// </summary>
 /// <param name="_engine">The engine instance.</param>
-internal abstract class EngineState(Engine _engine) : IExtendedDisposable
+internal abstract class EngineState(Engine _engine, IAppLogic _appLogic) : IExtendedDisposable
 {
 	#region Fields
 
 	protected readonly Engine engine = _engine;
+	protected readonly IAppLogic appLogic = _appLogic;
 
 	#endregion
 	#region Properties
