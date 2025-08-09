@@ -4,6 +4,7 @@ using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Extensions;
 using FragEngine.Logging;
+using System.Xml.Linq;
 using Veldrid;
 
 namespace FragEngine.EngineCore.Input;
@@ -11,8 +12,6 @@ namespace FragEngine.EngineCore.Input;
 /// <summary>
 /// Engine service that handles input events and axes.
 /// </summary>
-/// <param name="_logger">The logging service singleton.</param>
-/// <param name="_timeService">The time service singleton.</param>
 public sealed class InputService
 {
 	#region Events
@@ -21,6 +20,11 @@ public sealed class InputService
 	/// Event that is triggered whenever a new input axis is created and registered.
 	/// </summary>
 	public event FuncInputAxisAdded? AxisAdded;
+
+	/// <summary>
+	/// Event that is triggered whenever an existing input axis is unregistered and removed.
+	/// </summary>
+	public event FuncInputAxisRemoved? AxisRemoved;
 
 	#endregion
 	#region Fields
@@ -55,6 +59,11 @@ public sealed class InputService
 	#endregion
 	#region Constructors
 
+	/// <summary>
+	/// Creates a new input service instance.
+	/// </summary>
+	/// <param name="_logger">The logging service singleton.</param>
+	/// <param name="_timeService">The time service singleton.</param>
 	public InputService(ILogger _logger, TimeService _timeService)
 	{
 		logger = _logger;
@@ -216,9 +225,8 @@ public sealed class InputService
 	/// <returns>True if the new axis could be registered and is valid, false otherwise.</returns>
 	public bool AddInputAxis(string _name, Key _negativeKey, Key _positiveKey, out InputAxis _outNewAxis, bool _useSnapshotEvents = false)
 	{
-		if (string.IsNullOrWhiteSpace(_name))
+		if (CheckIfInputAxisCanBeAdded(_name))
 		{
-			logger.LogError("Cannot add input axis with null or blank name!");
 			_outNewAxis = InputAxis.Invalid;
 			return false;
 		}
@@ -226,13 +234,6 @@ public sealed class InputService
 		if (!_negativeKey.IsValid() || !_positiveKey.IsValid())
 		{
 			logger.LogError($"Cannot add input axis with invalid keyboard buttons! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
-			_outNewAxis = InputAxis.Invalid;
-			return false;
-		}
-
-		if (axes.ContainsKey(_name))
-		{
-			logger.LogError($"An input axis with name '{_name}' already exists!");
 			_outNewAxis = InputAxis.Invalid;
 			return false;
 		}
@@ -247,6 +248,47 @@ public sealed class InputService
 		axes.Add(_name, _outNewAxis);
 		AxisAdded?.Invoke(_outNewAxis);
 		return true;
+	}
+
+	private bool CheckIfInputAxisCanBeAdded(string _name)
+	{
+		if (string.IsNullOrWhiteSpace(_name))
+		{
+			logger.LogError("Cannot add input axis with null or blank name!");
+			return false;
+		}
+
+		if (axes.ContainsKey(_name))
+		{
+			logger.LogError($"An input axis with name '{_name}' already exists!");
+			return false;
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// Unregisters an existing input axis.
+	/// </summary>
+	/// <param name="_name">The unique identifier name of the axis.</param>
+	/// <returns>True if an axis with that name existed and was unregistered, false otherwise.</returns>
+	public bool RemoveInputAxis(string _name)
+	{
+		if (string.IsNullOrEmpty(_name))
+		{
+			return false;
+		}
+
+		bool removed = axes.Remove(_name, out InputAxis? removedAxis);
+		if (removed)
+		{
+			AxisRemoved?.Invoke(removedAxis!);
+		}
+		else
+		{
+			logger.LogWarning($"No input axis with name '{_name}' exists, cannot remove it.", LogEntrySeverity.Trivial);
+		}
+		return removed;
 	}
 
 	/// <summary>
