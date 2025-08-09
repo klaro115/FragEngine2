@@ -50,6 +50,7 @@ internal sealed class Dx11GraphicsService(
 			return false;
 		}
 
+		MainWindow?.CloseWindow();
 		Device.Dispose();
 
 		IsInitialized = false;

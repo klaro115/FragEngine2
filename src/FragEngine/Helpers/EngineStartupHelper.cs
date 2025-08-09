@@ -158,7 +158,13 @@ public static class EngineStartupHelper
 			return false;
 		}
 
-		_outConfig = config ?? EngineConfig.CreateDefault();
+		if (config is null)
+		{
+			Console.WriteLine($"Engine config JSON was empty, using default values.");
+			config ??= EngineConfig.CreateDefault();
+		}
+
+		_outConfig = config;
 		return true;
 
 	}

@@ -24,7 +24,14 @@ public abstract class GraphicsService(
 {
 	#region Events
 
-	public event Action<GraphicsSettings>? GraphicsSettingsChanged;
+	/// <summary>
+	/// Event that is triggered whenever the graphics settings are about to change.
+	/// </summary>
+	public event FuncGraphicsSettingsChanging? GraphicsSettingsChanging;
+	/// <summary>
+	/// Event that is triggered whenever the graphics settings have changed.
+	/// </summary>
+	public event FuncGraphicsSettingsChanged? GraphicsSettingsChanged;
 
 	#endregion
 	#region Fields
@@ -53,10 +60,22 @@ public abstract class GraphicsService(
 		protected set => isInitialized = !IsDisposed && value;
 	}
 
+	/// <summary>
+	/// Gets the main graphics device.
+	/// </summary>
 	public GraphicsDevice Device { get; protected set; } = null!;
+	/// <summary>
+	/// Gets a handle for the the main window. If null, there may not be a main window.
+	/// </summary>
 	public WindowHandle? MainWindow { get; protected set; } = null;
+	/// <summary>
+	/// Gets the graphics device's main resource factory.
+	/// </summary>
 	public ResourceFactory ResourceFactory { get; protected set; } = null!;
 
+	/// <summary>
+	/// Gets or sets the current graphics settings.
+	/// </summary>
 	protected GraphicsSettings Settings
 	{
 		get => settings ??= GetGraphicsSettings();
@@ -157,6 +176,9 @@ public abstract class GraphicsService(
 			return false;
 		}
 
+		GraphicsSettings? previousSettings = settings;
+		GraphicsSettingsChanging?.Invoke(previousSettings, _newSettings);
+
 		settings = _newSettings;
 
 		if (!HandleSetGraphicsSettings())
@@ -165,7 +187,7 @@ public abstract class GraphicsService(
 			return false;
 		}
 
-		GraphicsSettingsChanged?.Invoke(settings);
+		GraphicsSettingsChanged?.Invoke(previousSettings, settings);
 		return true;
 	}
 
