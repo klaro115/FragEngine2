@@ -69,7 +69,8 @@ public static class SDL2Helper
 		int byteCount = 0;
 		for (int i = 0; i < maxMessageLength; ++i)
 		{
-			if (pErrorBytes[i] == 0)
+			byte c = pErrorBytes[i];
+			if (c == 0)
 			{
 				byteCount = i;
 				break;

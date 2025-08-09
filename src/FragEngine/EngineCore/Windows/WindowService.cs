@@ -75,7 +75,7 @@ public sealed class WindowService : IExtendedDisposable
 		logger = _logger;
 		platformService = _platformService;
 
-		const SDLInitFlags initFlags = SDLInitFlags.GameController | SDLInitFlags.Audio;
+		const SDLInitFlags initFlags = SDLInitFlags.Audio | SDLInitFlags.Video | SDLInitFlags.GameController;
 
 		int errorCode = 0;
 		try
@@ -245,7 +245,6 @@ public sealed class WindowService : IExtendedDisposable
 		{
 			Rectangle screenDesktopBounds = new();
 			int errorCode = Sdl2Native.SDL_GetDisplayBounds(_screenIdx, &screenDesktopBounds);
-			if (errorCode != 0 && SDL2Helper.GetError(out string errorMessage))
 			if (SDL2Helper.CheckAndLogError(logger, errorCode, $"Failed to get bounds of screen {_screenIdx}!", true))
 			{
 				return false;
