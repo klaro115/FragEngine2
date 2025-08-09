@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using FragEngine.EngineCore.Input.Keys;
+using System.Numerics;
 using Veldrid;
 
 namespace FragEngine.EngineCore.Input.Axes;
@@ -7,6 +8,7 @@ namespace FragEngine.EngineCore.Input.Axes;
 /// A singular input axis. This can be either a joystick stick axis, or a mapped set of 2 keys.
 /// The current axis value will be in the range [-1;1], and can be read from <see cref="CurrentValue"/>.
 /// </summary>
+/// <param name="_name">The name of this input axis. This serves as a unique identifier.</param>
 public abstract class InputAxis(string _name)
 {
 	#region Fields
@@ -29,6 +31,14 @@ public abstract class InputAxis(string _name)
 	public float PreviousValue { get; protected set; } = 0.0f;
 
 	/// <summary>
+	/// Gets the difference between the current axis value and last frame's value.
+	/// </summary>
+	/// <remarks>
+	/// For axes with a value range of [-1;1], this will return a value in the range from -2 to +2.
+	/// </remarks>
+	public float ChangeSinceLastFrame => CurrentValue - PreviousValue;
+
+	/// <summary>
 	/// The size of the dead-zone for this axis. Input values with a magnitude lower than this
 	/// threashold will be treated as 0.
 	/// </summary>
@@ -42,6 +52,16 @@ public abstract class InputAxis(string _name)
 	/// Setting this may change the <see cref="Type"/> of the axis; not all values are supported,
 	/// </summary>
 	public abstract bool ValuesAreDiscrete { get; set; }
+
+	/// <summary>
+	/// Gets whether this object represents a valid input axis.
+	/// </summary>
+	public abstract bool IsValid { get; }
+
+	/// <summary>
+	/// Gets an invalid input axis. Use this as a placeholder if you don't want to bother with nullables in your input logic.
+	/// </summary>
+	public static InputAxis Invalid => new KeyboardAxis(string.Empty, Key.Unknown, Key.Unknown, [ InputKeyState.Invalid ]);
 
 	#endregion
 	#region Methods

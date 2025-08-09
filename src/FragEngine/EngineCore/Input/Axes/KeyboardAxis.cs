@@ -1,4 +1,5 @@
-﻿using Veldrid;
+﻿using FragEngine.EngineCore.Input.Keys;
+using Veldrid;
 
 namespace FragEngine.EngineCore.Input.Axes;
 
@@ -7,15 +8,17 @@ namespace FragEngine.EngineCore.Input.Axes;
 /// positive button make up the axis. Values are discrete by default, but linear interpolation
 /// is supported as a form of temporal smoothing.
 /// </summary>
-/// <param name="_negativeKey">The key that maps to axis value -1.</param>
-/// <param name="_positveKey">The key that maps to axis value +1.</param>
-internal sealed class KeyboardAxis(string _name, Key _negativeKey, Key _positveKey) : InputAxis(_name)
+internal sealed class KeyboardAxis : InputAxis
 {
 	#region Fields
 
-	public readonly Key negativeKey = _negativeKey;
-	public readonly Key positveKey = _positveKey;
+	public readonly Key negativeKey;
+	public readonly Key positveKey;
 
+	private InputKeyState negativeState;
+	private InputKeyState positiveState;
+
+	private bool useSnapshot;
 	private InputAxisType type = InputAxisType.Discrete;
 
 	private float interpolationRate = 3.0f;
@@ -42,6 +45,35 @@ internal sealed class KeyboardAxis(string _name, Key _negativeKey, Key _positveK
 		set => interpolationRate = Math.Clamp(value, 0.01f, 1000.0f);
 	}
 
+	public override bool IsValid => negativeState.IsValid && positiveState.IsValid && Type != InputAxisType.Analog;
+
+	#endregion
+	#region Constructors
+
+	/// <summary>
+	/// Create a new keyboard axis instance.
+	/// </summary>
+	/// <param name="_name">The name of this input axis. This serves as a unique identifier.</param>
+	/// <param name="_negativeKey">The key that maps to axis value -1.</param>
+	/// <param name="_positveKey">The key that maps to axis value +1.</param>
+	/// <param name="_keyStates">The input service's array of keyboard key states.</param>
+	/// <param name="_useSnapshot">Whether to use input snapshot events to update axis values.
+	/// If false, final values from key states are used instead. Snapshot events may be slightly
+	/// more granular and account for inter-frame presses and releases. False by default.</param>
+	/// <exception cref="ArgumentNullException">Input key states may not be null.</exception>
+	public KeyboardAxis(string _name, Key _negativeKey, Key _positveKey, InputKeyState[] _keyStates, bool _useSnapshot = false) : base(_name)
+	{
+		ArgumentNullException.ThrowIfNull(_keyStates);
+
+		negativeKey = _negativeKey;
+		positveKey = _positveKey;
+
+		negativeState = _keyStates[(int)_negativeKey];
+		positiveState = _keyStates[(int)_positveKey];
+
+		useSnapshot = _useSnapshot;
+	}
+
 	#endregion
 	#region Methods
 
@@ -63,7 +95,7 @@ internal sealed class KeyboardAxis(string _name, Key _negativeKey, Key _positveK
 		// Determine target axis value based on key press/release events over the last frame:
 		float targetValue = 0.0f;
 
-		if (_snapshot is not null)
+		if (useSnapshot && _snapshot is not null)
 		{
 			int eventCount = 0;
 
@@ -83,6 +115,11 @@ internal sealed class KeyboardAxis(string _name, Key _negativeKey, Key _positveK
 			}
 
 			targetValue /= Math.Max(eventCount, 1);
+		}
+		else
+		{
+			targetValue += negativeState.IsPressed ? -1 : 0;
+			targetValue += positiveState.IsPressed ? 1 : 0;
 		}
 
 		// In discrete mode, snap directly to target value:

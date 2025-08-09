@@ -30,7 +30,15 @@ public sealed class InputKeyState
 	/// </summary>
 	public InputKeyEventType EventType { get; private set; } = InputKeyEventType.Unchanged;
 
+	/// <summary>
+	/// Internal reference for updating key states more efficiently. Ignore this property.
+	/// </summary>
 	internal uint VersionIdx { get; private set; } = 0u;
+
+	/// <summary>
+	/// Gets whether this object represents a valid key's state.
+	/// </summary>
+	public bool IsValid => key >= Key.Unknown && key < Key.LastKey;
 
 	/// <summary>
 	/// Gets an invalid keyboard key state. Use this as a placeholder if you don't want to bother with nullables in your input logic.

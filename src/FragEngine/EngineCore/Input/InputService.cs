@@ -2,6 +2,7 @@
 using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
+using FragEngine.Extensions;
 using FragEngine.Logging;
 using Veldrid;
 
@@ -14,6 +15,14 @@ namespace FragEngine.EngineCore.Input;
 /// <param name="_timeService">The time service singleton.</param>
 public sealed class InputService
 {
+	#region Events
+
+	/// <summary>
+	/// Event that is triggered whenever a new input axis is created and registered.
+	/// </summary>
+	public event FuncInputAxisAdded? AxisAdded;
+
+	#endregion
 	#region Fields
 
 	private readonly ILogger logger;
@@ -34,7 +43,14 @@ public sealed class InputService
 	#endregion
 	#region Properties
 
+	/// <summary>
+	/// Gets the total number of input axes that are currently registered.
+	/// </summary>
 	public int AxisCount => axes.Count;
+	/// <summary>
+	/// Gets the total number of keyboard events that took place since last frame.
+	/// </summary>
+	public int KeyEventCount => keyEvents.Count;
 
 	#endregion
 	#region Constructors
@@ -137,14 +153,8 @@ public sealed class InputService
 		return true;
 	}
 
-	public bool AddAxis(string _name, Key _negativeKey, Key _positiveKey)
-	{
-		//TODO
-		return false;	//TEMP
-	}
-
 	#endregion
-	#region Methods Getters
+	#region Methods Keys
 
 	/// <summary>
 	/// Gets the state object of a specific keyboard button.
@@ -183,6 +193,89 @@ public sealed class InputService
 	/// <param name="_key">A keyboard key.</param>
 	/// <returns>True if the key was just released, false otherwise.</returns>
 	public bool GetKeyUp(Key _key) => GetKeyState(_key).EventType == InputKeyEventType.Released;
+
+	/// <summary>
+	/// Gets a map of all keyboard events that took place since the last frame.
+	/// </summary>
+	/// <returns>A read-only map of keys and their events.</returns>
+	public IReadOnlyDictionary<Key, InputKeyEventType> GetAllKeyEvent() => keyEvents;
+
+	#endregion
+	#region Methods Axes
+
+	/// <summary>
+	/// Registers a new input axis that maps to 2 keyboard keys.
+	/// </summary>
+	/// <param name="_name">The unique identifier name of the axis. May not be null or blank.</param>
+	/// <param name="_negativeKey">The key that maps to axis value -1.</param>
+	/// <param name="_positiveKey">The key that maps to axis value +1.</param>
+	/// <param name="_outNewAxis">Outputs a new input axis. Returns an invalid axis on failure.</param>
+	/// <param name="_useSnapshotEvents">Whether to use input snapshot events to update axis values.
+	/// If false, final values from key states are used instead. Snapshot events may be slightly
+	/// more granular and account for inter-frame presses and releases. False by default.</param>
+	/// <returns>True if the new axis could be registered and is valid, false otherwise.</returns>
+	public bool AddInputAxis(string _name, Key _negativeKey, Key _positiveKey, out InputAxis _outNewAxis, bool _useSnapshotEvents = false)
+	{
+		if (string.IsNullOrWhiteSpace(_name))
+		{
+			logger.LogError("Cannot add input axis with null or blank name!");
+			_outNewAxis = InputAxis.Invalid;
+			return false;
+		}
+
+		if (!_negativeKey.IsValid() || !_positiveKey.IsValid())
+		{
+			logger.LogError($"Cannot add input axis with invalid keyboard buttons! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
+			_outNewAxis = InputAxis.Invalid;
+			return false;
+		}
+
+		if (axes.ContainsKey(_name))
+		{
+			logger.LogError($"An input axis with name '{_name}' already exists!");
+			_outNewAxis = InputAxis.Invalid;
+			return false;
+		}
+
+		_outNewAxis = new KeyboardAxis(_name, _negativeKey, _positiveKey, keyStates, _useSnapshotEvents);
+		if (!_outNewAxis.IsValid)
+		{
+			logger.LogError($"Cannot add input axis; initial state is invalid! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
+			return false;
+		}
+
+		axes.Add(_name, _outNewAxis);
+		AxisAdded?.Invoke(_outNewAxis);
+		return true;
+	}
+
+	/// <summary>
+	/// Gets the state object of a specific input axis.
+	/// </summary>
+	/// <remarks>
+	/// You may keep a reference to this object around, to query the same input axis on demand.
+	/// </remarks>
+	/// <param name="_name">The unique identifier name of the axis. May not be null or blank.</param>
+	/// <returns>An input axis, or <see cref="InputAxis.Invalid"/>, if no valid axis with this name was found.</returns>
+	public InputAxis GetInputAxis(string _name)
+	{
+		return !string.IsNullOrEmpty(_name) && axes.TryGetValue(_name, out InputAxis? axis)
+			? axis
+			: InputAxis.Invalid;
+	}
+
+	/// <summary>
+	/// Gets the current value of an input axis.
+	/// </summary>
+	/// <param name="_name">The unique identifier name of the axis.</param>
+	/// <returns>The current value of the axis, in the range from [-1;1]. Returns 0 if no axis with that name was found.</returns>
+	public float GetAxisValue(string _name) => GetInputAxis(_name).CurrentValue;
+
+	/// <summary>
+	/// Gets the names of all input axes that are currently registered.
+	/// </summary>
+	/// <returns>A read-only collection of axis names.</returns>
+	public IReadOnlyCollection<string> GetAllAxisNames() => axes.Keys;
 
 	#endregion
 }
