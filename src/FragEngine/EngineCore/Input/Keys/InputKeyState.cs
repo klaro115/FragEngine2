@@ -1,13 +1,18 @@
-﻿using FragEngine.EngineCore.Input.Keys;
-using Veldrid;
+﻿using Veldrid;
 
-namespace FragEngine.EngineCore.Input;
+namespace FragEngine.EngineCore.Input.Keys;
 
-public sealed class InputKeyState(Key _key)
+/// <summary>
+/// Object tracking the state of a single keyboard button.
+/// </summary>
+public sealed class InputKeyState
 {
 	#region Fields
 
-	public readonly Key key = _key;
+	/// <summary>
+	/// The keyboard button whose state is represented by this instance.
+	/// </summary>
+	public readonly Key key;
 
 	#endregion
 	#region Properties
@@ -23,9 +28,32 @@ public sealed class InputKeyState(Key _key)
 	/// <summary>
 	/// Gets the type of change that happened since last frame.
 	/// </summary>
-	public InputKeyEventType EventType { get; private set; } = InputKeyEventType.None;
+	public InputKeyEventType EventType { get; private set; } = InputKeyEventType.Unchanged;
 
 	internal uint VersionIdx { get; private set; } = 0u;
+
+	/// <summary>
+	/// Gets an invalid keyboard key state. Use this as a placeholder if you don't want to bother with nullables in your input logic.
+	/// </summary>
+	public static InputKeyState Invalid => new(Key.Unknown)
+	{
+		IsPressed = false,
+		WasPressed = false,
+		EventType = InputKeyEventType.Unchanged,
+		VersionIdx = uint.MaxValue,
+	};
+
+	#endregion
+	#region Constructors
+
+	/// <summary>
+	/// Creates a new state object for a specfic key.
+	/// </summary>
+	/// <param name="_key">A keyboard key.</param>
+	internal InputKeyState(Key _key)
+	{
+		key = _key;
+	}
 
 	#endregion
 	#region Methods
@@ -44,7 +72,7 @@ public sealed class InputKeyState(Key _key)
 
 		if (IsPressed == WasPressed)
 		{
-			EventType = InputKeyEventType.None;
+			EventType = InputKeyEventType.Unchanged;
 		}
 		else if (IsPressed && !WasPressed)
 		{
@@ -55,7 +83,7 @@ public sealed class InputKeyState(Key _key)
 			EventType = InputKeyEventType.Released;
 		}
 
-		return EventType != InputKeyEventType.None;
+		return EventType != InputKeyEventType.Unchanged;
 	}
 
 	#endregion

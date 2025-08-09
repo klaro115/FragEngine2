@@ -103,9 +103,22 @@ public sealed class Engine : IExtendedDisposable
 	#endregion
 	#region Constructors
 
+	/// <summary>
+	/// Creates a new engine instance.
+	/// </summary>
+	/// <param name="_appLogic">Application logic module. This is where your overarching app or game logic goes. May not be null.</param>
+	/// <param name="_serviceCollection"></param>
+	/// <exception cref="ArgumentNullException">Application logic was null.</exception>
+	/// <exception cref="Exception">Failed to initialize depencency injection.</exception>
+	/// <exception cref="ObjectDisposedException">Application logic has already been disposed.</exception>
 	public Engine(IAppLogic _appLogic, IServiceCollection? _serviceCollection = null)
 	{
 		ArgumentNullException.ThrowIfNull(_appLogic);
+
+		if (_appLogic is IExtendedDisposable appLogicDisposable && appLogicDisposable.IsDisposed)
+		{
+			throw new ObjectDisposedException(nameof(_appLogic), "Application logic has already been disposed!");
+		}
 
 		appLogic = _appLogic;
 
@@ -140,11 +153,13 @@ public sealed class Engine : IExtendedDisposable
 			Dispose();
 			throw new Exception("Failed to initialize engine's app logic!");
 		}
+
+		Logger.LogStatus("# Engine is initialized.");
 	}
 
 	~Engine()
 	{
-		Dispose(false);
+		if (!IsDisposed) Dispose(false);
 	}
 
 	private bool InitializeDependencyInjection(IServiceCollection? _serviceCollection, out IServiceProvider? _outServiceProvider)

@@ -6,9 +6,9 @@
 public enum InputKeyEventType
 {
 	/// <summary>
-	/// No change in key state.
+	/// No change in key state, no event.
 	/// </summary>
-	None,
+	Unchanged,
 	/// <summary>
 	/// The key is now pressed.
 	/// </summary>

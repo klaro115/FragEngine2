@@ -146,14 +146,43 @@ public sealed class InputService
 	#endregion
 	#region Methods Getters
 
-	public InputKeyState? GetKeyState(Key _key)
+	/// <summary>
+	/// Gets the state object of a specific keyboard button.
+	/// </summary>
+	/// <remarks>
+	/// You may keep a reference to this object around, to query the same key's state on demand.
+	/// </remarks>
+	/// <param name="_key">A keyboard key.</param>
+	/// <returns>A state object for a specfic key, or <see cref="InputKeyState.Invalid"/>, if the given key value was invalid.</returns>
+	public InputKeyState GetKeyState(Key _key)
 	{
 		int keyIndex = (int)_key;
 		InputKeyState? keyState = keyIndex >= 0 && keyIndex < maximumKeyCount
 			? keyStates[keyIndex]
-			: null;
+			: InputKeyState.Invalid;
 		return keyState;
 	}
+
+	/// <summary>
+	/// Gets whether a keyboard key is currently pressed.
+	/// </summary>
+	/// <param name="_key">A keyboard key.</param>
+	/// <returns>True if pressed down, false if up.</returns>
+	public bool GetKey(Key _key) => GetKeyState(_key).IsPressed;
+
+	/// <summary>
+	/// Gets whether a keyboard key was just pressed down.
+	/// </summary>
+	/// <param name="_key">A keyboard key.</param>
+	/// <returns>True if the key was just pressed down, false otherwise.</returns>
+	public bool GetKeyDown(Key _key) => GetKeyState(_key).EventType == InputKeyEventType.Clicked;
+
+	/// <summary>
+	/// Gets whether a keyboard key was just released.
+	/// </summary>
+	/// <param name="_key">A keyboard key.</param>
+	/// <returns>True if the key was just released, false otherwise.</returns>
+	public bool GetKeyUp(Key _key) => GetKeyState(_key).EventType == InputKeyEventType.Released;
 
 	#endregion
 }

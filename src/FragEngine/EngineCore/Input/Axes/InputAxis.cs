@@ -1,4 +1,5 @@
-﻿using Veldrid;
+﻿using System.Numerics;
+using Veldrid;
 
 namespace FragEngine.EngineCore.Input.Axes;
 
@@ -10,6 +11,9 @@ public abstract class InputAxis(string _name)
 {
 	#region Fields
 
+	/// <summary>
+	/// The name of this input axis. This serves as a unique identifier.
+	/// </summary>
 	public readonly string name = _name ?? throw new ArgumentNullException(nameof(_name));
 
 	#endregion
@@ -56,6 +60,34 @@ public abstract class InputAxis(string _name)
 	/// <param name="_snapshot">An input snapshot.</param>
 	/// <param name="_deltatime">The duration of the last frame, in seconds.</param>
 	internal abstract void Update(InputSnapshot? _snapshot, float _deltatime);
+
+	#endregion
+	#region Methods Static
+
+	/// <summary>
+	/// Gets a normalized 2D direction from 2 input axes.
+	/// </summary>
+	/// <param name="_axisX">An input axis mapping to the X-component of the direction.</param>
+	/// <param name="_axisY">An input axis mapping to the Y-component of the direction.</param>
+	/// <returns>A direction with a length of 1. The length may be 0 if current value of all axes are zero.</returns>
+	public static Vector2 GetNormalizedInputDirection(InputAxis _axisX, InputAxis _axisY)
+	{
+		Vector2 rawDirection = new(_axisX.CurrentValue, _axisY.CurrentValue);
+		return Vector2.Normalize(rawDirection);
+	}
+
+	/// <summary>
+	/// Gets a normalized 3D direction from 3 input axes.
+	/// </summary>
+	/// <param name="_axisX">An input axis mapping to the X-component of the direction.</param>
+	/// <param name="_axisY">An input axis mapping to the Y-component of the direction.</param>
+	/// <param name="_axisZ">An input axis mapping to the Z-component of the direction.</param>
+	/// <returns>A direction with a length of 1. The length may be 0 if current value of all axes are zero.</returns>
+	public static Vector3 GetNormalizedInputDirection(InputAxis _axisX, InputAxis _axisY, InputAxis _axisZ)
+	{
+		Vector3 rawDirection = new(_axisX.CurrentValue, _axisY.CurrentValue, _axisZ.CurrentValue);
+		return Vector3.Normalize(rawDirection);
+	}
 
 	#endregion
 }

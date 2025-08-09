@@ -1,6 +1,5 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore;
-using FragEngine.EngineCore.Input;
 using FragEngine.EngineCore.Input.Keys;
 using Veldrid;
 
