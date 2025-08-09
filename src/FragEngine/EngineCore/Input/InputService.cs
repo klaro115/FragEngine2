@@ -44,6 +44,8 @@ public sealed class InputService
 		logger = _logger;
 		timeService = _timeService;
 
+		logger.LogStatus("# Initializing input service.");
+
 		keyStates = new InputKeyState[maximumKeyCount];
 		for (int i = 0; i < maximumKeyCount; i++)
 		{
@@ -51,6 +53,8 @@ public sealed class InputService
 			keyStates[i] = keyState;
 			keyState.UpdateState(false, versionIdx);
 		}
+
+		logger.LogMessage("- Input service initialized.");
 	}
 
 	#endregion

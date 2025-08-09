@@ -148,7 +148,7 @@ public sealed class Engine : IExtendedDisposable
 	}
 
 	private bool InitializeDependencyInjection(IServiceCollection? _serviceCollection, out IServiceProvider? _outServiceProvider)
-	{
+	{	
 		// If no customized service collection is provided, use a basic default setup:
 		if (_serviceCollection is null && !EngineStartupHelper.CreateDefaultServiceCollection(out _serviceCollection!))
 		{
@@ -257,6 +257,10 @@ public sealed class Engine : IExtendedDisposable
 			success &= currentState!.Run(exitCancellationSource.Token);
 			IsRunning = success;
 		}
+		else
+		{
+			Logger.LogWarning("Engine startup state has exited with errors!", LogEntrySeverity.High);
+		}
 
 		// Load core content:
 		if (success)
@@ -267,35 +271,51 @@ public sealed class Engine : IExtendedDisposable
 				isLoaded = currentState!.Run(exitCancellationSource.Token);
 				success &= isLoaded;
 			}
+			if (!success || !isLoaded)
+			{
+				Logger.LogWarning("Engine loading state has exited with errors!", LogEntrySeverity.High);
+			}
 		}
 
 		// Run main application logic:
 		if (isLoaded)
 		{
-			success &= SetState(EngineStateType.Running);
-			if (success)
+			bool isRunningMain = SetState(EngineStateType.Running);
+			if (isRunningMain)
 			{
-				success &= currentState!.Run(exitCancellationSource.Token);
+				isRunningMain &= currentState!.Run(exitCancellationSource.Token);
 			}
+			success &= isRunningMain;
 		}
 
 		// Unload all content:
 		if (isLoaded)
 		{
-			success &= SetState(EngineStateType.Unloading);
-			if (success)
+			bool isUnloaded = SetState(EngineStateType.Unloading);
+			if (isUnloaded)
 			{
-				success &= currentState!.Run(exitCancellationSource.Token);
+				isUnloaded &= currentState!.Run(exitCancellationSource.Token);
 			}
+			if (!isUnloaded)
+			{
+				Logger.LogWarning("Engine unloading state has exited with errors!", LogEntrySeverity.High);
+			}
+			success &= isUnloaded;
 		}
 
 		// Run shutdown logic:
 		IsRunning = false;
-		success &= SetState(EngineStateType.Exiting);
-		if (success)
+
+		bool isExiting = SetState(EngineStateType.Exiting);
+		if (isExiting)
 		{
-			success &= currentState!.Run(CancellationToken.None);
+			isExiting &= currentState!.Run(CancellationToken.None);
 		}
+		if (!isExiting)
+		{
+			Logger.LogWarning("Engine exit state has ended with errors!", LogEntrySeverity.High);
+		}
+		success &= isExiting;
 
 		return success;
 	}
@@ -429,7 +449,7 @@ public sealed class Engine : IExtendedDisposable
 			return false;
 		}
 
-		Logger.LogMessage($"### ENGINE STATE CHANGED: {_prevState} => {State}");
+		Logger.LogStatus($"### ENGINE STATE CHANGED: {_prevState} => {State}");
 
 		// Notify the application:
 		if (!appLogic.OnEngineStateChanged(_prevState, State))

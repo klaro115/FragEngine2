@@ -75,12 +75,15 @@ public sealed class WindowService : IExtendedDisposable
 		logger = _logger;
 		platformService = _platformService;
 
+		logger.LogStatus("# Initializing window service.");
+
 		const SDLInitFlags initFlags = SDLInitFlags.Audio | SDLInitFlags.Video | SDLInitFlags.GameController;
 
 		int errorCode = 0;
 		try
 		{
 			errorCode = Sdl2Native.SDL_Init(initFlags);
+			logger.LogMessage("- SDL initialized.");
 		}
 		catch (Exception ex)
 		{
@@ -93,6 +96,11 @@ public sealed class WindowService : IExtendedDisposable
 			{
 				logger.LogError(errorMessage, LogEntrySeverity.Critical);
 			}
+		}
+
+		if (!IsDisposed)
+		{
+			logger.LogMessage("- Window service initialized.");
 		}
 	}
 

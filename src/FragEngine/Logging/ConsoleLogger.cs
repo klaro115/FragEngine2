@@ -43,6 +43,12 @@ public sealed class ConsoleLogger : ILogger, IDisposable
 		Log(formattedMessage, normalColor);
 	}
 
+	public void LogStatus(string _messageText)
+	{
+		string formattedMessage = $"[{DateTime.Now:G}] Status: {_messageText}";
+		Log(formattedMessage, ConsoleColor.Green);
+	}
+
 	public void LogWarning(string _messageText, LogEntrySeverity _severity = LogEntrySeverity.Normal)
 	{
 		string formattedMessage = $"[{DateTime.Now:G}] WARNING, {_severity}: {_messageText}";

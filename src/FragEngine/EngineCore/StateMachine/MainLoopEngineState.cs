@@ -102,6 +102,7 @@ internal abstract class MainLoopEngineState(Engine _engine, IAppLogic _appLogic)
 		bool success = true;
 
 		mainLoopIsRunning = true;
+		engine.Logger.LogMessage("Main loop is running.");
 
 		try
 		{
@@ -119,6 +120,7 @@ internal abstract class MainLoopEngineState(Engine _engine, IAppLogic _appLogic)
 		}
 
 		mainLoopIsRunning = false;
+		engine.Logger.LogMessage("Main loop has exited.");
 
 		return success;
 	}

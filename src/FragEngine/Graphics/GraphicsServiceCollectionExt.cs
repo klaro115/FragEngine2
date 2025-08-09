@@ -26,12 +26,21 @@ public static class GraphicsServiceCollectionExt
 			throw new NullReferenceException("Logger instance is missing!");
 		}
 
+		EngineConfig? engineConfig = _serviceCollection.GetImplementationInstance<EngineConfig>();
+		if (engineConfig is null)
+		{
+			logger.LogWarning("Service collection does not have an engine configuration! Adding default config now...");
+
+			engineConfig = EngineConfig.CreateDefault();
+			_serviceCollection.AddSingleton(engineConfig);
+		}
+
 		PlatformService? platformService = _serviceCollection.GetImplementationInstance<PlatformService>();
 		if (platformService is null)
 		{
 			logger.LogWarning("Service collection does not have a platform service implementation! Adding default implementation now...");
 
-			platformService = new(logger);
+			platformService = new(logger, engineConfig);
 			_serviceCollection.AddSingleton(platformService);
 		}
 

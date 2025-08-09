@@ -1,4 +1,5 @@
 ﻿using FragEngine.EngineCore.Enums;
+using FragEngine.Extensions;
 using FragEngine.Logging;
 using System.Reflection;
 using Veldrid;
@@ -13,6 +14,7 @@ public sealed class PlatformService
 	#region Fields
 
 	private readonly ILogger logger;
+	private readonly EngineConfig config;
 
 	public readonly string rootDirectoryPath = string.Empty;
 	public readonly string settingsDirectoryPath = string.Empty;
@@ -32,9 +34,12 @@ public sealed class PlatformService
 	#endregion
 	#region Constructors
 
-	public PlatformService(ILogger _logger)
+	public PlatformService(ILogger _logger, EngineConfig _config)
 	{
 		logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
+		config = _config ?? throw new ArgumentNullException(nameof(_config));
+
+		logger.LogStatus("# Initializing platform service.");
 
 		// Platform & API:
 		if (!DetermineOperatingSystem(out OperatingSystemType operatingSystem, out GraphicsBackend graphicsBackend))
@@ -44,6 +49,9 @@ public sealed class PlatformService
 		OperatingSystem = operatingSystem;
 		GraphicsBackend = graphicsBackend;
 
+		logger.LogMessage($"- Operating system: {OperatingSystem}");
+		logger.LogMessage($"- Graphics API: {GraphicsBackend}");
+
 		// Application paths:
 		rootDirectoryPath = GetRootDirectoryPath();
 		settingsDirectoryPath = Path.Combine(rootDirectoryPath, "settings" + Path.DirectorySeparatorChar);
@@ -52,18 +60,23 @@ public sealed class PlatformService
 		{
 			throw new Exception("Failed to prepare root directories!");
 		}
+
+		string truncatedDirectoryPath = rootDirectoryPath.TruncateWithEllipsis(64, "...", StringExt.TruncationType.Start);
+		logger.LogMessage($"- Root directory: {truncatedDirectoryPath}");
 	}
 
 	#endregion
 	#region Methods
 
-	private static bool DetermineOperatingSystem(out OperatingSystemType _outOperatingSystem, out GraphicsBackend _outGraphicsBackend)
+	private bool DetermineOperatingSystem(out OperatingSystemType _outOperatingSystem, out GraphicsBackend _outGraphicsBackend)
 	{
 		// DESKTOP PLATFORMS:
 		if (System.OperatingSystem.IsWindows())
 		{
 			_outOperatingSystem = OperatingSystemType.Window;
-			_outGraphicsBackend = GraphicsBackend.Direct3D11;   //TODO: Use Vulkan instead if non-native API flag is set in launch settings.
+			_outGraphicsBackend = config.Graphics.PreferNativeGraphicsAPI
+				? GraphicsBackend.Direct3D11
+				: GraphicsBackend.Vulkan;
 		}
 		else if (System.OperatingSystem.IsLinux())
 		{

@@ -22,6 +22,12 @@ public interface ILogger
 	void LogMessage(string _messageText);
 
 	/// <summary>
+	/// Logs a major status update.
+	/// </summary>
+	/// <param name="_messageText">The content of the message.</param>
+	void LogStatus(string _messageText);
+
+	/// <summary>
 	/// Logs a warning message.
 	/// </summary>
 	/// <param name="_messageText">The content of the error message.</param>

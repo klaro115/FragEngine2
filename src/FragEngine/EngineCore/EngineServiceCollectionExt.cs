@@ -18,40 +18,45 @@ public static class EngineServiceCollectionExt
 	#endregion
 	#region Methods
 
-	public static IServiceCollection UseEngine(this IServiceCollection _serviceCollection)
+	/// <summary>
+	/// Adds services for basic engine operation.
+	/// </summary>
+	/// <remarks>
+	/// This will add a generic logging service of type '<see cref="ConsoleLogger"/>'.
+	/// </remarks>
+	/// <param name="_serviceCollection">This service collection.</param>
+	/// <param name="_config">The engine configuration.</param>
+	/// <returns>The updated service collection.</returns>
+	public static IServiceCollection UseEngine(this IServiceCollection _serviceCollection, EngineConfig _config)
 	{
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 
 		ConsoleLogger loggerInstance = new();
-		return UseEngine(_serviceCollection, loggerInstance);
+		return UseEngine(_serviceCollection, loggerInstance, _config);
 	}
 
-	public static IServiceCollection UseEngine(this IServiceCollection _serviceCollection, ILogger _loggerInstance)
-	{
-		ArgumentNullException.ThrowIfNull(_serviceCollection);
-		ArgumentNullException.ThrowIfNull(_loggerInstance);
-
-		PlatformService platformService = new(_loggerInstance);
-
-		_serviceCollection
-			.AddSingleton(_loggerInstance)
-			.AddSingleton(platformService)
-			.AddSingleton<TimeService>()
-			.AddSingleton<InputService>()
-			.AddSingleton<WindowService>();
-
-		return _serviceCollection;
-	}
-
+	/// <summary>
+	/// Adds services for basic engine operation.
+	/// </summary>
+	/// <param name="_serviceCollection">This service collection.</param>
+	/// <param name="_loggerInstance">A custom logging service instance.</param>
+	/// <param name="_config">The engine configuration.</param>
+	/// <returns>The updated service collection.</returns>
 	public static IServiceCollection UseEngine(this IServiceCollection _serviceCollection, ILogger _loggerInstance, EngineConfig _config)
 	{
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 		ArgumentNullException.ThrowIfNull(_loggerInstance);
 		ArgumentNullException.ThrowIfNull(_config);
 
+		PlatformService platformService = new(_loggerInstance, _config);
+
 		_serviceCollection
-			.UseEngine(_loggerInstance)
-			.AddSingleton(_config);
+			.AddSingleton(_config)
+			.AddSingleton(_loggerInstance)
+			.AddSingleton(platformService)
+			.AddSingleton<TimeService>()
+			.AddSingleton<InputService>()
+			.AddSingleton<WindowService>();
 
 		return _serviceCollection;
 	}
