@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using System.Text.Json;
 using Veldrid;
+using Veldrid.Sdl2;
 
 namespace FragEngine.Graphics;
 
@@ -69,6 +70,10 @@ public abstract class GraphicsService(
 	/// </summary>
 	public WindowHandle? MainWindow { get; protected set; } = null;
 	/// <summary>
+	/// Gets the graphics device's main swapchain. If null, there may not be a main swapchain or main window.
+	/// </summary>
+	public Swapchain? MainSwapchain { get; protected set; } = null;
+	/// <summary>
 	/// Gets the graphics device's main resource factory.
 	/// </summary>
 	public ResourceFactory ResourceFactory { get; protected set; } = null!;
@@ -102,9 +107,9 @@ public abstract class GraphicsService(
 	/// <summary>
 	/// Initializes the graphics device, and optionally creates a swapchain and main window.
 	/// </summary>
-	/// <param name="_createMainWindow">Whether to create the main window and swapchain immediately.</param>
+	/// <param name="_initFlags">Bit flags indicating which features should be initialized immediately.</param>
 	/// <returns>True on success, false otherwise.</returns>
-	internal abstract bool Initialize(bool _createMainWindow);
+	internal abstract bool Initialize(GraphicsServiceInitFlags _initFlags);
 
 	/// <summary>
 	/// Shuts down the graphics device and releases core resources.
@@ -250,6 +255,8 @@ public abstract class GraphicsService(
 		_outWindowPosition = screenPosition + screenResolution / 2 - _outWindowSize / 2;
 		return true;
 	}
+
+	internal abstract bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain);
 
 	#endregion
 }

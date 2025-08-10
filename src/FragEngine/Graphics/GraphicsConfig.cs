@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using FragEngine.Interfaces;
+using System.Numerics;
 
 namespace FragEngine.Graphics;
 
@@ -6,7 +7,7 @@ namespace FragEngine.Graphics;
 /// Graphics settings that are read once at launch time.
 /// </summary>
 [Serializable]
-public sealed class GraphicsConfig
+public sealed class GraphicsConfig : IValidated
 {
 	#region Properties
 
@@ -52,6 +53,18 @@ public sealed class GraphicsConfig
 	/// Whether the main swapchain output should prefer sRGB formats.
 	/// </summary>
 	public bool OutputIsSRgb { get; init; } = true;
+
+	#endregion
+	#region Methods
+
+	public bool IsValid()
+	{
+		if (FallbackOutputResolution.X < 8 || FallbackOutputResolution.Y < 8)
+		{
+			return false;
+		}
+		return true;
+	}
 
 	#endregion
 }

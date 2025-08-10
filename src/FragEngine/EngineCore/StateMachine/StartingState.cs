@@ -1,4 +1,5 @@
 ﻿using FragEngine.Application;
+using FragEngine.Graphics;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -50,8 +51,9 @@ internal sealed class StartingState(Engine _engine, IAppLogic _appLogic) : Engin
 		}
 
 		EngineConfig config = engine.Provider.GetRequiredService<EngineConfig>();
+		GraphicsServiceInitFlags graphicsInitFlags = config.GetGraphicsInitFlags();
 
-		if (!engine.Graphics.Initialize(config.CreateMainWindowImmediately))
+		if (!engine.Graphics.Initialize(graphicsInitFlags))
 		{
 			engine.Logger.LogError("Failed to initialize graphics system!");
 			return false;

@@ -180,6 +180,12 @@ public sealed class Engine : IExtendedDisposable
 		{
 			config = _serviceCollection.GetImplementationInstance<EngineConfig>()!;
 		}
+		if (!config.IsValid())
+		{
+			Console.WriteLine("Cannot initialize dependency injection using invalid engine config!!");
+			_outServiceProvider = null;
+			return false;
+		}
 
 		// If requested, add application logic as a service; remove it otherwise:
 		if (config.AddAppLogicToServiceProvider && !_serviceCollection.HasService<IAppLogic>())

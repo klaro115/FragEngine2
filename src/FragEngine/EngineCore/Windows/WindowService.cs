@@ -1,6 +1,8 @@
-﻿using FragEngine.Helpers;
+﻿using FragEngine.Graphics;
+using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using System.Numerics;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -31,6 +33,7 @@ public sealed class WindowService : IExtendedDisposable
 	#region Fields
 
 	internal readonly ILogger logger;
+	private readonly IServiceProvider serviceProvider;
 	private readonly PlatformService platformService;
 
 	private readonly List<WindowHandle> windows = new(1);
@@ -70,9 +73,10 @@ public sealed class WindowService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public WindowService(ILogger _logger, PlatformService _platformService)
+	public WindowService(ILogger _logger, IServiceProvider _serviceProvider, PlatformService _platformService)
 	{
 		logger = _logger;
+		serviceProvider = _serviceProvider;
 		platformService = _platformService;
 
 		logger.LogStatus("# Initializing window service.");
@@ -195,6 +199,25 @@ public sealed class WindowService : IExtendedDisposable
 		windows.Clear();
 
 		windowSemaphore.Release();
+	}
+
+	/// <summary>
+	/// Gets a list of all windows that are currently open.
+	/// </summary>
+	/// <returns>An array of window handles.</returns>
+	public WindowHandle[] GetAllWindows()
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot get all window from window service that has already been disposed!");
+			return [];
+		}
+
+		windowSemaphore.Wait();
+		WindowHandle[] openWindows = windows.Where(o => o.IsOpen).ToArray();
+		windowSemaphore.Release();
+
+		return openWindows;
 	}
 
 	/// <summary>
@@ -346,7 +369,8 @@ public sealed class WindowService : IExtendedDisposable
 		Sdl2Window window;
 		try
 		{
-			window = new(_title, (int)_position.X, (int)_position.Y, (int)_resolution.X, (int)_resolution.Y, flags, true);
+			window = new(_title, (int)_position.X, (int)_position.Y, (int)_resolution.X, (int)_resolution.Y, flags, false);
+			_ = window.PumpEvents();
 		}
 		catch (Exception ex)
 		{
@@ -355,8 +379,18 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
+		// Create swapchain:
+		GraphicsService graphics = serviceProvider.GetRequiredService<GraphicsService>();
+		if (!graphics.CreateSwapchain(window, out Swapchain? swapchain))
+		{
+			logger.LogError($"Failed to create window! (Title: '{_title}')");
+			window.Close();
+			_outHandle = null;
+			return false;
+		}
+
 		// Register window:
-		bool wasAdded = AddWindow(window, out _outHandle);
+		bool wasAdded = AddWindow(window, swapchain!, out _outHandle);
 		if (!wasAdded)
 		{
 			window.Close();
@@ -367,7 +401,14 @@ public sealed class WindowService : IExtendedDisposable
 		return true;
 	}
 
-	public bool AddWindow(Sdl2Window _newWindow, out WindowHandle? _outHandle)
+	/// <summary>
+	/// Registers a new window for management by this service.
+	/// </summary>
+	/// <param name="_newWindow">An SDL2 window that should be managed by this service.</param>
+	/// <param name="_swapchain">The window's associated swapchain, through which content is presented.</param>
+	/// <param name="_outHandle">Outputs a handle to the window, or null on failure.</param>
+	/// <returns>True if the window was successfully registered, false otherwise.</returns>
+	public bool AddWindow(Sdl2Window _newWindow, Swapchain _swapchain, out WindowHandle? _outHandle)
 	{
 		if (_newWindow is null || !_newWindow.Exists)
 		{
@@ -375,9 +416,15 @@ public sealed class WindowService : IExtendedDisposable
 			_outHandle = null;
 			return false;
 		}
+		if (_swapchain is null || _swapchain.IsDisposed)
+		{
+			logger.LogError("Cannot register window with null or disposed swapchain!");
+			_outHandle = null;
+			return false;
+		}
 
 		int windowId = windowIdCounter++;
-		_outHandle = new(this, logger, _newWindow, windowId);
+		_outHandle = new(this, logger, _newWindow, _swapchain, windowId);
 
 		windowSemaphore.Wait();
 		windows.Add(_outHandle);
@@ -387,6 +434,11 @@ public sealed class WindowService : IExtendedDisposable
 		return true;
 	}
 
+	/// <summary>
+	/// Unregisters an existing window from this service's management. This is called automatically when a window is closed.
+	/// </summary>
+	/// <param name="_handle">A window handle.</param>
+	/// <returns>True if the window exists and was unregistered, false otherwise.</returns>
 	internal bool RemoveWindow(WindowHandle _handle)
 	{
 		if (IsDisposed)

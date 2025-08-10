@@ -2,9 +2,11 @@
 using FragEngine.EngineCore.Windows;
 using FragEngine.Logging;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
+using Vortice.DXGI;
 
 namespace FragEngine.Graphics.Dx11;
 
@@ -21,7 +23,7 @@ internal sealed class Dx11GraphicsService(
 {
 	#region Methods
 
-	internal override bool Initialize(bool _createMainWindow)
+	internal override bool Initialize(GraphicsServiceInitFlags _initFlags)
 	{
 		if (IsDisposed)
 		{
@@ -34,7 +36,7 @@ internal sealed class Dx11GraphicsService(
 			return true;
 		}
 
-		if (!CreateGraphicsDevice(_createMainWindow))
+		if (!CreateGraphicsDevice(_initFlags))
 		{
 			return false;
 		}
@@ -62,8 +64,14 @@ internal sealed class Dx11GraphicsService(
 		throw new NotImplementedException();
 	}
 
-	private bool CreateGraphicsDevice(bool _createMainWindow)
+	private bool CreateGraphicsDevice(GraphicsServiceInitFlags _initFlags)
 	{
+		if (!_initFlags.HasFlag(GraphicsServiceInitFlags.CreateDevice))
+		{
+			logger.LogError($"Initialization flags did not have graphics device flag! (Flags: '{_initFlags}')");
+			return false;
+		}
+
 		GraphicsDeviceOptions deviceOptions = new(
 			config.CreateDebug,
 			PixelFormat.D24_UNorm_S8_UInt,
@@ -73,8 +81,8 @@ internal sealed class Dx11GraphicsService(
 			true,
 			config.OutputIsSRgb);
 
-		// Create with window:
-		if (_createMainWindow)
+		// Create with window and swapchain:
+		if (_initFlags.HasFlag(GraphicsServiceInitFlags.CreateMainWindowAndSwapchain))
 		{
 			if (!GetWindowSettings(out string windowTitle, out Vector2 windowPosition, out Vector2 windowSize))
 			{
@@ -99,7 +107,10 @@ internal sealed class Dx11GraphicsService(
 					out GraphicsDevice device);
 
 				Device = device;
-				if (windowService.AddWindow(window, out WindowHandle? windowHandle))
+				MainSwapchain = device.MainSwapchain;
+				ResourceFactory = device.ResourceFactory;
+
+				if (windowService.AddWindow(window, MainSwapchain, out WindowHandle? windowHandle))
 				{
 					MainWindow = windowHandle;
 				}
@@ -116,6 +127,9 @@ internal sealed class Dx11GraphicsService(
 		try
 		{
 			Device = GraphicsDevice.CreateD3D11(deviceOptions);
+			ResourceFactory = Device.ResourceFactory;
+			MainSwapchain = null;
+
 			return true;
 		}
 		catch (Exception ex)
@@ -129,6 +143,38 @@ internal sealed class Dx11GraphicsService(
 	{
 		//TODO
 		return true;
+	}
+
+	internal override bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain)
+	{
+		if (_window is null || !_window.Exists)
+		{
+			logger.LogError("Cannot create swapchain for null or closed SDL2 window!");
+			_outSwapchain = null;
+			return false;
+		}
+
+		IntPtr hInstance = Marshal.GetHINSTANCE(typeof(Dx11GraphicsService).Module);
+		SwapchainSource source = SwapchainSource.CreateWin32(_window.Handle, hInstance);
+
+		SwapchainDescription swapchainDesc = new(
+			source,
+			(uint)_window.Width,
+			(uint)_window.Height,
+			PixelFormat.D24_UNorm_S8_UInt,
+			config.VSync);
+
+		try
+		{
+			_outSwapchain = ResourceFactory.CreateSwapchain(ref swapchainDesc);
+			return true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogException("Failed to create swapchain for SDL2 window!", ex);
+			_outSwapchain = null;
+			return false;
+		}
 	}
 
 	#endregion

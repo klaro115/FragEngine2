@@ -1,6 +1,7 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore;
 using FragEngine.EngineCore.Input.Keys;
+using FragEngine.EngineCore.Windows;
 using Veldrid;
 
 namespace Sandbox.Application;
@@ -13,6 +14,9 @@ internal sealed class TestAppLogic : IAppLogic
 	#region Fields
 
 	private Engine engine = null!;
+
+	private InputKeyState escapeKeyState = InputKeyState.Invalid;
+	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
 
 	#endregion
 	#region Methods
@@ -29,13 +33,19 @@ internal sealed class TestAppLogic : IAppLogic
 
 	// ENGINE STATEMACHINE:
 
-	public bool OnEngineStateChanged(EngineStateType _previousState, EngineStateType _currentState)
+	public bool OnEngineStateChanging(EngineStateType _currentState, EngineStateType _targetState)
 	{
 		return true;
 	}
 
-	public bool OnEngineStateChanging(EngineStateType _currentState, EngineStateType _targetState)
+	public bool OnEngineStateChanged(EngineStateType _previousState, EngineStateType _currentState)
 	{
+		if (_currentState == EngineStateType.Running)
+		{
+			escapeKeyState = engine.InputService.GetKeyState(Key.Escape);
+			fullscreenKeyState = engine.InputService.GetKeyState(Key.Tab);
+		}
+
 		return true;
 	}
 
@@ -62,10 +72,13 @@ internal sealed class TestAppLogic : IAppLogic
 
 	public bool UpdateRunningState_Input()
 	{
-		InputKeyState escapeState = engine.InputService.GetKeyState(Key.Escape)!;
-		if (escapeState.EventType == InputKeyEventType.Released)
+		if (escapeKeyState.EventType == InputKeyEventType.Released)
 		{
 			engine.RequestExit();
+		}
+		if (fullscreenKeyState.EventType == InputKeyEventType.Released && engine.Graphics.MainWindow is not null)
+		{
+			engine.Graphics.MainWindow.FillScreen(true);
 		}
 
 		return true;

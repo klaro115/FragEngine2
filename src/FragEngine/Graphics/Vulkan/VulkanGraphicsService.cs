@@ -1,6 +1,8 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Logging;
+using Veldrid;
+using Veldrid.Sdl2;
 
 namespace FragEngine.Graphics.Dx11;
 
@@ -17,7 +19,7 @@ internal sealed class VulkanGraphicsService(
 {
 	#region Methods
 
-	internal override bool Initialize(bool _createMainWindow)
+	internal override bool Initialize(GraphicsServiceInitFlags _initFlags)
 	{
 		throw new NotImplementedException();
 	}
@@ -33,6 +35,11 @@ internal sealed class VulkanGraphicsService(
 	}
 
 	protected override bool HandleSetGraphicsSettings()
+	{
+		throw new NotImplementedException();
+	}
+
+	internal override bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain)
 	{
 		throw new NotImplementedException();
 	}

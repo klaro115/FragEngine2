@@ -1,5 +1,6 @@
 ﻿using FragEngine.Graphics;
 using FragEngine.Application;
+using FragEngine.Interfaces;
 
 namespace FragEngine.EngineCore;
 
@@ -8,7 +9,7 @@ namespace FragEngine.EngineCore;
 /// These are settings and configuration options that require a full app restart to take effect.
 /// </summary>
 [Serializable]
-public sealed class EngineConfig
+public sealed class EngineConfig : IValidated
 {
 	#region Properties
 
@@ -41,11 +42,36 @@ public sealed class EngineConfig
 		{
 			Graphics = new()
 			{
-				PreferNativeGraphicsAPI = true
+				PreferNativeGraphicsAPI = true,
 			},
 			CreateMainWindowImmediately = true,
 		};
 		return config;
+	}
+
+	public bool IsValid()
+	{
+		if (Graphics is null || !Graphics.IsValid())
+		{
+			return false;
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// Gets feature flags for the initialization of <see cref="GraphicsService"/>.
+	/// </summary>
+	/// <returns></returns>
+	public GraphicsServiceInitFlags GetGraphicsInitFlags()
+	{
+		GraphicsServiceInitFlags initFlags = GraphicsServiceInitFlags.CreateDevice;
+
+		if (CreateMainWindowImmediately)
+		{
+			initFlags |= GraphicsServiceInitFlags.CreateMainWindowAndSwapchain;
+		}
+
+		return initFlags;
 	}
 
 	#endregion
