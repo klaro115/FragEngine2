@@ -1,4 +1,5 @@
 ﻿using FragEngine.Application;
+using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Input;
 using FragEngine.EngineCore.StateMachine;
 using FragEngine.EngineCore.Time;
@@ -171,8 +172,20 @@ public sealed class Engine : IExtendedDisposable
 			return false;
 		}
 
+		// Ensure that a logging service is registered; if an implementation instance exists, use that for error logging:
+		ILogger? diLogger;
+		if (!_serviceCollection.HasService<ILogger>())
+		{
+			diLogger = new ConsoleLogger();
+			_serviceCollection.AddSingleton(diLogger);
+		}
+		else if ((diLogger = _serviceCollection.GetImplementationInstance<ILogger>()) is null)
+		{
+			diLogger = new ConsoleLogger();
+		}
+
 		// Load or create the main engine config, and register it as a singleton:
-		if (!_serviceCollection.HasService<EngineConfig>() && EngineStartupHelper.LoadEngineConfig(out EngineConfig config))
+		if (!_serviceCollection.HasService<EngineConfig>() && EngineStartupHelper.LoadEngineConfig(diLogger, out EngineConfig config))
 		{
 			_serviceCollection.AddSingleton(config);
 		}
@@ -182,13 +195,13 @@ public sealed class Engine : IExtendedDisposable
 		}
 		if (!config.IsValid())
 		{
-			Console.WriteLine("Cannot initialize dependency injection using invalid engine config!!");
+			diLogger.LogError("Cannot initialize dependency injection using invalid engine config!", LogEntrySeverity.Critical);
 			_outServiceProvider = null;
 			return false;
 		}
 
 		// If requested, add application logic as a service; remove it otherwise:
-		if (config.AddAppLogicToServiceProvider && !_serviceCollection.HasService<IAppLogic>())
+		if (config.Startup.AddAppLogicToServiceProvider && !_serviceCollection.HasService<IAppLogic>())
 		{
 			_serviceCollection.AddSingleton(appLogic);
 		}
@@ -409,6 +422,13 @@ public sealed class Engine : IExtendedDisposable
 		EngineStateType prevState = State;
 		State = _newState;
 		engineStateSemaphore.Release();
+
+		// If requested, trigger GC before entering the new state:
+		EngineConfig config = Provider.GetRequiredService<EngineConfig>();
+		if (config.Optimizations.GarbageCollectIfStateChanged)
+		{
+			GC.Collect();
+		}
 
 		// Initialize new state:
 		if (!StartNewState(prevState))

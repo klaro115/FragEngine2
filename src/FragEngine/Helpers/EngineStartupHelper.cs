@@ -1,5 +1,6 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore;
+using FragEngine.EngineCore.Config;
 using FragEngine.Graphics;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
@@ -25,20 +26,41 @@ public static class EngineStartupHelper
 	/// <summary>
 	/// Creates a new engine instance using default services and settings.
 	/// </summary>
+	/// <param name="_appLogic">An application logic instance that will control the engine.</param>
 	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
 	/// <returns>True if the engine was created successfully, false otherwise.</returns>
 	public static bool CreateDefaultEngine(IAppLogic _appLogic, out Engine? _outEngine)
 	{
-		if (_appLogic is null || (_appLogic is IExtendedDisposable disposable && disposable.IsDisposed))
+		ConsoleLogger logger = new();
+		return CreateDefaultEngine(_appLogic, logger, out _outEngine);
+	}
+
+	/// <summary>
+	/// Creates a new engine instance using default services and settings.
+	/// </summary>
+	/// <param name="_appLogic">An application logic instance that will control the engine.</param>
+	/// <param name="_loggerInstance">A logger that shall be added to the engine as its primary logging service singleton.</param>
+	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
+	/// <returns>True if the engine was created successfully, false otherwise.</returns>
+	public static bool CreateDefaultEngine(IAppLogic _appLogic, ILogger _loggerInstance, out Engine? _outEngine)
+	{
+		if (_loggerInstance is null || _loggerInstance.IsDisposed)
 		{
-			Console.WriteLine("Cannot create default engine using null or disposed app logic!");
+			Console.WriteLine("Cannot create default engine using null or disposed logging service!");
 			_outEngine = null;
 			return false;
 		}
 
-		if (!CreateDefaultServiceCollection(out IServiceCollection? services))
+		if (_appLogic is null || (_appLogic is IExtendedDisposable disposable && disposable.IsDisposed))
 		{
-			Console.WriteLine("Failed to create service collection during default engine creation!");
+			_loggerInstance.LogError("Cannot create default engine using null or disposed app logic!");
+			_outEngine = null;
+			return false;
+		}
+
+		if (!CreateDefaultServiceCollection(_loggerInstance, out IServiceCollection? services))
+		{
+			_loggerInstance.LogError("Failed to create service collection during default engine creation!", LogEntrySeverity.Critical);
 			_outEngine = null;
 			return false;
 		}
@@ -50,7 +72,7 @@ public static class EngineStartupHelper
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Failed to complete default engine creation!\nException: {ex}'");
+			_loggerInstance.LogException($"Failed to complete default engine creation!", ex, LogEntrySeverity.Fatal);
 			_outEngine = null;
 			return false;
 		}
@@ -106,7 +128,7 @@ public static class EngineStartupHelper
 		}
 
 		// Load engine config file from file:
-		if (!LoadEngineConfig(out EngineConfig config))
+		if (!LoadEngineConfig(_loggerInstance, out EngineConfig config))
 		{
 			_loggerInstance.LogWarning("Failed to load engine config from file, using default config instead.");
 		}
@@ -131,16 +153,19 @@ public static class EngineStartupHelper
 	/// <summary>
 	/// Try to load and parse the engine's config from a JSON file.
 	/// </summary>
+	/// <param name="_loggerInstance">An instance of the logging service implementation. If null, a default logger is used instead.</param>
 	/// <param name="_outConfig">Outputs the loaded config. If not found or on error, the default config is returned instead.</param>
 	/// <returns>True if the config was loaded from file, false otherwise.</returns>
-	public static bool LoadEngineConfig(out EngineConfig _outConfig)
+	public static bool LoadEngineConfig(ILogger? _loggerInstance, out EngineConfig _outConfig)
 	{
+		_loggerInstance ??= new ConsoleLogger();
+
 		string rootDirPath = PlatformService.GetRootDirectoryPath();
 		string configFilePath = Path.Combine(rootDirPath, "engineconfig.json");
 
 		if (!File.Exists(configFilePath))
 		{
-			Console.WriteLine($"Engine config JSON file could not be found. (File path: '{configFilePath}')");
+			_loggerInstance.LogError($"Engine config JSON file could not be found. (File path: '{configFilePath}')");
 			_outConfig = EngineConfig.CreateDefault();
 			return false;
 		}
@@ -153,20 +178,19 @@ public static class EngineStartupHelper
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Failed to load engine config JSON from file!\nFile path: '{configFilePath}'\nException: {ex}'");
+			_loggerInstance.LogException($"Failed to load engine config JSON from file! (File path: '{configFilePath}')", ex, LogEntrySeverity.Normal);
 			_outConfig = EngineConfig.CreateDefault();
 			return false;
 		}
 
 		if (config is null)
 		{
-			Console.WriteLine($"Engine config JSON was empty, using default values.");
+			_loggerInstance.LogWarning($"Engine config JSON was empty, using default values.");
 			config ??= EngineConfig.CreateDefault();
 		}
 
 		_outConfig = config;
 		return true;
-
 	}
 
 	#endregion

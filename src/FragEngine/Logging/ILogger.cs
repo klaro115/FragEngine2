@@ -16,6 +16,14 @@ public interface ILogger
 	#region Methods
 
 	/// <summary>
+	/// Shuts the logger down safely.
+	/// </summary>
+	/// <remarks>
+	/// When this method is called, it may be a good time to format and log a final report, such as error statistics.
+	/// </remarks>
+	void Shutdown();
+
+	/// <summary>
 	/// Logs a message or status update.
 	/// </summary>
 	/// <param name="_messageText">The content of the message.</param>

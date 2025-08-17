@@ -9,4 +9,5 @@ public enum LogEntrySeverity
 	Normal,
 	High,
 	Critical,
+	Fatal,
 }

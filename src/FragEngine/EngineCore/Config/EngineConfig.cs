@@ -1,8 +1,7 @@
 ﻿using FragEngine.Graphics;
-using FragEngine.Application;
 using FragEngine.Interfaces;
 
-namespace FragEngine.EngineCore;
+namespace FragEngine.EngineCore.Config;
 
 /// <summary>
 /// Engine settings that are read once at launch time.
@@ -13,21 +12,17 @@ public sealed class EngineConfig : IValidated
 {
 	#region Properties
 
+	public required EngineStartupConfig Startup { get; init; } = new() { CreateMainWindowImmediately = true };
+
 	/// <summary>
 	/// The graphics configuration.
 	/// </summary>
 	public required GraphicsConfig Graphics { get; init; } = new() { PreferNativeGraphicsAPI = true };
 
 	/// <summary>
-	/// Whether to create the main window and graphics device immediately on startup. Should be true in most cases.
+	/// Optimization and performance configuration.
 	/// </summary>
-	public required bool CreateMainWindowImmediately { get; init; } = true;
-
-	/// <summary>
-	/// Whether the engine's <see cref="IAppLogic"/> instance should be registered as a service that can be accessed using
-	/// dependency injection. By default, this should be false, and app logic should operate in a strictly top-down manner.
-	/// </summary>
-	public bool AddAppLogicToServiceProvider { get; init; } = false;
+	public required OptimizationsConfig Optimizations { get; init; } = new();
 
 	#endregion
 	#region Methods
@@ -40,17 +35,25 @@ public sealed class EngineConfig : IValidated
 	{
 		EngineConfig config = new()
 		{
+			Startup = new()
+			{
+				CreateMainWindowImmediately = true,
+			},
 			Graphics = new()
 			{
 				PreferNativeGraphicsAPI = true,
 			},
-			CreateMainWindowImmediately = true,
+			Optimizations = new(),
 		};
 		return config;
 	}
 
 	public bool IsValid()
 	{
+		if (Startup is null || Optimizations is null)
+		{
+			return false;
+		}
 		if (Graphics is null || !Graphics.IsValid())
 		{
 			return false;
@@ -66,7 +69,7 @@ public sealed class EngineConfig : IValidated
 	{
 		GraphicsServiceInitFlags initFlags = GraphicsServiceInitFlags.CreateDevice;
 
-		if (CreateMainWindowImmediately)
+		if (Startup.CreateMainWindowImmediately)
 		{
 			initFlags |= GraphicsServiceInitFlags.CreateMainWindowAndSwapchain;
 		}

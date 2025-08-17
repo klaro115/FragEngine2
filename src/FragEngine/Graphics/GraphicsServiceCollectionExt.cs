@@ -1,4 +1,5 @@
 ﻿using FragEngine.EngineCore;
+using FragEngine.EngineCore.Config;
 using FragEngine.Extensions;
 using FragEngine.Graphics.Dx11;
 using FragEngine.Logging;

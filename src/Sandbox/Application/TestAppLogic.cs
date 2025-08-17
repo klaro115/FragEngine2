@@ -1,7 +1,6 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore;
 using FragEngine.EngineCore.Input.Keys;
-using FragEngine.EngineCore.Windows;
 using Veldrid;
 
 namespace Sandbox.Application;
