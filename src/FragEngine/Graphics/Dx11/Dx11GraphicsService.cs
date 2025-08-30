@@ -207,6 +207,7 @@ internal sealed class Dx11GraphicsService(
 		if (MainSwapchain is not null)
 		{
 			Device.SwapBuffers();
+			OnMainSwapchainSwapped();
 		}
 		return true;
 	}

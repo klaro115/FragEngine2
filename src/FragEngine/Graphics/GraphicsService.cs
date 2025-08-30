@@ -5,6 +5,7 @@ using FragEngine.Interfaces;
 using FragEngine.Logging;
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -34,6 +35,11 @@ public abstract class GraphicsService(
 	/// Event that is triggered whenever the graphics settings have changed.
 	/// </summary>
 	public event FuncGraphicsSettingsChanged? GraphicsSettingsChanged;
+
+	/// <summary>
+	/// Event that is triggered immediately after the buffers of the <see cref="MainSwapchain"/> are swapped.
+	/// </summary>
+	public event FuncMainSwapchainSwapped? MainSwapchainSwapped;
 
 	#endregion
 	#region Fields
@@ -307,6 +313,18 @@ public abstract class GraphicsService(
 		committedCommandLists.Clear();
 		commandListLock.ExitWriteLock();
 		return true;
+	}
+
+	/// <summary>
+	/// Triggers the '<see cref="MainSwapchainSwapped"/>' event.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	protected void OnMainSwapchainSwapped()
+	{
+		if (MainWindow is not null && MainWindow.IsOpen)
+		{
+			MainSwapchainSwapped?.Invoke(MainWindow);
+		}
 	}
 
 	#endregion
