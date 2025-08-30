@@ -46,7 +46,16 @@ public abstract class GraphicsService(
 	private bool isInitialized = false;
 
 	private GraphicsSettings? settings = null;
-	protected ConcurrentQueue<CommandList> committedCommandLists = new();
+
+	protected ConcurrentQueue<(CommandList CmdList, int Priority)> committedCommandLists = new();
+	protected PriorityQueue<CommandList, int> commandListExecutionQueue = new();
+	protected readonly ReaderWriterLockSlim commandListLock = new(LockRecursionPolicy.NoRecursion);   // Warning; Read/write is reversed here! Read=commit, Write=execution
+
+	#endregion
+	#region Constants
+
+	private const int commandListLockCommitTimeoutMs = 500;
+	private const int commandListLockExecutionTimeoutMs = 1000;
 
 	#endregion
 	#region Properties
@@ -61,6 +70,11 @@ public abstract class GraphicsService(
 		get => !IsDisposed && isInitialized;
 		protected set => isInitialized = !IsDisposed && value;
 	}
+
+	/// <summary>
+	/// Gets whether the graphics system is currently processing and executing draw calls. Don't commit any new command list while this is true.
+	/// </summary>
+	public bool IsExecuting => commandListLock.IsWriteLockHeld;
 
 	/// <summary>
 	/// Gets the main graphics device.
@@ -103,6 +117,8 @@ public abstract class GraphicsService(
 
 		MainWindow?.Dispose();
 		Device?.Dispose();
+
+		commandListLock?.Dispose();
 	}
 
 	/// <summary>
@@ -129,8 +145,10 @@ public abstract class GraphicsService(
 	/// The command list will be added to a queue, and executed during the main loop's draw stage.
 	/// </summary>
 	/// <param name="_cmdList">A command list. Ownership of this instance remains with the caller.</param>
+	/// <param name="_priority">A custom priority rating; command lists with a lower value are executed first,
+	/// lists with the same priority are executed in order of committment.</param>
 	/// <returns>True if the command list was enqueued for execution during the upcoming frame, false otherwise.</returns>
-	public bool CommitCommandList(CommandList _cmdList)
+	public bool CommitCommandList(CommandList _cmdList, int _priority = 100)
 	{
 		if (!IsInitialized)
 		{
@@ -143,7 +161,15 @@ public abstract class GraphicsService(
 			return false;
 		}
 
-		committedCommandLists.Enqueue(_cmdList);
+		// Acquire a read lock, aka spin-wait until write lock (execution) is released. Abort on timeout:
+		if (!commandListLock.TryEnterReadLock(commandListLockCommitTimeoutMs))
+		{
+			logger.LogError("Cannot commit command list; timeout due to ongoing command list execution lock!");
+			return false;
+		}
+
+		committedCommandLists.Enqueue((CmdList: _cmdList, Priority: _priority));
+		commandListLock.ExitReadLock();
 		return true;
 	}
 
@@ -258,6 +284,30 @@ public abstract class GraphicsService(
 	}
 
 	internal abstract bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain);
+
+	/// <summary>
+	/// Moves all committed command lists to execution queue, and sorts them by priority.
+	/// </summary>
+	/// <returns>True if command lists were prepared for execution, false otherwise.</returns>
+	protected bool PrepareCommandListExecution()
+	{
+		if (!commandListLock.TryEnterWriteLock(commandListLockExecutionTimeoutMs))
+		{
+			logger.LogError("Cannot prepare command list execution; timeout due to ongoing commit locks!");
+			return false;
+		}
+
+		commandListExecutionQueue.Clear();
+
+		while (committedCommandLists.TryDequeue(out var commit))
+		{
+			commandListExecutionQueue.Enqueue(commit.CmdList, commit.Priority);
+		}
+
+		committedCommandLists.Clear();
+		commandListLock.ExitWriteLock();
+		return true;
+	}
 
 	#endregion
 }

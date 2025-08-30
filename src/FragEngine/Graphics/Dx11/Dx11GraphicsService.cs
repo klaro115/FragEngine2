@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
-using Vortice.DXGI;
 
 namespace FragEngine.Graphics.Dx11;
 
@@ -58,11 +57,6 @@ internal sealed class Dx11GraphicsService(
 
 		IsInitialized = false;
 		return true;
-	}
-
-	internal override bool Draw()
-	{
-		throw new NotImplementedException();
 	}
 
 	private bool CreateGraphicsDevice(GraphicsServiceInitFlags _initFlags)
@@ -176,6 +170,45 @@ internal sealed class Dx11GraphicsService(
 			_outSwapchain = null;
 			return false;
 		}
+	}
+
+	internal override bool Draw()
+	{
+		if (!IsInitialized)
+		{
+			logger.LogError("Cannot execute draw calls using uninitialized or disposed graphics service!", LogEntrySeverity.Critical);
+			return false;
+		}
+
+		if (!PrepareCommandListExecution())
+		{
+			return false;
+		}
+
+		// Submit all command lists to device:
+		try
+		{
+			while (commandListExecutionQueue.TryDequeue(out CommandList? cmdList, out _))
+			{
+				Device.SubmitCommands(cmdList);
+			}
+		}
+		catch (Exception ex)
+		{
+			logger.LogException("Failed to submit command lists to graphics device!", ex, LogEntrySeverity.High);
+			return false;
+		}
+		finally
+		{
+			commandListExecutionQueue.Clear();
+		}
+
+		// Present rendering result to screen:
+		if (MainSwapchain is not null)
+		{
+			Device.SwapBuffers();
+		}
+		return true;
 	}
 
 	#endregion

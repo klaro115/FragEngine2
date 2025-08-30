@@ -156,6 +156,12 @@ internal abstract class MainLoopEngineState(Engine _engine, IAppLogic _appLogic)
 			return false;
 		}
 
+		// Execute draw calls for this frame:
+		if (!engine.Graphics.Draw())
+		{
+			return false;
+		}
+
 		// End frame and update timings:
 		if (!engine.TimeService.EndFrame(out TimeSpan frameSleepTime))
 		{
