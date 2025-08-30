@@ -33,6 +33,9 @@ public sealed class ConsoleLogger : ILogger, IDisposable
 	#endregion
 	#region Properties
 
+	/// <summary>
+	/// Gets whether the logger is initialized. If false, the logger has already been shut down.
+	/// </summary>
 	public bool IsInitialized { get; private set; } = true;
 	public bool IsDisposed { get; private set; } = false;
 
@@ -181,10 +184,10 @@ public sealed class ConsoleLogger : ILogger, IDisposable
 		semaphore.Release();
 	}
 
-	private void CountSeverities(int[] _countersArray, LogEntrySeverity _severity)
+	private static void CountSeverities(int[] _countersArray, LogEntrySeverity _severity)
 	{
 		int counterIdx = Math.Clamp((int)_severity, (int)LogEntrySeverity.Trivial, (int)LogEntrySeverity.Fatal);
-		errorSeverityCounter[counterIdx]++;
+		_countersArray[counterIdx]++;
 	}
 
 	private void CheckIfFatalErrorOccurred(LogEntrySeverity _severity)
