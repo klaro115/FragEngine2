@@ -1,7 +1,10 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
 using FragEngine.Extensions;
+using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.Dx11;
+using FragEngine.Graphics.Metal;
+using FragEngine.Graphics.Vulkan;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -81,6 +84,9 @@ public static class GraphicsServiceCollectionExt
 
 	private static bool AddPlatformAgnosticServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
+		_serviceCollection.AddTransient<Camera>();
+		//...
+
 		//TODO [later]: Add platform-agnostic services.
 		return true;
 	}

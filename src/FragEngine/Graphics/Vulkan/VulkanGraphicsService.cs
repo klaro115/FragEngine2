@@ -5,7 +5,7 @@ using FragEngine.Logging;
 using Veldrid;
 using Veldrid.Sdl2;
 
-namespace FragEngine.Graphics.Dx11;
+namespace FragEngine.Graphics.Vulkan;
 
 /// <summary>
 /// Graphics service implementation for the Vulkan graphics API.

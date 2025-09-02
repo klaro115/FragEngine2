@@ -1,6 +1,10 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.Graphics.ConstantBuffers;
+using FragEngine.Graphics.Contexts;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Scenes;
+using System.Numerics;
+using Veldrid;
 
 namespace FragEngine.Graphics.Cameras;
 
@@ -38,6 +42,9 @@ public sealed class Camera : IExtendedDisposable
 	private bool isDrawingPass = false;
 
 	private IPoseSource currentPoseSource;
+
+	private CBCamera cbCameraData = CBCamera.Default;
+	private readonly DeviceBuffer bufCbCamera;
 
 	#endregion
 	#region Properties
@@ -98,6 +105,8 @@ public sealed class Camera : IExtendedDisposable
 	/// </summary>
 	/// <param name="_graphicsService">The graphics service singleton.</param>
 	/// <param name="_logger">The logging service singleton.</param>
+	/// <exception cref="ArgumentNullException">Graphics service or logger were null.</exception>
+	/// <exception cref="Exception">Failure to create graphics resources.</exception>
 	public Camera(GraphicsService _graphicsService, ILogger _logger)
 	{
 		ArgumentNullException.ThrowIfNull(_graphicsService);
@@ -107,6 +116,15 @@ public sealed class Camera : IExtendedDisposable
 		logger = _logger;
 
 		currentPoseSource = new ConstantPoseSource(Pose.Identity);
+
+		try
+		{
+			bufCbCamera = graphicsService.ResourceFactory.CreateBuffer(CBCamera.BufferDesc);
+		}
+		catch (Exception ex)
+		{
+			throw new Exception($"Failed to create constant buffer '{nameof(CBCamera)}'!", ex);
+		}
 	}
 
 	~Camera()
@@ -127,10 +145,11 @@ public sealed class Camera : IExtendedDisposable
 	{
 		IsDisposed = true;
 
+		bufCbCamera?.Dispose();
 		//TODO
 	}
 
-	public bool BeginFrame()
+	public bool BeginFrame(in SceneContext _sceneCtx, uint _cameraIndex)
 	{
 		if (IsDisposed)
 		{
@@ -143,7 +162,20 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
+		// Update constant buffer data:
+		{
+			cbCameraData.backgroundColor = Vector4.Zero;	//TODO
+			cbCameraData.cameraIndex = _cameraIndex;
+			cbCameraData.cameraPassIndex = 0u;
+			cbCameraData.resolutionX = 0;					//TODO
+			cbCameraData.resolutionY = 0;					//TODO
+			cbCameraData.nearClipPlane = 0;					//TODO
+			cbCameraData.farClipPlane = 0;					//TODO
+		}
+		
+
 		//TODO
+
 
 		IsDrawingFrame = true;
 
@@ -158,18 +190,39 @@ public sealed class Camera : IExtendedDisposable
 		FrameEnded?.Invoke();
 	}
 
-	public bool BeginPass()
+	public bool BeginPass(in SceneContext _sceneCtx, CommandList _cmdList, uint _passIndex, out CameraPassContext? _outCameraPassCtx)
 	{
 		if (!IsDrawingFrame)
 		{
+			_outCameraPassCtx = null;
 			return false;
 		}
 		if (IsDrawingPass)
 		{
+			_outCameraPassCtx = null;
 			return false;
 		}
 
+
 		//TODO
+
+
+		// Update constant buffer data:
+		{
+			cbCameraData.cameraPassIndex = _passIndex;
+		}
+
+		// Upload CBCamera to GPU buffer:
+		_cmdList.UpdateBuffer(bufCbCamera, 0u, ref cbCameraData);
+
+		// Assemble camera pass context:
+		_outCameraPassCtx = new(_sceneCtx)
+		{
+			CmdList = _cmdList,
+			CbCamera = cbCameraData,
+			BufCbCamera = bufCbCamera!,
+			//...
+		};
 
 		IsDrawingPass = true;
 		return true;
