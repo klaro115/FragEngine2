@@ -46,6 +46,9 @@ public sealed class Camera : IExtendedDisposable
 	private CBCamera cbCameraData = CBCamera.Default;
 	private readonly DeviceBuffer bufCbCamera;
 
+	private CameraTargets? ownTarget = null;
+	private ulong ownTargetChecksum = 0ul;
+
 	#endregion
 	#region Properties
 
@@ -97,6 +100,12 @@ public sealed class Camera : IExtendedDisposable
 		set => currentPoseSource = value ?? new ConstantPoseSource(CurrentPose);
 	}
 
+	/// <summary>
+	/// Gets the camera's current output settings.<para/>
+	/// Output settings may be changed in-between frames using '<see cref="SetOutputSettings(CameraOutputSettings)"/>'.
+	/// </summary>
+	public CameraOutputSettings OutputSettings { get; private set; } = CameraOutputSettings.Default;
+
 	#endregion
 	#region Constructors
 
@@ -146,9 +155,22 @@ public sealed class Camera : IExtendedDisposable
 		IsDisposed = true;
 
 		bufCbCamera?.Dispose();
-		//TODO
+		ownTarget?.Dispose();
 	}
 
+	/// <summary>
+	/// Begins a new frame with this camera. This will (re)allocate internal resources and clear render targets.
+	/// </summary>
+	/// <remarks>
+	/// Each camera frame starts with a call to '<see cref="BeginFrame(in SceneContext, uint)"/>', and ends with a
+	/// call to '<see cref="EndFrame"/>'. Within a frame, one or more camera passes can take place, each starting
+	/// with a call to '<see cref="BeginPass(in SceneContext, CommandList, uint, out CameraPassContext?)"/>', and
+	/// ending with a call to '<see cref="EndPass"/>'. Draw calls to render objects may happen within a camera pass.
+	/// </remarks>
+	/// <param name="_sceneCtx">A context object with scene-wide GPU resources and settings.</param>
+	/// <param name="_cameraIndex">The index of this camera. This index may be used to map camera-specific resources
+	/// and is exposed to shaders via the pass-specific '<see cref="CBCamera"/>' constant buffer.</param>
+	/// <returns></returns>
 	public bool BeginFrame(in SceneContext _sceneCtx, uint _cameraIndex)
 	{
 		if (IsDisposed)
@@ -162,8 +184,18 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
+		//TODO [CRITICAL]: Recalculate projections and matrices!
+
 		// Update constant buffer data:
 		{
+			Matrix4x4 mtxWorld2Clip = Matrix4x4.Identity;	//TODO
+			if (!Matrix4x4.Invert(mtxWorld2Clip, out Matrix4x4 mtxClip2World))
+			{
+				mtxClip2World = Matrix4x4.Identity;
+			}
+
+			cbCameraData.mtxWorld2Clip = mtxWorld2Clip;
+			cbCameraData.mtxClip2World = mtxClip2World;
 			cbCameraData.backgroundColor = Vector4.Zero;	//TODO
 			cbCameraData.cameraIndex = _cameraIndex;
 			cbCameraData.cameraPassIndex = 0u;
@@ -173,6 +205,21 @@ public sealed class Camera : IExtendedDisposable
 			cbCameraData.farClipPlane = 0;					//TODO
 		}
 		
+		// If using internal render targets, recreate those:
+		if (ownTargetChecksum != OutputSettings.Checksum || ownTarget is null || ownTarget.IsDisposed)
+		{
+			ownTarget?.Dispose();
+
+			if (!CameraTargets.Create(graphicsService, logger, OutputSettings, out ownTarget))
+			{
+				logger.LogError("Failed to create internal camera target!");
+				return false;
+			}
+			ownTargetChecksum = OutputSettings.Checksum;
+		}
+
+		//TODO [IMPORTANT]: Add alternative branch where an external camera target is used!
+
 
 		//TODO
 
@@ -231,6 +278,51 @@ public sealed class Camera : IExtendedDisposable
 	public void EndPass()
 	{
 		IsDrawingPass = false;
+	}
+
+	/// <summary>
+	/// Try to update the camera's output settings.
+	/// </summary>
+	/// <remarks>
+	/// Settings can only be changed while '<see cref="IsDrawingFrame"/>' is false. Any changes to render targets'
+	/// pixel formats or resolution must happen in-between frames, and can never be done during an ongoing frame.
+	/// </remarks>
+	/// <param name="_newOutputSettings">The new output settings.</param>
+	/// <returns>True if the output settings were updated, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">New output settings may not be null.</exception>
+	public bool SetOutputSettings(CameraOutputSettings _newOutputSettings)
+	{
+		ArgumentNullException.ThrowIfNull(_newOutputSettings);
+
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot set output settings on disposed camera!");
+			return false;
+		}
+		if (IsDrawingFrame)
+		{
+			logger.LogError("Cannot change output settings on camera while it is drawing!");
+			return false;
+		}
+		if (!_newOutputSettings.IsValid())
+		{
+			logger.LogError($"Cannot set camera output settings, invalid settings! (Settings: {_newOutputSettings})");
+			return false;
+		}
+
+		// Only replace settings if values (and checksum) have changed:
+		if (_newOutputSettings.Checksum == OutputSettings.Checksum)
+		{
+			return true;
+		}
+
+		// Output settings have changed, purge internal render targets:
+		ownTarget?.Dispose();
+		ownTargetChecksum = 0;
+
+		// Adopt new settings:
+		OutputSettings = _newOutputSettings;
+		return true;
 	}
 
 	#endregion

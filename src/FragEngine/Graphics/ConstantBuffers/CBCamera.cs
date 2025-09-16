@@ -9,6 +9,10 @@ public struct CBCamera
 {
 	#region Fields
 
+	// Projection:
+	public Matrix4x4 mtxWorld2Clip;
+	public Matrix4x4 mtxClip2World;
+
 	// Clearing:
 	public Vector4 backgroundColor;
 
@@ -25,7 +29,11 @@ public struct CBCamera
 	#endregion
 	#region Constants
 
-	public const int byteSize = 1 * 4 * sizeof(float) + 4 * sizeof(uint) + 2 * sizeof(float);
+	public const int byteSize =
+		2 * 16 * sizeof(float) +
+		1 * 4 * sizeof(float) +
+		4 * sizeof(uint) +
+		2 * sizeof(float);
 
 	#endregion
 	#region Properties
@@ -35,6 +43,10 @@ public struct CBCamera
 	/// </summary>
 	public static CBCamera Default => new()
 	{
+		// Projection:
+		mtxWorld2Clip = Matrix4x4.Identity,
+		mtxClip2World = Matrix4x4.Identity,
+		
 		// Clearing:
 		backgroundColor = RgbaFloat.CornflowerBlue.ToVector4(),
 
