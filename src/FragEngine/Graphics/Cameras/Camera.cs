@@ -106,6 +106,19 @@ public sealed class Camera : IExtendedDisposable
 	/// </summary>
 	public CameraOutputSettings OutputSettings { get; private set; } = CameraOutputSettings.Default;
 
+	/// <summary>
+	/// Gets the camera's current target override. If this is non-null, the camera will render to this target instead
+	/// of its own internal target.<para/>
+	/// Override camera targets may be changed in-between passes using '<see cref="TODO"/>'.
+	/// </summary>
+	public CameraTargets? OverrideTarget { get; private set; } = null;
+
+	/// <summary>
+	/// Gets the camera's current render target. This will be camera's internal render targets, unless an '<see cref="OverrideTarget"/>'
+	/// was assigned. If there is no override and no internal target is yet initialized, this may be null.
+	/// </summary>
+	public CameraTargets? CurrentTarget => OverrideTarget is not null && !OverrideTarget.IsDisposed ? OverrideTarget : ownTarget;
+
 	#endregion
 	#region Constructors
 
@@ -204,9 +217,9 @@ public sealed class Camera : IExtendedDisposable
 			cbCameraData.nearClipPlane = 0;					//TODO
 			cbCameraData.farClipPlane = 0;					//TODO
 		}
-		
+
 		// If using internal render targets, recreate those:
-		if (ownTargetChecksum != OutputSettings.Checksum || ownTarget is null || ownTarget.IsDisposed)
+		if (OverrideTarget is null && (ownTargetChecksum != OutputSettings.Checksum || ownTarget is null || ownTarget.IsDisposed))
 		{
 			ownTarget?.Dispose();
 
@@ -217,8 +230,6 @@ public sealed class Camera : IExtendedDisposable
 			}
 			ownTargetChecksum = OutputSettings.Checksum;
 		}
-
-		//TODO [IMPORTANT]: Add alternative branch where an external camera target is used!
 
 
 		//TODO
@@ -301,7 +312,7 @@ public sealed class Camera : IExtendedDisposable
 		}
 		if (IsDrawingFrame)
 		{
-			logger.LogError("Cannot change output settings on camera while it is drawing!");
+			logger.LogError("Cannot change output settings on camera while it is drawing a frame!");
 			return false;
 		}
 		if (!_newOutputSettings.IsValid())
@@ -322,6 +333,43 @@ public sealed class Camera : IExtendedDisposable
 
 		// Adopt new settings:
 		OutputSettings = _newOutputSettings;
+		return true;
+	}
+
+	public bool SetOverrideCameraTarget(CameraTargets? _newOverrideTarget)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot set override target on disposed camera!");
+			return false;
+		}
+		if (IsDrawingPass)
+		{
+			logger.LogError("Cannot change override target on camera while it is drawing a pass!");
+			return false;
+		}
+
+		// If null, unassign override target and use internal targets instead:
+		if (_newOverrideTarget is null)
+		{
+			OverrideTarget = null;
+			return true;
+		}
+
+		// Check if new target is valid and compatible with current camera settings:
+		if (_newOverrideTarget.IsDisposed || !_newOverrideTarget.IsValid())
+		{
+			logger.LogError($"Cannot set camera override target, invalid or disposed target! (New target: {_newOverrideTarget})");
+			return false;
+		}
+		if (!_newOverrideTarget.IsCompatibleWithOutput(OutputSettings))
+		{
+			logger.LogError($"Cannot set camera override target, new target is not compatible with output settings! (Settings: {OutputSettings})");
+			return false;
+		}
+
+		// Adopt new override target:
+		OverrideTarget = _newOverrideTarget;
 		return true;
 	}
 

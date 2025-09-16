@@ -51,11 +51,23 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 	/// Gets whether this camera target has a stencil buffer.
 	/// </summary>
 	public bool HasStencilBuffer => HasDepthBuffer && DepthStencilBuffer!.Format.IsStencilFormat();
+
+	/// <summary>
+	/// Horizontal resolution of the target's textures, in pixels.
+	/// </summary>
+	public uint ResolutionX => MainTexture is not null ? MainTexture.Width : 0u;
+	/// <summary>
+	/// Vertical resolution of the target's textures, in pixels.
+	/// </summary>
+	public uint ResolutionY => MainTexture is not null ? MainTexture.Height : 0u;
 	/// <summary>
 	/// Gets the number of samples per pixel, MSAA only.
 	/// </summary>
 	public TextureSampleCount SampleCount => MainTexture?.SampleCount ?? TextureSampleCount.Count1;
 
+	/// <summary>
+	/// Gets an output description for this camera target.
+	/// </summary>
 	public OutputDescription OutputDescription => Framebuffer.OutputDescription;
 
 	#endregion
@@ -105,6 +117,49 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 			(!HasColorTargets || (ColorTargets![0] is not null && !ColorTargets[0].IsDisposed)) &&
 			(!HasDepthBuffer || (DepthStencilBuffer is not null && !DepthStencilBuffer.IsDisposed));
 		return isValid;
+	}
+
+	/// <summary>
+	/// Checks whether this camera target is compatible with a given camera's output settings.
+	/// </summary>
+	/// <param name="_outputSettings">Output settings to check compatibility against.</param>
+	/// <returns>True if this camera target is compatible with the given settings, false otherwise.</returns>
+	public bool IsCompatibleWithOutput(in CameraOutputSettings? _outputSettings)
+	{
+		if (IsDisposed)
+		{
+			return false;
+		}
+		if (_outputSettings is null ||
+			!_outputSettings.IsValid() ||
+			_outputSettings.ResolutionX != ResolutionX ||
+			_outputSettings.ResolutionY != ResolutionY ||
+			_outputSettings.SampleCount != SampleCount)
+		{
+			return false;
+		}
+
+		// Check color targets:
+		if (_outputSettings.HasColorTarget)
+		{
+			if (!HasColorTargets ||
+				_outputSettings.ColorFormat != ColorTargets![0].Format)
+			{
+				return false;
+			}
+		}
+
+		// Check depth/stencil targets:
+		if (_outputSettings.HasDepthBuffer)
+		{
+			if (!HasDepthBuffer ||
+				_outputSettings.DepthFormat != DepthStencilBuffer!.Format ||
+				(_outputSettings.HasStencilBuffer && !HasStencilBuffer))
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/// <summary>
