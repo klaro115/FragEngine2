@@ -7,7 +7,7 @@ namespace FragEngine.Graphics.Cameras;
 /// <summary>
 /// A settings object that describes the desired output format of a <see cref="Camera"/>.
 /// </summary>
-public sealed class CameraOutputSettings : IValidated
+public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 

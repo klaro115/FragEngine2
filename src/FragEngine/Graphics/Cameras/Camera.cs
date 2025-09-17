@@ -26,11 +26,21 @@ public sealed class Camera : IExtendedDisposable
 	/// <summary>
 	/// Event that is triggered when the camera starts drawing a new frame.
 	/// </summary>
-	public event Action? FrameStarted = null;
+	public event FuncCameraFrameStarted? FrameStarted = null;
 	/// <summary>
 	/// Event that is triggered when the camera finishes drawing a frame.
 	/// </summary>
-	public event Action? FrameEnded = null;
+	public event FuncCameraFrameEnded? FrameEnded = null;
+
+	/// <summary>
+	/// Event that is triggered when the camera's '<see cref="OutputSettings"/>' are updated.
+	/// </summary>
+	public event FuncCameraOutputSettingsChanged? OutputSettingsChanged = null;
+
+	/// <summary>
+	/// Event that is triggered when the camera's '<see cref="OverrideTarget"/>' changes or is unassigmed.
+	/// </summary>
+	public event FuncCameraOverrideTargetChanged? OverrideTargetChanged = null;
 
 	#endregion
 	#region Fields
@@ -40,6 +50,7 @@ public sealed class Camera : IExtendedDisposable
 
 	private bool isDrawingFrame = false;
 	private bool isDrawingPass = false;
+	private uint currentFrameIndex = 0u;
 
 	private IPoseSource currentPoseSource;
 
@@ -218,6 +229,17 @@ public sealed class Camera : IExtendedDisposable
 			cbCameraData.farClipPlane = 0;					//TODO
 		}
 
+		// Check if any previously assigned override targets are still alive:
+		if (OverrideTarget is not null && OverrideTarget.IsDisposed)
+		{
+			logger.LogWarning("Override camera target was disposed; unassigning and falling back to internal targets.");
+
+			if (!SetOverrideCameraTarget(null))
+			{
+				return false;
+			}
+		}
+
 		// If using internal render targets, recreate those:
 		if (OverrideTarget is null && (ownTargetChecksum != OutputSettings.Checksum || ownTarget is null || ownTarget.IsDisposed))
 		{
@@ -236,16 +258,23 @@ public sealed class Camera : IExtendedDisposable
 
 
 		IsDrawingFrame = true;
+		currentFrameIndex = _sceneCtx.GraphicsCtx.CbGraphics.frameIndex;
 
-		FrameStarted?.Invoke();
+		FrameStarted?.Invoke(this, _cameraIndex, currentFrameIndex);
 		return true;
 	}
 
 	public void EndFrame()
 	{
+		// End any ongoing camera passes:
+		if (IsDrawingPass)
+		{
+			EndPass();
+		}
+
 		IsDrawingFrame = false;
 
-		FrameEnded?.Invoke();
+		FrameEnded?.Invoke(this, cbCameraData.cameraIndex, currentFrameIndex);
 	}
 
 	public bool BeginPass(in SceneContext _sceneCtx, CommandList _cmdList, uint _passIndex, out CameraPassContext? _outCameraPassCtx)
@@ -332,10 +361,25 @@ public sealed class Camera : IExtendedDisposable
 		ownTargetChecksum = 0;
 
 		// Adopt new settings:
+		CameraOutputSettings prevOutputSettings = OutputSettings;
 		OutputSettings = _newOutputSettings;
+
+		OutputSettingsChanged?.Invoke(this, prevOutputSettings, OutputSettings);
 		return true;
 	}
 
+	/// <summary>
+	/// Try to assign or unassign an override camera target.
+	/// </summary>
+	/// <remarks>
+	/// Override targets can only be changed while '<see cref="IsDrawingPass"/>' is false. Any changes to camera targets
+	/// must happen in-between camera passes, and can never be done during an ongoing pass.
+	/// </remarks>
+	/// <param name="_newOverrideTarget">The new override for the camera's render target. If null, the current
+	/// override will be unassigned and the camera's internal targets will be used instead.<para/>
+	/// Note that override targets must be compatible with the camera's '<see cref="OutputSettings"/>'; use
+	/// '<see cref="CameraTargets.IsCompatibleWithOutput(in CameraOutputSettings?)"/>' to check compatibility.</param>
+	/// <returns>True if the override target was set, false otherwise.</returns>
 	public bool SetOverrideCameraTarget(CameraTargets? _newOverrideTarget)
 	{
 		if (IsDisposed)
@@ -349,10 +393,14 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
+		CameraTargets? prevOverrideTarget = OverrideTarget;
+
 		// If null, unassign override target and use internal targets instead:
 		if (_newOverrideTarget is null)
 		{
 			OverrideTarget = null;
+
+			OverrideTargetChanged?.Invoke(this, prevOverrideTarget, null);
 			return true;
 		}
 
@@ -368,8 +416,16 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
+		// Do nothing if the same target is already assigned:
+		if (_newOverrideTarget == OverrideTarget)
+		{
+			return true;
+		}
+
 		// Adopt new override target:
 		OverrideTarget = _newOverrideTarget;
+
+		OverrideTargetChanged?.Invoke(this, prevOverrideTarget, OverrideTarget);
 		return true;
 	}
 
