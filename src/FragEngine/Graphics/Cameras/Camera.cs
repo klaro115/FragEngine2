@@ -43,6 +43,11 @@ public sealed class Camera : IExtendedDisposable
 	public event FuncCameraProjectionSettingsChanged? ProjectionSettingsChanged = null;
 
 	/// <summary>
+	/// Event that is triggered when the camera's '<see cref="ClearingSettings"/>' are updated.
+	/// </summary>
+	public event FuncCameraClearingSettingsChanged? ClearingSettingsChanged = null;
+
+	/// <summary>
 	/// Event that is triggered when the camera's '<see cref="OverrideTarget"/>' changes or is unassigmed.
 	/// </summary>
 	public event FuncCameraOverrideTargetChanged? OverrideTargetChanged = null;
@@ -125,9 +130,16 @@ public sealed class Camera : IExtendedDisposable
 
 	/// <summary>
 	/// Gets the camera's current projection settings.<para/>
-	/// Projection settings may be changed in-between frames using '<see cref="SetProjectionSettings(CameraProjectionSettings)"/>'.
+	/// Projection settings may be changed in-between passes using '<see cref="SetProjectionSettings(CameraProjectionSettings)"/>'.
 	/// </summary>
 	public CameraProjectionSettings ProjectionSettings { get; private set; } = CameraProjectionSettings.Default;
+
+	/// <summary>
+	/// Gets the camera's current settings for clearing render targets.<para/>
+	/// Clearing settings may be changed in-between frames using '<see cref="SetClearingSettings(CameraClearingSettings)"/>'.
+	/// </summary>
+	public CameraClearingSettings ClearingSettings { get; private set; } = CameraClearingSettings.Default;
+
 	/// <summary>
 	/// Gets the camera's current target override. If this is non-null, the camera will render to this target instead
 	/// of its own internal target.<para/>
@@ -264,6 +276,7 @@ public sealed class Camera : IExtendedDisposable
 		//TODO
 
 
+		// Raise drawing flags:
 		IsDrawingFrame = true;
 		currentFrameIndex = _sceneCtx.GraphicsCtx.CbGraphics.frameIndex;
 
@@ -297,6 +310,8 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
+		IsDrawingPass = true;
+
 		// If changed, recalculate projections and matrices:
 		if (projectionChecksum != ProjectionSettings.Checksum)
 		{
@@ -310,6 +325,8 @@ public sealed class Camera : IExtendedDisposable
 			projectionChecksum = ProjectionSettings.Checksum;
 		}
 
+		// Bind camera target's framebuffer to pipeline:
+		_cmdList.SetFramebuffer(CurrentTarget!.Framebuffer);
 
 		//TODO
 
@@ -322,6 +339,9 @@ public sealed class Camera : IExtendedDisposable
 		// Upload CBCamera to GPU buffer:
 		_cmdList.UpdateBuffer(bufCbCamera, 0u, ref cbCameraData);
 
+		// If requested, clear render targets:
+		CheckAndClearRenderTargets(_cmdList, _passIndex);
+
 		// Assemble camera pass context:
 		_outCameraPassCtx = new(_sceneCtx)
 		{
@@ -331,7 +351,6 @@ public sealed class Camera : IExtendedDisposable
 			//...
 		};
 
-		IsDrawingPass = true;
 		return true;
 	}
 
@@ -433,6 +452,50 @@ public sealed class Camera : IExtendedDisposable
 	}
 
 	/// <summary>
+	/// Try to update the camera's projection settings.
+	/// </summary>
+	/// <remarks>
+	/// Settings can only be changed while '<see cref="IsDrawingFrame"/>' is false. Any changes to render targets'
+	/// clearing behaviour must happen in-between frames, and can never be done during an ongoing frame.
+	/// </remarks>
+	/// <param name="_newClearingSettings">The new clearing settings.</param>
+	/// <returns>True if the clearing settings were updated, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">New clearing settings may not be null.</exception>
+	public bool SetClearingSettings(CameraClearingSettings _newClearingSettings)
+	{
+		ArgumentNullException.ThrowIfNull(_newClearingSettings);
+
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot set clearing settings on disposed camera!");
+			return false;
+		}
+		if (IsDrawingPass)
+		{
+			logger.LogError("Cannot change clearing settings on camera while it is drawing a frame!");
+			return false;
+		}
+		if (!_newClearingSettings.IsValid())
+		{
+			logger.LogError($"Cannot set camera clearing settings, invalid settings! (Settings: {_newClearingSettings})");
+			return false;
+		}
+
+		// Only replace settings if values (and checksum) have changed:
+		if (_newClearingSettings.Checksum == ClearingSettings.Checksum)
+		{
+			return true;
+		}
+
+		// Adopt new settings:
+		CameraClearingSettings prevClearingSettings = ClearingSettings;
+		ClearingSettings = _newClearingSettings;
+
+		ClearingSettingsChanged?.Invoke(this, prevClearingSettings, ClearingSettings);
+		return true;
+	}
+
+	/// <summary>
 	/// Try to assign or unassign an override camera target.
 	/// </summary>
 	/// <remarks>
@@ -511,6 +574,42 @@ public sealed class Camera : IExtendedDisposable
 
 		ownTargetChecksum = OutputSettings.Checksum;
 		return true;
+	}
+
+	private void CheckAndClearRenderTargets(CommandList _cmdList, uint _passIndex)
+	{
+		// Determine if and which textures/buffers to clear:
+		CameraClearingFlags currentPassFlags = CameraClearingFlags.EachPass;
+		if (_passIndex == 0)
+		{
+			currentPassFlags |= CameraClearingFlags.EachFrame;
+		}
+
+		bool shouldClearColor = OutputSettings.HasColorTarget && (ClearingSettings.ClearColorTargets & currentPassFlags) != 0;
+		bool shouldClearDepth = OutputSettings.HasDepthBuffer && (ClearingSettings.ClearDepthBuffer & currentPassFlags) != 0;
+		bool shouldClearStencil = OutputSettings.HasStencilBuffer && (ClearingSettings.ClearStencilBuffer & currentPassFlags) != 0;
+
+		// Clear color targets:
+		if (shouldClearColor)
+		{
+			int colorTargetCount = CurrentTarget!.ColorTargets!.Length;
+			int maxClearColorIdx = ClearingSettings.ColorValues.Count - 1;
+			for (int i = 0; i < colorTargetCount; ++i)
+			{
+				RgbaFloat clearColor = ClearingSettings.ColorValues[Math.Min(i, maxClearColorIdx)];
+				_cmdList.ClearColorTarget((uint)i, clearColor);
+			}
+		}
+
+		// Clear depth/stencil buffer:
+		if (shouldClearDepth && shouldClearStencil)
+		{
+			_cmdList.ClearDepthStencil(ClearingSettings.DepthValue, ClearingSettings.StencilValue);
+		}
+		else if (shouldClearDepth)
+		{
+			_cmdList.ClearDepthStencil(ClearingSettings.DepthValue);
+		}
 	}
 
 	#endregion

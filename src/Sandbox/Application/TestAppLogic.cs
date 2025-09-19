@@ -285,6 +285,11 @@ internal sealed class TestAppLogic : IAppLogic
 
 		cmdList.End();
 
+		if (success)
+		{
+			success &= engine.Graphics.CommitCommandList(cmdList);
+		}
+
 		return success;
 	}
 

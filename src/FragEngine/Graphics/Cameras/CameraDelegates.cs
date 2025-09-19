@@ -44,6 +44,14 @@ public delegate void FuncCameraOutputSettingsChanged(Camera _camera, CameraOutpu
 public delegate void FuncCameraProjectionSettingsChanged(Camera _camera, CameraProjectionSettings _oldSettings, CameraProjectionSettings _newSettings);
 
 /// <summary>
+/// Delegate for listener methods that respond when a camera's clearing settings have been updated.
+/// </summary>
+/// <param name="_camera">The camera whose '<see cref="Camera.ClearingSettings"/>' have changed.</param>
+/// <param name="_oldSettings">The previous clearing settings, that are now out-of-date.</param>
+/// <param name="_newSettings">The new clearing settings, that are now coming into effect.</param>
+public delegate void FuncCameraClearingSettingsChanged(Camera _camera, CameraClearingSettings _oldSettings, CameraClearingSettings _newSettings);
+
+/// <summary>
 /// Delegate for listener methods that respond when an override render target has been assigned to, or unassigned from a camera.
 /// </summary>
 /// <param name="_camera">The camera whose '<see cref="Camera.OverrideTarget"/>' has changed.</param>
