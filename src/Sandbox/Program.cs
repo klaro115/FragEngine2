@@ -15,7 +15,7 @@ try
 	};
 	logger.LogMessage("Creating engine...");
 
-	TestAppLogic appLogic = new();
+	using TestAppLogic appLogic = new();
 
 	if (EngineStartupHelper.CreateDefaultEngine(appLogic, logger, out engine))
 	{

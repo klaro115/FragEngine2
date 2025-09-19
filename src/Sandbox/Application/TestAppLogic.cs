@@ -5,6 +5,7 @@ using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
 using System.Numerics;
 using Veldrid;
@@ -14,7 +15,7 @@ namespace Sandbox.Application;
 /// <summary>
 /// Application logic for the sandbox test app.
 /// </summary>
-internal sealed class TestAppLogic : IAppLogic
+internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 {
 	#region Fields
 
@@ -33,9 +34,33 @@ internal sealed class TestAppLogic : IAppLogic
 	private DeviceBuffer? bufCbScene = null;
 
 	#endregion
+	#region Properties
+
+	public bool IsDisposed { get; private set; } = false;
+
+	#endregion
+	#region Constructors
+
+	~TestAppLogic()
+	{
+		if (!IsDisposed) Dispose(false);
+	}
+
+	#endregion
 	#region Methods
 
 	// LIFECYCLE:
+
+	public void Dispose()
+	{
+		GC.SuppressFinalize(this);
+		Dispose(true);
+	}
+
+	private void Dispose(bool _)
+	{
+		DisposeCamera();
+	}
 
 	public bool Initialize(Engine _engine)
 	{
