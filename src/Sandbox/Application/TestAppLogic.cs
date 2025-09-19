@@ -239,19 +239,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		// (Re)create swapchain camera target:
 		backBufferTarget?.Dispose();
 
-		try
+		if (!CameraTargets.CreateFromFramebuffer(engine.Logger, outputFramebuffer, false, out backBufferTarget))
 		{
-			backBufferTarget = new()
-			{
-				HasOwnershipOfResources = false,
-				ColorTargets = [outputFramebuffer.ColorTargets[0].Target],
-				DepthStencilBuffer = outputFramebuffer.DepthTarget?.Target,
-				Framebuffer = outputFramebuffer,
-			};
-		}
-		catch (Exception ex)
-		{
-			engine.Logger.LogException("Failed to create camera target around swapchain framebuffer!", ex, LogEntrySeverity.Critical);
+			engine.Logger.LogError("Failed to create camera target around swapchain framebuffer!", LogEntrySeverity.Critical);
 			return false;
 		}
 

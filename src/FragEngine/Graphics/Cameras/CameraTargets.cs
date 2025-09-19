@@ -171,11 +171,14 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 	/// <param name="_outTargets">Outputs a new camera target. Null on failure.</param>
 	/// <returns>True if a new camera target was created, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Graphics service, logger, and output settings may not be null.</exception>
-	public static bool Create(GraphicsService _graphicsService, ILogger _logger, CameraOutputSettings _outputSettings, out CameraTargets? _outTargets)
+	/// <exception cref="ObjectDisposedException">Graphics service has already been disposed.</exception>
+	public static bool CreateFromOutputSettings(GraphicsService _graphicsService, ILogger _logger, CameraOutputSettings _outputSettings, out CameraTargets? _outTargets)
 	{
 		ArgumentNullException.ThrowIfNull(_graphicsService);
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_outputSettings);
+
+		ObjectDisposedException.ThrowIf(_graphicsService.IsDisposed, _graphicsService);
 
 		Texture? texColor = null;
 		Texture? texDepth = null;
@@ -274,6 +277,56 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 		texDepth?.Dispose();
 		_outTargets = null;
 		return false;
+	}
+
+	/// <summary>
+	/// Creates a new camera target from a an existing framebuffer.
+	/// </summary>
+	/// <param name="_logger">A logging service for recording errors.</param>
+	/// <param name="_srcFramebuffer">An existing framebuffer around which to create the camera target object.</param>
+	/// <param name="_transferOwnershipOfResources">Whether ownership of the framebuffer should be transferred to the new camera target instance.
+	/// If true, disposing the camera target will also dispose the framebuffer and all of its texture resources. If false, ownership of graphics
+	/// resources remains as it is.</param>
+	/// <param name="_outTargets">Outputs a new camera target. Null on failure.</param>
+	/// <returns>True if a new camera target was created, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">Logger and framebuffer may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Framebuffer has already been disposed.</exception>
+	public static bool CreateFromFramebuffer(ILogger _logger, Framebuffer _srcFramebuffer, bool _transferOwnershipOfResources, out CameraTargets? _outTargets)
+	{
+		ArgumentNullException.ThrowIfNull(_logger);
+		ArgumentNullException.ThrowIfNull(_srcFramebuffer);
+
+		ObjectDisposedException.ThrowIf(_srcFramebuffer.IsDisposed, _srcFramebuffer);
+
+		Texture[]? colorTargets = null;
+		Texture? depthStencilBuffer = null;
+
+		// Gather all color target textures:
+		int colorTargetCount = _srcFramebuffer.ColorTargets.Count;
+		if (colorTargetCount != 0)
+		{
+			colorTargets = new Texture[colorTargetCount];
+			for (int i = 0; i < colorTargetCount; i++)
+			{
+				colorTargets[i] = _srcFramebuffer.ColorTargets[i].Target;
+			}
+		}
+
+		// Fetch depth/stencil buffer:
+		if (_srcFramebuffer.DepthTarget is not null)
+		{
+			depthStencilBuffer = _srcFramebuffer.DepthTarget.Value.Target;
+		}
+
+		// Assemble camera target:
+		_outTargets = new()
+		{
+			HasOwnershipOfResources = _transferOwnershipOfResources,
+			ColorTargets = colorTargets,
+			DepthStencilBuffer = depthStencilBuffer,
+			Framebuffer = _srcFramebuffer,
+		};
+		return true;
 	}
 
 	#endregion

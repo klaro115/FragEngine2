@@ -73,6 +73,12 @@ public sealed class WindowService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
+	/// <summary>
+	/// Creates a new instance of the window service.
+	/// </summary>
+	/// <param name="_logger">The logging service singleton.</param>
+	/// <param name="_serviceProvider">The engine's main service provider.</param>
+	/// <param name="_platformService">The platform service singleton.</param>
 	public WindowService(ILogger _logger, IServiceProvider _serviceProvider, PlatformService _platformService)
 	{
 		logger = _logger;

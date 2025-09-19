@@ -13,7 +13,7 @@ public sealed class CameraProjectionSettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 
-	private ulong checksum = 0ul;
+	private ulong checksum = UNINITIALIZED_CHECKSUM;
 
 	private float nearClipPlane = 0.1f;
 	private float farClipPlane = 1000.0f;
@@ -22,6 +22,8 @@ public sealed class CameraProjectionSettings : IValidated, IChecksumVersioned
 
 	#endregion
 	#region Constants
+
+	internal const ulong UNINITIALIZED_CHECKSUM = 0ul;
 
 	private const float CLIPPING_EPSILON = 0.0001f;
 
@@ -92,7 +94,7 @@ public sealed class CameraProjectionSettings : IValidated, IChecksumVersioned
 	{
 		get
 		{
-			if (checksum != 0)
+			if (checksum != UNINITIALIZED_CHECKSUM)
 			{
 				return checksum;
 			}

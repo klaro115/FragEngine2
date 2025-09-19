@@ -11,7 +11,7 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 
-	private ulong checksum = 0ul;
+	private ulong checksum = UNINITIALIZED_CHECKSUM;
 
 	private uint resolutionX = 8;
 	private uint resolutionY = 8;
@@ -19,6 +19,8 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 
 	#endregion
 	#region Constants
+
+	internal const ulong UNINITIALIZED_CHECKSUM = 0ul;
 
 	private const uint MIN_RESOLUTION = 8;
 	private const uint MAX_RESOLUTION = 8192;
@@ -88,7 +90,7 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	{
 		get
 		{
-			if (checksum != 0)
+			if (checksum != UNINITIALIZED_CHECKSUM)
 			{
 				return checksum;
 			}

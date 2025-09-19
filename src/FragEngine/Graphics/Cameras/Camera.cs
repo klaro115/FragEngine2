@@ -8,6 +8,24 @@ using Veldrid;
 
 namespace FragEngine.Graphics.Cameras;
 
+/// <summary>
+/// A camera for rendering a 3D scene. The camera handles most of the resource management, logistics, and math that need to happen
+/// before a frame can be rendered.
+/// <para/>
+/// USAGE: In order to draw geometry using a camera, initialize your scene-wide graphics resources (<see cref="SceneContext"/>),
+/// then start camera logic by calling '<see cref="BeginFrame(in SceneContext, uint)"/>', followed by one or more calls to
+/// '<see cref="BeginPass(in SceneContext, CommandList, uint, out CameraPassContext?)"/>'. Camera passes allow you to group or
+/// isolate the creation of draw calls that can either be parallelized, or that use different rendering techniques. Each camera
+/// pass must be ended by calling '<see cref="EndPass"/>'. After the final pass of a frame, the frame itself can be ended by calling
+/// '<see cref="EndFrame"/>'.
+/// <para/>
+/// POSING: The camera has a physical location and orientation in space, which is sourced either from an '<see cref="IPoseSource"/>',
+/// or by setting a pose by-value through the '<see cref="CurrentPose"/>' property. Use these to position a camera within a 3D scene.
+/// The current pose defines the camera's local space for all subsequent projection math.
+/// <para/>
+/// PROJECTION: This camera class is capable of both perpective and orthographic projection. You can access and adjust projection
+/// behaviour through the '<see cref="ProjectionSettings"/>' property.
+/// </summary>
 public sealed class Camera : IExtendedDisposable
 {
 	#region Types
@@ -63,13 +81,14 @@ public sealed class Camera : IExtendedDisposable
 	private uint currentFrameIndex = 0u;
 
 	private IPoseSource currentPoseSource;
-	private ulong projectionChecksum = 0ul;
 
 	private CBCamera cbCameraData = CBCamera.Default;
 	private readonly DeviceBuffer bufCbCamera;
 
 	private CameraTargets? ownTarget = null;
-	private ulong ownTargetChecksum = 0ul;
+
+	private ulong projectionChecksum = CameraProjectionSettings.UNINITIALIZED_CHECKSUM;
+	private ulong ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
 
 	#endregion
 	#region Properties
@@ -197,12 +216,26 @@ public sealed class Camera : IExtendedDisposable
 		Dispose(true);
 	}
 
-	private void Dispose(bool _)
+	private void Dispose(bool _isDisposing)
 	{
+		if (_isDisposing && IsDrawingFrame)
+		{
+			EndFrame();
+		}
+
 		IsDisposed = true;
 
 		bufCbCamera?.Dispose();
 		ownTarget?.Dispose();
+	}
+
+	/// <summary>
+	/// Marks the camera's internal state as dirty, which will cause it to be reset or reconstructed before next use.
+	/// </summary>
+	public void MarkDirty()
+	{
+		projectionChecksum = CameraProjectionSettings.UNINITIALIZED_CHECKSUM;
+		ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
 	}
 
 	/// <summary>
@@ -243,15 +276,19 @@ public sealed class Camera : IExtendedDisposable
 
 		// Update constant buffer data:
 		{
+			Vector4 backgroundColor = ClearingSettings.ClearColorTargets != CameraClearingFlags.Never
+				? ClearingSettings.ColorValues[0].ToVector4()
+				: Vector4.Zero;
+
 			cbCameraData.mtxWorld2Clip = mtxWorld2Clip;
 			cbCameraData.mtxClip2World = mtxClip2World;
-			cbCameraData.backgroundColor = Vector4.Zero;	//TODO
+			cbCameraData.backgroundColor = backgroundColor;
 			cbCameraData.cameraIndex = _cameraIndex;
 			cbCameraData.cameraPassIndex = 0u;
-			cbCameraData.resolutionX = 0;					//TODO
-			cbCameraData.resolutionY = 0;					//TODO
-			cbCameraData.nearClipPlane = 0;					//TODO
-			cbCameraData.farClipPlane = 0;					//TODO
+			cbCameraData.resolutionX = OutputSettings.ResolutionX;
+			cbCameraData.resolutionY = OutputSettings.ResolutionY;
+			cbCameraData.nearClipPlane = ProjectionSettings.NearClipPlane;
+			cbCameraData.farClipPlane = ProjectionSettings.FarClipPlane;
 		}
 
 		// Check if any previously assigned override targets are still alive:
@@ -272,10 +309,6 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
-
-		//TODO
-
-
 		// Raise drawing flags:
 		IsDrawingFrame = true;
 		currentFrameIndex = _sceneCtx.GraphicsCtx.CbGraphics.frameIndex;
@@ -284,6 +317,12 @@ public sealed class Camera : IExtendedDisposable
 		return true;
 	}
 
+	/// <summary>
+	/// Ends an ongoing frame.
+	/// </summary>
+	/// <remarks>
+	/// Ending the frame will also end any ongoing camera passes that have not been via '<see cref="EndPass"/>' yet.
+	/// </remarks>
 	public void EndFrame()
 	{
 		// End any ongoing camera passes:
@@ -328,16 +367,13 @@ public sealed class Camera : IExtendedDisposable
 		// Bind camera target's framebuffer to pipeline:
 		_cmdList.SetFramebuffer(CurrentTarget!.Framebuffer);
 
-		//TODO
-
-
 		// Update constant buffer data:
 		{
 			cbCameraData.cameraPassIndex = _passIndex;
 		}
 
 		// Upload CBCamera to GPU buffer:
-		_cmdList.UpdateBuffer(bufCbCamera, 0u, ref cbCameraData);
+		_cmdList.UpdateBuffer(bufCbCamera, 0u, cbCameraData);
 
 		// If requested, clear render targets:
 		CheckAndClearRenderTargets(_cmdList, _passIndex);
@@ -397,7 +433,7 @@ public sealed class Camera : IExtendedDisposable
 
 		// Output settings have changed, purge internal render targets:
 		ownTarget?.Dispose();
-		ownTargetChecksum = 0;
+		ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
 
 		// Adopt new settings:
 		CameraOutputSettings prevOutputSettings = OutputSettings;
@@ -567,7 +603,7 @@ public sealed class Camera : IExtendedDisposable
 		ownTarget?.Dispose();
 
 		// Create new targets:
-		if (!CameraTargets.Create(graphicsService, logger, OutputSettings, out ownTarget))
+		if (!CameraTargets.CreateFromOutputSettings(graphicsService, logger, OutputSettings, out ownTarget))
 		{
 			return false;
 		}

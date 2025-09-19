@@ -21,10 +21,15 @@ public sealed class CameraClearingSettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 
-	private ulong checksum = ulong.MaxValue;
+	private ulong checksum = UNINITIALIZED_CHECKSUM;
 
 	private RgbaFloat[] colorValues = [ RgbaFloat.CornflowerBlue ];
 	private float depthValue = 1.0f;
+
+	#endregion
+	#region Constants
+
+	internal const ulong UNINITIALIZED_CHECKSUM = ulong.MaxValue;
 
 	#endregion
 	#region Properties
@@ -75,7 +80,7 @@ public sealed class CameraClearingSettings : IValidated, IChecksumVersioned
 	{
 		get
 		{
-			if (checksum != ulong.MaxValue)
+			if (checksum != UNINITIALIZED_CHECKSUM)
 			{
 				return checksum;
 			}
