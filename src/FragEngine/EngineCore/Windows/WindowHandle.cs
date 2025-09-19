@@ -55,7 +55,7 @@ public sealed class WindowHandle : IExtendedDisposable
 	/// <summary>
 	/// Gets the swapchain through which the window's content is presented.
 	/// </summary>
-	internal Swapchain Swapchain { get; }
+	public Swapchain Swapchain { get; }
 
 	/// <summary>
 	/// A unique ID number for this window.

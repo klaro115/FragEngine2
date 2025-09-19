@@ -36,6 +36,14 @@ public delegate void FuncCameraFrameEnded(Camera _camera, uint _cameraIdx, uint 
 public delegate void FuncCameraOutputSettingsChanged(Camera _camera, CameraOutputSettings _oldSettings, CameraOutputSettings _newSettings);
 
 /// <summary>
+/// Delegate for listener methods that respond when a camera's projection settings have been updated.
+/// </summary>
+/// <param name="_camera">The camera whose '<see cref="Camera.ProjectionSettings"/>' have changed.</param>
+/// <param name="_oldSettings">The previous projection settings, that are now out-of-date.</param>
+/// <param name="_newSettings">The new projection settings, that are now coming into effect.</param>
+public delegate void FuncCameraProjectionSettingsChanged(Camera _camera, CameraProjectionSettings _oldSettings, CameraProjectionSettings _newSettings);
+
+/// <summary>
 /// Delegate for listener methods that respond when an override render target has been assigned to, or unassigned from a camera.
 /// </summary>
 /// <param name="_camera">The camera whose '<see cref="Camera.OverrideTarget"/>' has changed.</param>

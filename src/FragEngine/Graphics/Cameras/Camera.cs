@@ -38,6 +38,11 @@ public sealed class Camera : IExtendedDisposable
 	public event FuncCameraOutputSettingsChanged? OutputSettingsChanged = null;
 
 	/// <summary>
+	/// Event that is triggered when the camera's '<see cref="ProjectionSettings"/>' are updated.
+	/// </summary>
+	public event FuncCameraProjectionSettingsChanged? ProjectionSettingsChanged = null;
+
+	/// <summary>
 	/// Event that is triggered when the camera's '<see cref="OverrideTarget"/>' changes or is unassigmed.
 	/// </summary>
 	public event FuncCameraOverrideTargetChanged? OverrideTargetChanged = null;
@@ -53,6 +58,7 @@ public sealed class Camera : IExtendedDisposable
 	private uint currentFrameIndex = 0u;
 
 	private IPoseSource currentPoseSource;
+	private ulong projectionChecksum = 0ul;
 
 	private CBCamera cbCameraData = CBCamera.Default;
 	private readonly DeviceBuffer bufCbCamera;
@@ -118,9 +124,14 @@ public sealed class Camera : IExtendedDisposable
 	public CameraOutputSettings OutputSettings { get; private set; } = CameraOutputSettings.Default;
 
 	/// <summary>
+	/// Gets the camera's current projection settings.<para/>
+	/// Projection settings may be changed in-between frames using '<see cref="SetProjectionSettings(CameraProjectionSettings)"/>'.
+	/// </summary>
+	public CameraProjectionSettings ProjectionSettings { get; private set; } = CameraProjectionSettings.Default;
+	/// <summary>
 	/// Gets the camera's current target override. If this is non-null, the camera will render to this target instead
 	/// of its own internal target.<para/>
-	/// Override camera targets may be changed in-between passes using '<see cref="TODO"/>'.
+	/// Override camera targets may be changed in-between passes using '<see cref="SetOverrideCameraTarget(CameraTargets?)"/>'.
 	/// </summary>
 	public CameraTargets? OverrideTarget { get; private set; } = null;
 
@@ -208,16 +219,18 @@ public sealed class Camera : IExtendedDisposable
 			return false;
 		}
 
-		//TODO [CRITICAL]: Recalculate projections and matrices!
+		// Recalculate projections and matrices:
+		CameraHelper.CalculateProjectionMatrices(
+			OutputSettings,
+			ProjectionSettings,
+			CurrentPose,
+			out Matrix4x4 mtxWorld2Clip,
+			out Matrix4x4 mtxClip2World);
+
+		projectionChecksum = ProjectionSettings.Checksum;
 
 		// Update constant buffer data:
 		{
-			Matrix4x4 mtxWorld2Clip = Matrix4x4.Identity;	//TODO
-			if (!Matrix4x4.Invert(mtxWorld2Clip, out Matrix4x4 mtxClip2World))
-			{
-				mtxClip2World = Matrix4x4.Identity;
-			}
-
 			cbCameraData.mtxWorld2Clip = mtxWorld2Clip;
 			cbCameraData.mtxClip2World = mtxClip2World;
 			cbCameraData.backgroundColor = Vector4.Zero;	//TODO
@@ -240,17 +253,11 @@ public sealed class Camera : IExtendedDisposable
 			}
 		}
 
-		// If using internal render targets, recreate those:
-		if (OverrideTarget is null && (ownTargetChecksum != OutputSettings.Checksum || ownTarget is null || ownTarget.IsDisposed))
+		// If using internal render targets, ensure those are initialized:
+		if (OverrideTarget is null && !CheckOrRecreateOwnCameraTarget())
 		{
-			ownTarget?.Dispose();
-
-			if (!CameraTargets.Create(graphicsService, logger, OutputSettings, out ownTarget))
-			{
-				logger.LogError("Failed to create internal camera target!");
-				return false;
-			}
-			ownTargetChecksum = OutputSettings.Checksum;
+			logger.LogError("Failed to (re)create internal camera target!");
+			return false;
 		}
 
 
@@ -288,6 +295,19 @@ public sealed class Camera : IExtendedDisposable
 		{
 			_outCameraPassCtx = null;
 			return false;
+		}
+
+		// If changed, recalculate projections and matrices:
+		if (projectionChecksum != ProjectionSettings.Checksum)
+		{
+			CameraHelper.CalculateProjectionMatrices(
+				OutputSettings,
+				ProjectionSettings,
+				CurrentPose,
+				out cbCameraData.mtxWorld2Clip,
+				out cbCameraData.mtxClip2World);
+
+			projectionChecksum = ProjectionSettings.Checksum;
 		}
 
 
@@ -369,6 +389,50 @@ public sealed class Camera : IExtendedDisposable
 	}
 
 	/// <summary>
+	/// Try to update the camera's projection settings.
+	/// </summary>
+	/// <remarks>
+	/// Settings can only be changed while '<see cref="IsDrawingPass"/>' is false. Any changes to render targets'
+	/// pixel formats or resolution must happen in-between camera passes, and can never be done during an ongoing pass.
+	/// </remarks>
+	/// <param name="_newProjectionSettings">The new projection settings.</param>
+	/// <returns>True if the projection settings were updated, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">New projection settings may not be null.</exception>
+	public bool SetProjectionSettings(CameraProjectionSettings _newProjectionSettings)
+	{
+		ArgumentNullException.ThrowIfNull(_newProjectionSettings);
+
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot set projection settings on disposed camera!");
+			return false;
+		}
+		if (IsDrawingPass)
+		{
+			logger.LogError("Cannot change projection settings on camera while it is drawing a pass!");
+			return false;
+		}
+		if (!_newProjectionSettings.IsValid())
+		{
+			logger.LogError($"Cannot set camera projection settings, invalid settings! (Settings: {_newProjectionSettings})");
+			return false;
+		}
+
+		// Only replace settings if values (and checksum) have changed:
+		if (_newProjectionSettings.Checksum == ProjectionSettings.Checksum)
+		{
+			return true;
+		}
+
+		// Adopt new settings:
+		CameraProjectionSettings prevProjectionSettings = ProjectionSettings;
+		ProjectionSettings = _newProjectionSettings;
+
+		ProjectionSettingsChanged?.Invoke(this, prevProjectionSettings, ProjectionSettings);
+		return true;
+	}
+
+	/// <summary>
 	/// Try to assign or unassign an override camera target.
 	/// </summary>
 	/// <remarks>
@@ -426,6 +490,26 @@ public sealed class Camera : IExtendedDisposable
 		OverrideTarget = _newOverrideTarget;
 
 		OverrideTargetChanged?.Invoke(this, prevOverrideTarget, OverrideTarget);
+		return true;
+	}
+
+	private bool CheckOrRecreateOwnCameraTarget()
+	{
+		if (ownTargetChecksum == OutputSettings.Checksum && ownTarget is not null && !ownTarget.IsDisposed)
+		{
+			return true;
+		}
+
+		// Purge any deprecated previous targets:
+		ownTarget?.Dispose();
+
+		// Create new targets:
+		if (!CameraTargets.Create(graphicsService, logger, OutputSettings, out ownTarget))
+		{
+			return false;
+		}
+
+		ownTargetChecksum = OutputSettings.Checksum;
 		return true;
 	}
 

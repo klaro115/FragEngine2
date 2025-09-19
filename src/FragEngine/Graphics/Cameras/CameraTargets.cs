@@ -114,7 +114,7 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 			Framebuffer is not null &&
 			!Framebuffer.IsDisposed &&
 			(HasColorTargets || HasDepthBuffer) &&
-			(!HasColorTargets || (ColorTargets![0] is not null && !ColorTargets[0].IsDisposed)) &&
+			(!HasColorTargets || ColorTargets![0] is not null) &&
 			(!HasDepthBuffer || (DepthStencilBuffer is not null && !DepthStencilBuffer.IsDisposed));
 		return isValid;
 	}

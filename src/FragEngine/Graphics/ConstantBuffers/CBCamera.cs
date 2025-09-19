@@ -33,7 +33,9 @@ public struct CBCamera
 		2 * 16 * sizeof(float) +
 		1 * 4 * sizeof(float) +
 		4 * sizeof(uint) +
-		2 * sizeof(float);
+		2 * sizeof(float);	// = 168
+
+	public const int packedByteSize = 176;
 
 	#endregion
 	#region Properties
@@ -64,7 +66,7 @@ public struct CBCamera
 	/// <summary>
 	/// Gets the GPU buffer description for this constant buffer type.
 	/// </summary>
-	public static BufferDescription BufferDesc => new(byteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
+	public static BufferDescription BufferDesc => new(packedByteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
 
 	#endregion
 }

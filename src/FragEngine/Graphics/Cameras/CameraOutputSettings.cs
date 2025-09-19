@@ -12,7 +12,16 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	#region Fields
 
 	private ulong checksum = 0ul;
+
+	private uint resolutionX = 8;
+	private uint resolutionY = 8;
 	private bool hasStencilBuffer = false;
+
+	#endregion
+	#region Constants
+
+	private const uint MIN_RESOLUTION = 8;
+	private const uint MAX_RESOLUTION = 8192;
 
 	#endregion
 	#region Properties
@@ -21,12 +30,20 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	/// The horizontal output resolution, in pixels.
 	/// Must be in the range from 8 to 8192, should be a multiple of 8.
 	/// </summary>
-	public required uint ResolutionX { get; init; }
+	public required uint ResolutionX
+	{
+		get => resolutionX;
+		init => resolutionX = Math.Clamp(value, MIN_RESOLUTION, MAX_RESOLUTION);
+	}
 	/// <summary>
 	/// The vertical output resolution, in pixels.
 	/// Must be in the range from 8 to 8192, should be a multiple of 8.
 	/// </summary>
-	public required uint ResolutionY { get; init; }
+	public required uint ResolutionY
+	{
+		get => resolutionY;
+		init => resolutionY = Math.Clamp(value, MIN_RESOLUTION, MAX_RESOLUTION);
+	}
 
 	/// <summary>
 	/// The pixel format of the main color render target.
@@ -59,6 +76,11 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	}
 
 	/// <summary>
+	/// Gets the aspect ratio of output images. This is a ratio calculated by dividing horizontal through vertical resolution.
+	/// </summary>
+	public float AspectRatio => (float)ResolutionX / ResolutionY;
+
+	/// <summary>
 	/// Gets or calculates a checksum for the current settings.
 	/// This value may be used to unambiguously compare if 2 settings objects are identical, and is used for detecting changes.
 	/// </summary>
@@ -71,19 +93,7 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 				return checksum;
 			}
 
-			checksum |= ResolutionX;
-			checksum |= ResolutionY << 13;
-			if (HasColorTarget)
-			{
-				checksum |= (ulong)ColorFormat << 26;
-				checksum |= 1ul << 42;
-			}
-			if (HasDepthBuffer)
-			{
-				checksum |= (ulong)DepthFormat << 34;
-				checksum |= 1ul << 43;
-				checksum |= (HasStencilBuffer ? 1ul : 0ul) << 44;
-			}
+			checksum = CalculateChecksum();
 			return checksum;
 		}
 	}
@@ -102,6 +112,28 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 
 	#endregion
 	#region Methods
+
+	private ulong CalculateChecksum()
+	{
+		ulong newChecksum = 0ul;
+
+		newChecksum |= ResolutionX;
+		newChecksum |= ResolutionY << 13;
+
+		if (HasColorTarget)
+		{
+			newChecksum |= (ulong)ColorFormat << 26;
+			newChecksum |= 1ul << 42;
+		}
+		if (HasDepthBuffer)
+		{
+			newChecksum |= (ulong)DepthFormat << 34;
+			newChecksum |= 1ul << 43;
+			newChecksum |= (HasStencilBuffer ? 1ul : 0ul) << 44;
+		}
+
+		return newChecksum;
+	}
 
 	/// <summary>
 	/// Checks whether these output settings are valid and make sense.
@@ -136,6 +168,69 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 			HasColorTarget ? [new OutputAttachmentDescription(ColorFormat)] : [],
 			SampleCount);
 		return desc;
+	}
+
+	/// <summary>
+	/// Creates a set of new output settings based on an existing framebuffer.
+	/// </summary>
+	/// <param name="_srcFramebuffer">A framebuffer to use as reference. May not be null or disposed.</param>
+	/// <returns>The new output settings object.</returns>
+	/// <exception cref="ArgumentNullException">Source frame buffer may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Source frame buffer may not be disposed.</exception>
+	public static CameraOutputSettings CreateFromFramebuffer(in Framebuffer _srcFramebuffer)
+	{
+		ArgumentNullException.ThrowIfNull(_srcFramebuffer);
+		ObjectDisposedException.ThrowIf(_srcFramebuffer.IsDisposed, _srcFramebuffer);
+
+		// Prepare temporary variables:
+		Texture? mainTexture = null;
+
+		uint resolutionX = MIN_RESOLUTION;
+		uint resolutionY = MIN_RESOLUTION;
+
+		PixelFormat colorFormat = PixelFormat.B8_G8_R8_A8_UNorm;
+		PixelFormat depthFormat = PixelFormat.D24_UNorm_S8_UInt;
+		TextureSampleCount sampleCount = TextureSampleCount.Count1;
+
+		bool hasColorTargets = false;
+		bool hasDepthBuffer = false;
+		bool hasStencilBuffer = false;
+
+		// Gather data from textures and buffers:
+		if (_srcFramebuffer.ColorTargets is not null && _srcFramebuffer.ColorTargets.Count != 0)
+		{
+			mainTexture = _srcFramebuffer.ColorTargets[0].Target;
+			colorFormat = _srcFramebuffer.ColorTargets[0].Target.Format;
+			hasColorTargets = true;
+		}
+		if (_srcFramebuffer.DepthTarget is not null)
+		{
+			mainTexture ??= _srcFramebuffer.DepthTarget!.Value.Target;
+			depthFormat = _srcFramebuffer.DepthTarget!.Value.Target.Format;
+			hasDepthBuffer = true;
+			hasStencilBuffer = depthFormat.IsDepthFormat();
+		}
+
+		if (mainTexture is not null)
+		{
+			resolutionX = mainTexture.Width;
+			resolutionY = mainTexture.Height;
+			sampleCount = mainTexture.SampleCount;
+		}
+
+		// Assemble settings object:
+		CameraOutputSettings outputSettings = new()
+		{
+			ResolutionX = resolutionX,
+			ResolutionY = resolutionY,
+			ColorFormat = colorFormat,
+			DepthFormat = depthFormat,
+			SampleCount = sampleCount,
+			HasColorTarget = hasColorTargets,
+			HasDepthBuffer = hasDepthBuffer,
+			HasStencilBuffer = hasStencilBuffer,
+		};
+		return outputSettings;
 	}
 
 	#endregion

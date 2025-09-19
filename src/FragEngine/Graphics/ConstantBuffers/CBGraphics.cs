@@ -27,7 +27,11 @@ public struct CBGraphics
 	#endregion
 	#region Constants
 
-	public const int byteSize = 5 * sizeof(float) + 4 * sizeof(uint);
+	public const int byteSize =
+		5 * sizeof(float) +
+		4 * sizeof(uint);	// = 36 bytes
+
+	public const int packedByteSize = 48;
 
 	#endregion
 	#region Properties
@@ -57,7 +61,7 @@ public struct CBGraphics
 	/// <summary>
 	/// Gets the GPU buffer description for this constant buffer type.
 	/// </summary>
-	public static BufferDescription BufferDesc => new(byteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
+	public static BufferDescription BufferDesc => new(packedByteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
 
 	#endregion
 }
