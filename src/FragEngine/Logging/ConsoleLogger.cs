@@ -5,7 +5,7 @@ namespace FragEngine.Logging;
 /// <summary>
 /// A very simple logging service that only outputs to the console.
 /// </summary>
-public sealed class ConsoleLogger : ILogger, IDisposable
+public sealed class ConsoleLogger : ILogger
 {
 	#region Events
 

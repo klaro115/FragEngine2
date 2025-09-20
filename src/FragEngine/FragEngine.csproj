@@ -4,13 +4,17 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<IsAotCompatible>true</IsAotCompatible>
+		<IsTrimmable>true</IsTrimmable>
+		<PublishTrimmed>true</PublishTrimmed>
 		<RootNamespace>FragEngine</RootNamespace>
 	</PropertyGroup>
 
 	<PropertyGroup>
+		<PackageId>de.klaro115.fragment.engine</PackageId>
 		<Authors>Robert Klares</Authors>
 		<VersionPrefix>0.0.1</VersionPrefix>
-		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<ItemGroup>

@@ -1,18 +1,12 @@
-﻿namespace FragEngine.Logging;
+﻿using FragEngine.Interfaces;
+
+namespace FragEngine.Logging;
 
 /// <summary>
 /// Interface for logging services. Errors or console messages will be written to their respective outputs using an implementation of this service.
 /// </summary>
-public interface ILogger
+public interface ILogger : IExtendedDisposable
 {
-	#region Properties
-
-	/// <summary>
-	/// Gets whether this object has already been disposed.
-	/// </summary>
-	bool IsDisposed { get; }
-
-	#endregion
 	#region Methods
 
 	/// <summary>

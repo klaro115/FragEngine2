@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FragEngine", "FragEngine\Fr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sandbox", "Sandbox\Sandbox.csproj", "{02E900D2-B319-4AE1-BCD1-E1323ADBC851}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FragEngine.UnitTests", "FragEngine.UnitTests\FragEngine.UnitTests.csproj", "{75514634-45A1-4907-8F2C-4A06D49B5DFC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{02E900D2-B319-4AE1-BCD1-E1323ADBC851}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{02E900D2-B319-4AE1-BCD1-E1323ADBC851}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{02E900D2-B319-4AE1-BCD1-E1323ADBC851}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75514634-45A1-4907-8F2C-4A06D49B5DFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75514634-45A1-4907-8F2C-4A06D49B5DFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75514634-45A1-4907-8F2C-4A06D49B5DFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75514634-45A1-4907-8F2C-4A06D49B5DFC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -201,6 +201,24 @@ public record struct Pose : IEquatable<Pose>
 	public readonly override string ToString()
 		=> $"Position: ({position.X:0.##}; {position.Y:0.##}; {position.Z:0.##}), Rotation: ({rotation.X:0.##}; {rotation.Y:0.##}; {rotation.Z:0.##}; {rotation.W:0.##}), Scale: ({scale.X:0.##}; {scale.Y:0.##}; {scale.Z:0.##})";
 
+	/// <summary>
+	/// Checks whether this pose is roughly equal to another pose.
+	/// </summary>
+	/// <remarks>
+	/// This method was added to allow sensible equality checks of quaternions, by allowing some margin of error
+	/// to counter floating-point inaccuracies.
+	/// </remarks>
+	/// <param name="_other">Another pose to compare against.</param>
+	/// <returns>True if they are equal to within rounding errors, false otherwise.</returns>
+	public readonly bool ApproximatelyEqual(in Pose _other)
+	{
+		bool isEqual =
+			position.ApproximatelyEqual(_other.position) &&
+			rotation.ApproximatelyEqual(_other.rotation) &&
+			scale.ApproximatelyEqual(_other.scale);
+		return isEqual;
+	}
+
 	#endregion
 	#region Methods Transformations
 

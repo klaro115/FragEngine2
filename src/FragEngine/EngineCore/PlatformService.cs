@@ -1,8 +1,8 @@
 ﻿using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Enums;
 using FragEngine.Extensions;
+using FragEngine.Graphics.Constants;
 using FragEngine.Logging;
-using System.Reflection;
 using Veldrid;
 
 namespace FragEngine.EngineCore;
@@ -111,7 +111,7 @@ public sealed class PlatformService
 		else
 		{
 			_outOperatingSystem = OperatingSystemType.Unknown;
-			_outGraphicsBackend = (GraphicsBackend)255;
+			_outGraphicsBackend = GraphicsConstants.invalidBackend;
 			return false;
 		}
 
@@ -146,12 +146,14 @@ public sealed class PlatformService
 	/// This is where the executable and all root folders for assets and settings should be.
 	/// </summary>
 	/// <returns>A directory path.</returns>
+	/// <exception cref="DirectoryNotFoundException">Root directory path could not be located.</exception>
 	public static string GetRootDirectoryPath()
 	{
-		string? rootDirPath = Assembly.GetEntryAssembly()?.Location;
+		string rootDirPath = AppContext.BaseDirectory;
 		if (string.IsNullOrEmpty(rootDirPath))
 		{
-			rootDirPath = typeof(PlatformService).Assembly.Location;
+			throw new DirectoryNotFoundException($"{nameof(PlatformService)} could not locate root driectory path!");
+			//rootDirPath = typeof(PlatformService).Assembly.Location;
 		}
 		string rootDirectoryPath = Path.GetDirectoryName(rootDirPath)!;
 		return rootDirectoryPath;

@@ -8,7 +8,32 @@ namespace FragEngine.Extensions;
 /// </summary>
 public static class QuaternionExt
 {
+	#region Constants
+
+	private const float EPSILON = 0.00001f;
+
+	#endregion
 	#region Methods
+
+	/// <summary>
+	/// Checks whether this quaternion is roughly equal to another quaternion.
+	/// </summary>
+	/// <remarks>
+	/// This method was added to allow sensible equality checks of quaternions, by allowing some margin of error
+	/// to counter floating-point inaccuracies.
+	/// </remarks>
+	/// <param name="_quaternion">This quaternion.</param>
+	/// <param name="_other">Another quaternion to compare against.</param>
+	/// <returns>True if they are equal to within rounding errors, false otherwise.</returns>
+	public static bool ApproximatelyEqual(this Quaternion _quaternion, Quaternion _other)
+	{
+		bool isEqual =
+			MathF.Abs(_quaternion.X - _other.X) < EPSILON &&
+			MathF.Abs(_quaternion.Y - _other.Y) < EPSILON &&
+			MathF.Abs(_quaternion.Z - _other.Z) < EPSILON &&
+			MathF.Abs(_quaternion.W - _other.W) < EPSILON;
+		return isEqual;
+	}
 
 	/// <summary>
 	/// Normalizes the magnitude of the rotation, to turn it into a unit quaternion.
