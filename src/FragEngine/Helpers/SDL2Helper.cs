@@ -19,6 +19,7 @@ public static class SDL2Helper
 	/// <param name="_logMessage">A contextual message to log together with the SDL error message. If null, the SDL error is logged by itself.</param>
 	/// <param name="_clearErrorAfter">Whether to clear the error after it has been read. Should be true by default.</param>
 	/// <returns>True if there was an error, false if no error was found and it's safe to proceed.</returns>
+	/// <exception cref="ArgumentNullException">Logger may not be null.</exception>
 	public static bool CheckAndLogError(ILogger _logger, int _sdlErrorCode, string? _logMessage, bool _clearErrorAfter = true)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
@@ -28,24 +29,9 @@ public static class SDL2Helper
 			return false;
 		}
 
-		bool hasError = GetError(out string errorMessage, _clearErrorAfter);
+		GetError(out string errorMessage, _clearErrorAfter);
 
-		if (hasError && !string.IsNullOrEmpty(_logMessage))
-		{
-			_logger.LogError($"{_logMessage} (SDL error: '{errorMessage}')");
-		}
-		else if (hasError)
-		{
-			_logger.LogError($"SDL error: '{errorMessage}'");
-		}
-		else if (!string.IsNullOrEmpty(_logMessage))
-		{
-			_logger.LogError(_logMessage);
-		}
-		else
-		{
-			_logger.LogError($"An SDL error occured! (Error code: {_sdlErrorCode})");
-		}
+		LogSdlError(_logger, _logMessage, errorMessage, _sdlErrorCode);
 		return true;
 	}
 
@@ -92,6 +78,50 @@ public static class SDL2Helper
 			Sdl2Native.SDL_ClearError();
 		}
 		return true;
+	}
+
+	/// <summary>
+	/// Checks for errors, then outputs it via logger.
+	/// </summary>
+	/// <param name="_logger">The logger service through which to output error messages.</param>
+	/// <param name="_logMessage">A contextual message to log together with the SDL error message. If null, the SDL error is logged by itself.</param>
+	/// <param name="_clearErrorAfter">Whether to clear the error after it has been read. Should be true by default.</param>
+	/// <returns>True if an error exists and the message could be logged, false otherwise</returns>
+	/// <exception cref="ArgumentNullException">Logger may not be null.</exception>
+	public static unsafe bool GetAndLogError(ILogger _logger, string? _logMessage, bool _clearErrorAfter = true)
+	{
+		ArgumentNullException.ThrowIfNull(_logger);
+
+		if (!GetError(out string errorMessage, _clearErrorAfter))
+		{
+			return false;
+		}
+
+		LogSdlError(_logger, _logMessage, errorMessage, -1);
+		return true;
+	}
+
+	private static void LogSdlError(ILogger _logger, string? _logMessage, string? _sdlErrorMessage, int _sdlErrorCode)
+	{
+		bool hasLogMessage = !string.IsNullOrEmpty(_logMessage);
+		bool hasError = !string.IsNullOrEmpty(_sdlErrorMessage);
+
+		if (hasError && hasLogMessage)
+		{
+			_logger.LogError($"{_logMessage} (SDL error: '{_sdlErrorMessage}')");
+		}
+		else if (hasError)
+		{
+			_logger.LogError($"SDL error: '{_sdlErrorMessage}'");
+		}
+		else if (!string.IsNullOrEmpty(_logMessage))
+		{
+			_logger.LogError(_logMessage);
+		}
+		else
+		{
+			_logger.LogError($"An SDL error occured! (Error code: {_sdlErrorCode})");
+		}
 	}
 
 	#endregion

@@ -1,12 +1,17 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Windows;
+using FragEngine.Extensions.SDL;
+using FragEngine.Helpers;
 using FragEngine.Logging;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
+using Vulkan.Win32;
 
 namespace FragEngine.Graphics.Dx11;
 
@@ -149,9 +154,18 @@ internal sealed class Dx11GraphicsService(
 			return false;
 		}
 
-		IntPtr hInstance = Marshal.GetHINSTANCE(typeof(Dx11GraphicsService).Module);
+		// Determine the app's instance handle:
+		if (!OperatingSystem.IsWindows() || !WindowsHelper.TryGetAppHInstance(logger, _window, out nint hInstance))
+		{
+			logger.LogError("Cannot determine the app's HInstance; unable to create Dx11/Win32 swapchain!");
+			_outSwapchain = null;
+			return false;
+		}
+
+		// Create a Win32 swapchain source:
 		SwapchainSource source = SwapchainSource.CreateWin32(_window.Handle, hInstance);
 
+		// Create swapchain:
 		SwapchainDescription swapchainDesc = new(
 			source,
 			(uint)_window.Width,
