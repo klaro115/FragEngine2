@@ -17,7 +17,13 @@ public sealed class PlatformService
 	private readonly ILogger logger;
 	private readonly EngineConfig config;
 
+	/// <summary>
+	/// Root path to the directory where the app and its data is located.
+	/// </summary>
 	public readonly string rootDirectoryPath = string.Empty;
+	/// <summary>
+	/// Path to the directory where engine configs and settings files are located.
+	/// </summary>
 	public readonly string settingsDirectoryPath = string.Empty;
 
 	#endregion
@@ -35,6 +41,15 @@ public sealed class PlatformService
 	#endregion
 	#region Constructors
 
+	/// <summary>
+	/// Creates a new instance of the platform service.
+	/// </summary>
+	/// <param name="_logger">The logging service singleton.</param>
+	/// <param name="_config">The main engine configuration.</param>
+	/// <exception cref="ArgumentNullException">Logger and engine config may not be null.</exception>
+	/// <exception cref="PlatformNotSupportedException">Operating system is not supported.</exception>
+	/// <exception cref="DirectoryNotFoundException">Root directory path could not be located.</exception>
+	/// <exception cref="Exception">Failed to prepare root directories.</exception>
 	public PlatformService(ILogger _logger, EngineConfig _config)
 	{
 		logger = _logger ?? throw new ArgumentNullException(nameof(_logger));

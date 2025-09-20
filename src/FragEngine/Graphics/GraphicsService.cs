@@ -289,6 +289,12 @@ public abstract class GraphicsService(
 		return true;
 	}
 
+	/// <summary>
+	/// Create a new swapchain around an existing SDL window.
+	/// </summary>
+	/// <param name="_window">The SDL window to create a swapchain for.</param>
+	/// <param name="_outSwapchain">Output the new swapchain, or null, on failure.</param>
+	/// <returns>True if a swapchain could be created, false otherwise.</returns>
 	internal abstract bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain);
 
 	/// <summary>

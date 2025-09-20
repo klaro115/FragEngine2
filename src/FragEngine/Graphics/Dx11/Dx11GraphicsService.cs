@@ -1,17 +1,12 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Windows;
-using FragEngine.Extensions.SDL;
 using FragEngine.Helpers;
 using FragEngine.Logging;
-using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
-using Vulkan.Win32;
 
 namespace FragEngine.Graphics.Dx11;
 
