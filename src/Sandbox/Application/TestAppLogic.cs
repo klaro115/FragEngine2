@@ -1,5 +1,6 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore;
+using FragEngine.EngineCore.Input;
 using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics.Cameras;
@@ -82,6 +83,11 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	public bool OnEngineStateChanged(EngineStateType _previousState, EngineStateType _currentState)
 	{
+		if (_currentState == EngineStateType.Starting)
+		{
+			engine.InputService.AddInputAxesWASDQE();
+		}
+		
 		if (_currentState == EngineStateType.Running)
 		{
 			escapeKeyState = engine.InputService.GetKeyState(Key.Escape);

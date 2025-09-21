@@ -2,9 +2,8 @@
 using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
-using FragEngine.Extensions;
+using FragEngine.Extensions.Veldrid;
 using FragEngine.Logging;
-using System.Xml.Linq;
 using Veldrid;
 
 namespace FragEngine.EngineCore.Input;
@@ -29,7 +28,7 @@ public sealed class InputService
 	#endregion
 	#region Fields
 
-	private readonly ILogger logger;
+	internal readonly ILogger logger;
 	private readonly TimeService timeService;
 
 	private readonly InputKeyState[] keyStates;
@@ -225,7 +224,7 @@ public sealed class InputService
 	/// <returns>True if the new axis could be registered and is valid, false otherwise.</returns>
 	public bool AddInputAxis(string _name, Key _negativeKey, Key _positiveKey, out InputAxis _outNewAxis, bool _useSnapshotEvents = false)
 	{
-		if (CheckIfInputAxisCanBeAdded(_name))
+		if (!CheckIfInputAxisCanBeAdded(_name))
 		{
 			_outNewAxis = InputAxis.Invalid;
 			return false;
