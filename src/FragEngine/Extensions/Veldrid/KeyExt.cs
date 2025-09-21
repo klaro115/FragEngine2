@@ -1,6 +1,6 @@
 ﻿using Veldrid;
 
-namespace FragEngine.Extensions;
+namespace FragEngine.Extensions.Veldrid;
 
 /// <summary>
 /// Extension methods for the <see cref="Key"/> enum.
