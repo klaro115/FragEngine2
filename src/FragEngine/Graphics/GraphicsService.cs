@@ -1,4 +1,5 @@
-﻿using FragEngine.EngineCore;
+﻿using FragEngine.Constants;
+using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Interfaces;
@@ -214,6 +215,13 @@ public abstract class GraphicsService(
 			return false;
 		}
 
+		// Check if graphics settings are actually changing, quietly return if they haven't:
+		if (settings is not null && _newSettings.Checksum == settings.Checksum)
+		{
+			return true;
+		}
+
+		// Assign new settings:
 		GraphicsSettings? previousSettings = settings;
 		GraphicsSettingsChanging?.Invoke(previousSettings, _newSettings);
 
@@ -267,14 +275,27 @@ public abstract class GraphicsService(
 		return SetGraphicsSettings(newSettings!);
 	}
 
+	/// <summary>
+	/// Perform platform-specific logic after graphics settings have changed.
+	/// </summary>
+	/// <returns>True if settings were applied and processed successfully, false otherwise.</returns>
 	protected abstract bool HandleSetGraphicsSettings();
 
+	/// <summary>
+	/// Get various settings and metrics for creating the main window.
+	/// </summary>
+	/// <param name="_outWindowTitle">Outputs the title of the main window.</param>
+	/// <param name="_outWindowPosition">Outputs the position of the window, in desktop space, measured in pixels.</param>
+	/// <param name="_outWindowSize">Outputs the size of the window, in pixels.</param>
+	/// <returns>True if main window settings could be determined, false otherwise.</returns>
 	protected bool GetWindowSettings(out string _outWindowTitle, out Vector2 _outWindowPosition, out Vector2 _outWindowSize)
 	{
 		int screenIndex = Settings.OutputScreenIndex >= 0 ? Settings.OutputScreenIndex : (int)config.MainWindowScreenIndex;
 
 		if (!windowService.GetScreenMetrics(screenIndex, out Vector2 screenPosition, out Vector2 screenResolution, out _))
 		{
+			logger.LogWarning($"Screen with index {screenIndex} could not be found, trying main screen instead.", LogEntrySeverity.Trivial);
+
 			if (!windowService.GetScreenMetrics(0, out screenPosition, out screenResolution, out _))
 			{
 				logger.LogError("Failed to get screen metrics, can't center window on screen!");
@@ -283,7 +304,7 @@ public abstract class GraphicsService(
 			}
 		}
 
-		_outWindowTitle = !string.IsNullOrEmpty(config.MainWindowTitle) ? config.MainWindowTitle : "Fragment Engine";
+		_outWindowTitle = !string.IsNullOrEmpty(config.MainWindowTitle) ? config.MainWindowTitle : EngineConstants.engineDisplayName;
 		_outWindowSize = Settings.OutputResolution ?? Vector2.Min(screenResolution, new Vector2(1920, 1080));
 		_outWindowPosition = screenPosition + screenResolution / 2 - _outWindowSize / 2;
 		return true;

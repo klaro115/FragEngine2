@@ -25,6 +25,7 @@ public static class QuaternionExt
 	/// <param name="_quaternion">This quaternion.</param>
 	/// <param name="_other">Another quaternion to compare against.</param>
 	/// <returns>True if they are equal to within rounding errors, false otherwise.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool ApproximatelyEqual(this Quaternion _quaternion, Quaternion _other)
 	{
 		bool isEqual =

@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace FragEngine.Extensions;
 
@@ -24,6 +25,7 @@ public static class Vector3Ext
 	/// <param name="_vector">This vector.</param>
 	/// <param name="_other">Another vector to compare against.</param>
 	/// <returns>True if they are equal to within rounding errors, false otherwise.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool ApproximatelyEqual(this Vector3 _vector, Vector3 _other)
 	{
 		bool isEqual =

@@ -289,7 +289,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			return false;
 		}
 
-		success &= camera.BeginPass(in sceneCtx, cmdList!, 0u, out CameraPassContext? cameraPassCtx);
+		success &= camera.BeginPass(in sceneCtx, cmdList!, 0u, out CameraPassContext? _);
 
 
 		//TODO [later]: Draw stuff.

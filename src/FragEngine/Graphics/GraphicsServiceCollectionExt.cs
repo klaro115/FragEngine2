@@ -17,18 +17,31 @@ public static class GraphicsServiceCollectionExt
 {
 	#region Constants
 
-	public const int defaultServiceCount = 1;
+	/// <summary>
+	/// The minimum number of graphics services that are added by default. This constant is used as a
+	/// reference to check if the service provider contains a realistic number of services for normal
+	/// engine operation.
+	/// </summary>
+	public const int defaultServiceCount = 2;
 
 	#endregion
 	#region Methods
 
+	/// <summary>
+	/// Adds graphics-related services and configs to a service collection.<para/>
+	/// This will add the right <see cref="GraphicsService"/> implementation for the current platform,
+	/// as well as all common transient types (ex.: <see cref="Camera"/>) to the engine's service provider.
+	/// </summary>
+	/// <param name="_serviceCollection">This service collection.</param>
+	/// <returns>The service collection, with all graphics services added.</returns>
+	/// <exception cref="NullReferenceException">Service collection may not be null, and must include an
+	/// implementation of a logging service.</exception>
+	/// <exception cref="Exception">Failed to add graphics services to service collection.</exception>
 	public static IServiceCollection UseGraphics(this IServiceCollection _serviceCollection)
 	{
-		ILogger? logger = _serviceCollection.GetLoggerInstance();
-		if (logger is null)
-		{
-			throw new NullReferenceException("Logger instance is missing!");
-		}
+		ArgumentNullException.ThrowIfNull(_serviceCollection);
+
+		ILogger? logger = _serviceCollection.GetLoggerInstance() ?? throw new NullReferenceException("Logger instance is missing!");
 
 		EngineConfig? engineConfig = _serviceCollection.GetImplementationInstance<EngineConfig>();
 		if (engineConfig is null)
@@ -50,12 +63,12 @@ public static class GraphicsServiceCollectionExt
 
 		if (!AddPlatformSpecficServices(_serviceCollection, platformService, logger))
 		{
-			throw new Exception("Failed to add graphics service to engine service collection!");
+			throw new Exception("Failed to add platform-specific graphics services to service collection!");
 		}
 
 		if (!AddPlatformAgnosticServices(_serviceCollection, platformService, logger))
 		{
-			throw new Exception("Failed to add graphics service to engine service collection!");
+			throw new Exception("Failed to add general graphics services to service collection!");
 		}
 
 		return _serviceCollection;
@@ -87,7 +100,7 @@ public static class GraphicsServiceCollectionExt
 		_serviceCollection.AddTransient<Camera>();
 		//...
 
-		//TODO [later]: Add platform-agnostic services.
+		//TODO [later]: Add further platform-agnostic services.
 		return true;
 	}
 
