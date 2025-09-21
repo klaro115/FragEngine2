@@ -108,11 +108,17 @@ public sealed class Engine : IExtendedDisposable
 	/// Creates a new engine instance.
 	/// </summary>
 	/// <param name="_appLogic">Application logic module. This is where your overarching app or game logic goes. May not be null.</param>
-	/// <param name="_serviceCollection"></param>
+	/// <param name="_serviceCollection">Optional. A customized collection of services and service definitions.<para/>
+	/// This colelction should contain at least a logging service implementation (<see cref="ILogger"/>), and the engine
+	/// configuration (<see cref="EngineConfig"/>). If null, the engine will use a basic selection of standard services
+	/// instead, created via '<see cref="EngineStartupHelper.CreateDefaultServiceCollection(out IServiceCollection?)"/>'</param>.
+	///	<param name="_funcPostInitAction">Optional. A callback function for additional initialization logic that should
+	///	run immediately after the engine's constructor has finished. This allows you to perform additional initialization
+	///	on the engine's services before the state machine starts.</param>
 	/// <exception cref="ArgumentNullException">Application logic was null.</exception>
-	/// <exception cref="Exception">Failed to initialize depencency injection.</exception>
+	/// <exception cref="Exception">Failed to initialize depencency injection, or failed to execute post-init callback.</exception>
 	/// <exception cref="ObjectDisposedException">Application logic has already been disposed.</exception>
-	public Engine(IAppLogic _appLogic, IServiceCollection? _serviceCollection = null)
+	public Engine(IAppLogic _appLogic, IServiceCollection? _serviceCollection = null, FuncEnginePostInitialization? _funcPostInitAction = null)
 	{
 		ArgumentNullException.ThrowIfNull(_appLogic);
 
@@ -153,6 +159,13 @@ public sealed class Engine : IExtendedDisposable
 		{
 			Dispose();
 			throw new Exception("Failed to initialize engine's app logic!");
+		}
+
+		// If requested, perform additional setup through the post-initialization callback:
+		if (!ExecutePostInitilizationCallback(_funcPostInitAction))
+		{
+			Dispose();
+			throw new Exception("Failed to complete engine post-initialization callback!");
 		}
 
 		Logger.LogStatus("# Engine is initialized.");
@@ -220,6 +233,26 @@ public sealed class Engine : IExtendedDisposable
 		}
 
 		return true;
+	}
+
+	private bool ExecutePostInitilizationCallback(FuncEnginePostInitialization? _funcPostInitAction)
+	{
+		if (_funcPostInitAction is null)
+		{
+			return true;
+		}
+
+		// Try executing the post-init callback:
+		try
+		{
+			bool success = _funcPostInitAction.Invoke(this);
+			return success;
+		}
+		catch (Exception ex)
+		{
+			Logger.LogException("An exception was thrown by the engine's post-initialization callback!", ex, LogEntrySeverity.Fatal);
+			return false;
+		}
 	}
 
 	#endregion
