@@ -28,7 +28,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private CBGraphics cbGraphicsData;
 	private CBScene cbSceneData;
 
-	private CameraTargets? backBufferTarget = null;
 	private Camera? camera = null;
 	private CommandList? cmdList = null;
 	private DeviceBuffer? bufCbGraphics = null;

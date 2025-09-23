@@ -12,6 +12,9 @@ public sealed class EngineConfig : IValidated
 {
 	#region Properties
 
+	/// <summary>
+	/// Startup behaviour configuration.
+	/// </summary>
 	public required EngineStartupConfig Startup { get; init; } = new() { CreateMainWindowImmediately = true };
 
 	/// <summary>

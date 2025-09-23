@@ -78,6 +78,50 @@ public static class EngineStartupHelper
 		}
 	}
 
+	/// <summary>
+	/// Creates a new engine instance using default services and settings.
+	/// </summary>
+	/// <param name="_appLogic">An application logic instance that will control the engine.</param>
+	/// <param name="_loggerInstance">A logger that shall be added to the engine as its primary logging service singleton.</param>
+	/// <param name="_engineConfig">A custom engine configuration.</param>
+	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
+	/// <returns>True if the engine was created successfully, false otherwise.</returns>
+	public static bool CreateDefaultEngine(IAppLogic _appLogic, ILogger _loggerInstance, EngineConfig _engineConfig, out Engine? _outEngine)
+	{
+		if (_loggerInstance is null || _loggerInstance.IsDisposed)
+		{
+			Console.WriteLine("Cannot create default engine using null or disposed logging service!");
+			_outEngine = null;
+			return false;
+		}
+
+		if (_appLogic is null || (_appLogic is IExtendedDisposable disposable && disposable.IsDisposed))
+		{
+			_loggerInstance.LogError("Cannot create default engine using null or disposed app logic!");
+			_outEngine = null;
+			return false;
+		}
+
+		if (!CreateDefaultServiceCollection(_loggerInstance, _engineConfig, out IServiceCollection? services))
+		{
+			_loggerInstance.LogError("Failed to create service collection during default engine creation!", LogEntrySeverity.Critical);
+			_outEngine = null;
+			return false;
+		}
+
+		try
+		{
+			_outEngine = new(_appLogic, services);
+			return !_outEngine.IsDisposed;
+		}
+		catch (Exception ex)
+		{
+			_loggerInstance.LogException($"Failed to complete default engine creation!", ex, LogEntrySeverity.Fatal);
+			_outEngine = null;
+			return false;
+		}
+	}
+
 	internal static bool CreateDefaultServiceProvider(IServiceCollection? _services, out IServiceProvider? _outServiceProvider)
 	{
 		if (_services is null || _services.Count < minServiceCount)
@@ -133,12 +177,38 @@ public static class EngineStartupHelper
 			_loggerInstance.LogWarning("Failed to load engine config from file, using default config instead.");
 		}
 
+		return CreateDefaultServiceCollection(_loggerInstance, config, out _outServices);
+	}
+
+	/// <summary>
+	/// Create a default service collection for engine creation, including only the core services, but using a custom logger and config.
+	/// </summary>
+	/// <param name="_loggerInstance">An instance of the logging service implementation.</param>
+	/// <param name="_engineConfig">A custom engine configuration.</param>
+	/// <param name="_outServices">Outputs the service collection, or null on error.</param>
+	/// <returns>True if the service collection was created successfully, false otherwise.</returns>
+	public static bool CreateDefaultServiceCollection(ILogger _loggerInstance, EngineConfig _engineConfig, out IServiceCollection? _outServices)
+	{
+		if (_loggerInstance is null || _loggerInstance.IsDisposed)
+		{
+			Console.WriteLine("Cannot create default service collection using null or disposed logging service!");
+			_outServices = null;
+			return false;
+		}
+
+		if (_engineConfig is null || !_engineConfig.IsValid())
+		{
+			Console.WriteLine("Cannot create default service collection using null or invalid engine config!");
+			_outServices = null;
+			return false;
+		}
+
 		try
 		{
 			_outServices = new ServiceCollection()
-				.UseEngine(_loggerInstance, config)
+				.UseEngine(_loggerInstance, _engineConfig!)
 				.UseGraphics();
-				//...
+			//...
 
 			return true;
 		}
