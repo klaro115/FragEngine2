@@ -1,4 +1,5 @@
-﻿using FragEngine.Graphics.ConstantBuffers;
+﻿using FragEngine.EngineCore.Windows;
+using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
@@ -26,7 +27,7 @@ namespace FragEngine.Graphics.Cameras;
 /// PROJECTION: This camera class is capable of both perpective and orthographic projection. You can access and adjust projection
 /// behaviour through the '<see cref="ProjectionSettings"/>' property.
 /// </summary>
-public sealed class Camera : IExtendedDisposable
+public sealed class Camera : IExtendedDisposable, IWindowClient
 {
 	#region Types
 
@@ -172,6 +173,16 @@ public sealed class Camera : IExtendedDisposable
 	/// </summary>
 	public CameraTargets? CurrentTarget => OverrideTarget is not null && !OverrideTarget.IsDisposed ? OverrideTarget : ownTarget;
 
+	/// <summary>
+	/// Gets the window that this camera is currently connected to, or null, if it is not currently connected to
+	/// any windows. If non-null, the camera will be outputting directly to this window's backbuffer, and its
+	/// render targets will automatically resize to match the window's resolution.<para/>
+	/// To bind the camera to a window, call '<see cref="WindowHandle.ConnectClient(IWindowClient)"/>', or use
+	/// '<see cref="WindowHandle.DisconnectClient(IWindowClient)"/>' to detach it once more. The camera can only
+	/// ever be connected to one window at a time.
+	/// </summary>
+	public WindowHandle? ConnectedWindow { get; private set; } = null;
+
 	#endregion
 	#region Constructors
 
@@ -296,7 +307,7 @@ public sealed class Camera : IExtendedDisposable
 		{
 			logger.LogWarning("Override camera target was disposed; unassigning and falling back to internal targets.");
 
-			if (!SetOverrideCameraTarget(null))
+			if (!SetOverrideCameraTarget_internal(null))
 			{
 				return false;
 			}
@@ -545,6 +556,17 @@ public sealed class Camera : IExtendedDisposable
 	/// <returns>True if the override target was set, false otherwise.</returns>
 	public bool SetOverrideCameraTarget(CameraTargets? _newOverrideTarget)
 	{
+		if (ConnectedWindow is not null && ConnectedWindow.IsOpen)
+		{
+			logger.LogError("Cannot change override target on camera whose output is connected to a window!");
+			return false;
+		}
+
+		return SetOverrideCameraTarget_internal(_newOverrideTarget);
+	}
+
+	private bool SetOverrideCameraTarget_internal(CameraTargets? _newOverrideTarget)
+	{
 		if (IsDisposed)
 		{
 			logger.LogError("Cannot set override target on disposed camera!");
@@ -646,6 +668,91 @@ public sealed class Camera : IExtendedDisposable
 		{
 			_cmdList.ClearDepthStencil(ClearingSettings.DepthValue);
 		}
+	}
+
+	public bool OnConnectedToWindow(WindowHandle? _newConnectedWindow)
+	{
+		if (_newConnectedWindow is not null && ConnectedWindow is not null && ConnectedWindow.IsOpen)
+		{
+			logger.LogError("Cannot connect camera to a new window while it already has a live connection!");
+			return false;
+		}
+		if (_newConnectedWindow == ConnectedWindow)
+		{
+			return true;
+		}
+
+		// If null, disconnect and use own camera targets again:
+		if (_newConnectedWindow is null)
+		{
+			ConnectedWindow = null;
+
+			SetOverrideCameraTarget_internal(null);
+			return true;
+		}
+
+		ConnectedWindow = _newConnectedWindow;
+
+		return MakeCameraOutputToWindowSwapchain();
+	}
+
+	public void OnWindowClosing(WindowHandle? _windowHandle)
+	{
+		if (IsDisposed)
+		{
+			return;
+		}
+		if (ConnectedWindow is null || ConnectedWindow != _windowHandle)
+		{
+			return;
+		}
+
+		ConnectedWindow = null;
+		CameraTargets? prevOverrideTarget = OverrideTarget;
+
+		SetOverrideCameraTarget_internal(null);
+
+		prevOverrideTarget?.Dispose();
+	}
+
+	public void OnWindowClosed(WindowHandle? _windowHandle) { }
+
+	public void OnWindowResized(WindowHandle _windowHandle, Rectangle _newBounds) => MakeCameraOutputToWindowSwapchain();
+
+	private bool MakeCameraOutputToWindowSwapchain()
+	{
+		if (IsDisposed)
+		{
+			return false;
+		}
+
+		Framebuffer outputFramebuffer = ConnectedWindow!.Swapchain.Framebuffer;
+
+		// (Re)create swapchain camera target:
+		if (!CameraTargets.CreateFromFramebuffer(logger, outputFramebuffer, false, out CameraTargets? backBufferTarget))
+		{
+			logger.LogError("Failed to create camera target around window swapchain framebuffer!", LogEntrySeverity.Critical);
+			return false;
+		}
+
+		// Adjust camera output to match swapchain:
+		CameraOutputSettings outputSettings = CameraOutputSettings.CreateFromFramebuffer(in outputFramebuffer);
+		if (!SetOutputSettings(outputSettings))
+		{
+			backBufferTarget?.Dispose();
+			logger.LogError("Failed to adjust camera output to window swapchain!");
+			return false;
+		}
+
+		// Make camera output to swapchain:
+		if (!SetOverrideCameraTarget_internal(backBufferTarget))
+		{
+			backBufferTarget?.Dispose();
+			logger.LogError($"Failed to make camera output to window '{ConnectedWindow}'!");
+			return false;
+		}
+
+		return true;
 	}
 
 	#endregion

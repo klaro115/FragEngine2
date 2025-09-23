@@ -1,4 +1,4 @@
-﻿namespace FragEngine.Constants;
+﻿namespace FragEngine.EngineCore;
 
 /// <summary>
 /// Constants for general engine operation.
@@ -24,6 +24,11 @@ public static class EngineConstants
 	/// The engine's official name, followed by the current version.
 	/// </summary>
 	public static readonly string engineVersionedName = $"{engineDisplayName} v{engineVersionMajor}.{engineVersionMinor}.{engineVersionPatch}";
+
+	/// <summary>
+	/// The full namespace that the engine class is declared in.
+	/// </summary>
+	public static readonly string engineNamespace = typeof(Engine).Namespace!;
 
 	#endregion
 	#region Properties

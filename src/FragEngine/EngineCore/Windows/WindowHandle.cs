@@ -24,6 +24,15 @@ public sealed class WindowHandle : IExtendedDisposable
 	private readonly WindowService windowService;
 	private readonly ILogger logger;
 
+	private readonly HashSet<IWindowClient> clients = [];
+
+	private readonly SemaphoreSlim clientSemaphore = new(1, 1);
+
+	#endregion
+	#region Constants
+
+	private const int clientSemaphoreTimeoutMs = 30;
+
 	#endregion
 	#region Properties
 
@@ -106,6 +115,8 @@ public sealed class WindowHandle : IExtendedDisposable
 		CloseWindow();
 
 		IsDisposed = true;
+
+		clientSemaphore.Dispose();
 	}
 
 	/// <summary>
@@ -200,6 +211,123 @@ public sealed class WindowHandle : IExtendedDisposable
 		return resized;
 	}
 
+	/// <summary>
+	/// Connects a new client to this window. The client will receive lifecycle and resizing events for this window.
+	/// </summary>
+	/// <param name="_newClient">A new client to connect to this window</param>
+	/// <returns>True if the client was connected to this window, false otherwise.</returns>
+	public bool ConnectClient(IWindowClient _newClient)
+	{
+		if (_newClient is null)
+		{
+			logger.LogError("Cannot connect null client to window handle!");
+			return false;
+		}
+		if (_newClient is IExtendedDisposable disposable && disposable.IsDisposed)
+		{
+			logger.LogError("Cannot connect disposed client to window handle!");
+			return false;
+		}
+		if (!IsOpen)
+		{
+			logger.LogError("Cannot connect new client to window handle that has already been closed or disposed!");
+			return false;
+		}
+
+		// Ensure exclusive connection to one window at a time:
+		if (_newClient.ConnectedWindow is not null && _newClient.ConnectedWindow != this && _newClient.ConnectedWindow.IsOpen)
+		{
+			logger.LogError($"Window client '{_newClient}' is already connected to a window! Disconnect it first before attempting a new connection!");
+			return false;
+		}
+
+		if (!clientSemaphore.Wait(clientSemaphoreTimeoutMs))
+		{
+			logger.LogError($"Timeout when trying to connect window client to window '{Window.Title}'!");
+			return false;
+		}
+
+		try
+		{
+			// Add new client to the list:
+			if (clients.Contains(_newClient))
+			{
+				logger.LogWarning("Window client has already been connected to this window.");
+				return true;
+			}
+
+			// Create connection:
+			if (!_newClient.OnConnectedToWindow(this))
+			{
+				logger.LogError($"Failed to establish connection client-side between client '{_newClient}' and window '{Window.Title}'!");
+				return false;
+			}
+
+			clients.Add(_newClient);
+
+			// Subscribe client to window events:
+			Closing += _newClient.OnWindowClosing;
+			Closed += _newClient.OnWindowClosed;
+			Resized += _newClient.OnWindowResized;
+
+			return true;
+		}
+		finally
+		{
+			clientSemaphore.Release();
+		}
+	}
+
+	/// <summary>
+	/// Disconnects an existing client from this window.
+	/// </summary>
+	/// <param name="_client">A client that has previously been connected to this window.</param>
+	/// <returns>True if the </returns>
+	public bool DisconnectClient(IWindowClient _client)
+	{
+		if (_client is null)
+		{
+			logger.LogError("Cannot disconnect null client from window handle!");
+			return false;
+		}
+
+		if (!clientSemaphore.Wait(clientSemaphoreTimeoutMs))
+		{
+			logger.LogError($"Timeout when trying to connect window client to window '{Window.Title}'!");
+			return false;
+		}
+
+		try
+		{
+			if (!clients.Contains(_client))
+			{
+				logger.LogError($"Window client '{_client}' is not connected to window '{Window.Title}'!");
+				return false;
+			}
+
+			// Cut connection and remove client from list:
+			bool isClientDisposed = _client is IExtendedDisposable disposable && disposable.IsDisposed;
+			if (!isClientDisposed && !_client.OnConnectedToWindow(null))
+			{
+				logger.LogError($"Failed to cut connection client-side between client '{_client}' and window '{Window.Title}'!");
+				return false;
+			}
+
+			clients.Remove(_client);
+
+			// Unsubscribe client from window events:
+			Closing -= _client.OnWindowClosing;
+			Closed -= _client.OnWindowClosed;
+			Resized -= _client.OnWindowResized;
+
+			return true;
+		}
+		finally
+		{
+			clientSemaphore.Release();
+		}
+	}
+
 	private void OnClosing()
 	{
 		if (!IsOpen) return;
@@ -210,6 +338,16 @@ public sealed class WindowHandle : IExtendedDisposable
 	private void OnClosed()
 	{
 		if (IsDisposed) return;
+
+		try
+		{
+			clientSemaphore.Wait(clientSemaphoreTimeoutMs);
+			clients.Clear();
+		}
+		finally
+		{
+			clientSemaphore.Release();
+		}
 
 		Closed?.Invoke(this);
 

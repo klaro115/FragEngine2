@@ -1,5 +1,4 @@
-﻿using FragEngine.Constants;
-using FragEngine.EngineCore;
+﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Interfaces;

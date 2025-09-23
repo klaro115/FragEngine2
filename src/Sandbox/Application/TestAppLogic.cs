@@ -158,11 +158,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private void DisposeCamera()
 	{
-		if (GetMainWindow(out WindowHandle? mainWindow))
-		{
-			mainWindow!.Resized -= OnMainWindowResized;
-		}
-
 		camera?.Dispose();
 		cmdList?.Dispose();
 		bufCbScene?.Dispose();
@@ -197,12 +192,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			return false;
 		}
 		
-		if (!MakeCameraOutputToWindow(mainWindow))
+		if (!mainWindow.ConnectClient(camera))
 		{
 			return false;
 		}
-
-		mainWindow.Resized += OnMainWindowResized;
 
 		// Create various scene-wide resources:
 		try
@@ -229,44 +222,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		}
 
 		return engine.WindowService.GetWindow(0, out _outMainWindow);
-	}
-
-	private void OnMainWindowResized(WindowHandle windowHandle, Rectangle _) => MakeCameraOutputToWindow(windowHandle);
-
-	private bool MakeCameraOutputToWindow(WindowHandle _mainWindow)
-	{
-		if (camera is null || camera.IsDisposed)
-		{
-			return false;
-		}
-
-		Framebuffer outputFramebuffer = _mainWindow.Swapchain.Framebuffer;
-
-		// (Re)create swapchain camera target:
-		backBufferTarget?.Dispose();
-
-		if (!CameraTargets.CreateFromFramebuffer(engine.Logger, outputFramebuffer, false, out backBufferTarget))
-		{
-			engine.Logger.LogError("Failed to create camera target around swapchain framebuffer!", LogEntrySeverity.Critical);
-			return false;
-		}
-
-		// Adjust camera output to match swapchain:
-		CameraOutputSettings outputSettings = CameraOutputSettings.CreateFromFramebuffer(in outputFramebuffer);
-		if (!camera.SetOutputSettings(outputSettings))
-		{
-			engine.Logger.LogError("Failed make adjust camera output to swapchain!");
-			return false;
-		}
-
-		// Make camera output to swapchain:
-		if (!camera.SetOverrideCameraTarget(backBufferTarget))
-		{
-			engine.Logger.LogError("Failed to make camera output to screen!");
-			return false;
-		}
-
-		return true;
 	}
 
 	private bool DrawCamera()
