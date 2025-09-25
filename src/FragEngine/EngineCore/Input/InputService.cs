@@ -136,7 +136,7 @@ public sealed class InputService
 
 			if (keyState.UpdateState(keyEvent.Down, versionIdx))
 			{
-				keyEvents.Add(keyState.key, keyState.EventType);
+				keyEvents.TryAdd(keyState.key, keyState.EventType);
 			}
 		}
 
@@ -144,7 +144,7 @@ public sealed class InputService
 		{
 			if (keyState.VersionIdx != versionIdx && keyState.UpdateState(false, versionIdx))
 			{
-				keyEvents.Add(keyState.key, keyState.EventType);
+				keyEvents.TryAdd(keyState.key, keyState.EventType);
 			}
 		}
 
