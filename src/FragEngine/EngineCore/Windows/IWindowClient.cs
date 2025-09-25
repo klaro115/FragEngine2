@@ -60,5 +60,13 @@ public interface IWindowClient
 	/// of the window after resizing.</param>
 	void OnWindowResized(WindowHandle _windowHandle, Rectangle _newBounds);
 
+	/// <summary>
+	/// Listener method for when the backbuffers of the window that this
+	/// client is connected to have been swapped. This signifies that a
+	/// frame has finished rendering and is now being displayed.
+	/// </summary>
+	/// <param name="_windowHandle">A handle to the window.</param>
+	void OnSwapchainSwapped(WindowHandle _windowHandle);
+
 	#endregion
 }

@@ -429,8 +429,10 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
+		GraphicsService graphics = serviceProvider.GetRequiredService<GraphicsService>();
+
 		int windowId = windowIdCounter++;
-		_outHandle = new(this, logger, _newWindow, _swapchain, windowId);
+		_outHandle = new(this, logger, graphics, _newWindow, _swapchain, windowId);
 
 		windowSemaphore.Wait();
 		windows.Add(_outHandle);

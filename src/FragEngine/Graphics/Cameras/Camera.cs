@@ -717,7 +717,13 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 
 	public void OnWindowClosed(WindowHandle? _windowHandle) { }
 
-	public void OnWindowResized(WindowHandle _windowHandle, Rectangle _newBounds) => MakeCameraOutputToWindowSwapchain();
+	public void OnWindowResized(WindowHandle _windowHandle, Rectangle _newBounds)
+	{
+		if (_windowHandle == ConnectedWindow)
+		{
+			MakeCameraOutputToWindowSwapchain();
+		}
+	}
 
 	private bool MakeCameraOutputToWindowSwapchain()
 	{
@@ -754,6 +760,8 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 
 		return true;
 	}
+
+	public void OnSwapchainSwapped(WindowHandle _windowHandle) { }
 
 	#endregion
 }

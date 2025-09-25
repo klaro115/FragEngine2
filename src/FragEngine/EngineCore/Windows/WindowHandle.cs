@@ -1,4 +1,5 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.Graphics;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
 using System.Numerics;
 using Veldrid;
@@ -23,6 +24,7 @@ public sealed class WindowHandle : IExtendedDisposable
 
 	private readonly WindowService windowService;
 	private readonly ILogger logger;
+	private readonly GraphicsService graphicsService;
 
 	private readonly HashSet<IWindowClient> clients = [];
 
@@ -74,15 +76,17 @@ public sealed class WindowHandle : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	internal WindowHandle(WindowService _windowService, ILogger _logger, Sdl2Window _window, Swapchain _swapchain, int _windowId)
+	internal WindowHandle(WindowService _windowService, ILogger _logger, GraphicsService _graphicsService, Sdl2Window _window, Swapchain _swapchain, int _windowId)
 	{
 		ArgumentNullException.ThrowIfNull(_windowService);
 		ArgumentNullException.ThrowIfNull(_logger);
+		ArgumentNullException.ThrowIfNull(_graphicsService);
 		ArgumentNullException.ThrowIfNull(_window);
 		ArgumentNullException.ThrowIfNull(_swapchain);
 
 		windowService = _windowService;
 		logger = _logger;
+		graphicsService = _graphicsService;
 		Window = _window;
 		Swapchain = _swapchain;
 		WindowId = _windowId;
@@ -269,6 +273,7 @@ public sealed class WindowHandle : IExtendedDisposable
 			Closing += _newClient.OnWindowClosing;
 			Closed += _newClient.OnWindowClosed;
 			Resized += _newClient.OnWindowResized;
+			graphicsService.MainSwapchainSwapped += _newClient.OnSwapchainSwapped;
 
 			return true;
 		}
@@ -319,6 +324,7 @@ public sealed class WindowHandle : IExtendedDisposable
 			Closing -= _client.OnWindowClosing;
 			Closed -= _client.OnWindowClosed;
 			Resized -= _client.OnWindowResized;
+			graphicsService.MainSwapchainSwapped -= _client.OnSwapchainSwapped;
 
 			return true;
 		}
