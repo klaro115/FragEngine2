@@ -12,7 +12,7 @@ public sealed class FMdlImporter(ILogger _logger) : IModelImporter
 {
 	#region Fields
 
-	private readonly ILogger logger = _logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly ILogger logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 
 	#endregion
 	#region Methods

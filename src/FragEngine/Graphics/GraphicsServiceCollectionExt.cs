@@ -3,6 +3,7 @@ using FragEngine.EngineCore.Config;
 using FragEngine.Extensions;
 using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.Dx11;
+using FragEngine.Graphics.Geometry.Export;
 using FragEngine.Graphics.Geometry.Import.FMDL;
 using FragEngine.Graphics.Metal;
 using FragEngine.Graphics.Vulkan;
@@ -100,7 +101,8 @@ public static class GraphicsServiceCollectionExt
 	{
 		_serviceCollection
 			.AddTransient<Camera>()
-			.AddSingleton<FMdlImporter>();
+			.AddSingleton<FMdlImporter>()
+			.AddSingleton<FMdlExporter>();
 		//...
 
 		//TODO [later]: Add further platform-agnostic services.

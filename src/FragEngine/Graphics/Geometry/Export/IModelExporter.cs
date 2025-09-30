@@ -15,7 +15,8 @@ public interface IModelExporter
 	/// <param name="_surfaceData">The mesh's surface data that shall be written out as a resource.</param>
 	/// <returns>True if the data was loaded successfully, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Resource stream and surface data may not be null.</exception>
-	bool WriteMeshSurfaceData(Stream _resourceStream, MeshSurfaceData _surfaceData);
+	/// <exception cref="ArgumentException">Resource stream must support writing.</exception>
+	bool WriteMeshSurfaceData(Stream _resourceStream, in MeshSurfaceData _surfaceData);
 
 	#endregion
 }

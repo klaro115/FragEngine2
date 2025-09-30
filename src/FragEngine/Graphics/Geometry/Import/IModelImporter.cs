@@ -17,6 +17,7 @@ public interface IModelImporter
 	/// <param name="_outSurfaceData">Outputs the fully loaded mesh surface data, or null, if the import failed.</param>
 	/// <returns>True if the data was loaded successfully, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Resource stream may not be null.</exception>
+	/// <exception cref="ArgumentException">Resource stream must support reading.</exception>
 	bool LoadMeshSurfaceData(Stream _resourceStream, [NotNullWhen(true)] out MeshSurfaceData? _outSurfaceData);
 
 	#endregion

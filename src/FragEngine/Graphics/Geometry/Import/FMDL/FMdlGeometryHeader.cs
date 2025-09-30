@@ -83,7 +83,7 @@ public struct FMdlGeometryHeader : IValidated, IImportableData<FMdlGeometryHeade
 		return totalIndexByteSize;
 	}
 
-	public static bool Read(BinaryReader _reader, ILogger? _logger, out FMdlGeometryHeader _outGeometryHeader)
+	public static bool Read(BinaryReader _reader, ILogger? _logger, out FMdlGeometryHeader _outData)
 	{
 		ArgumentNullException.ThrowIfNull(_reader);
 		ObjectDisposedException.ThrowIf(_logger is not null && _logger.IsDisposed, _logger!);
@@ -99,7 +99,7 @@ public struct FMdlGeometryHeader : IValidated, IImportableData<FMdlGeometryHeade
 			bool hasExtendedData = _reader.ReadBoolean();
 
 			// Assemble header structure:
-			_outGeometryHeader = new()
+			_outData = new()
 			{
 				vertexCount = vertexCount,
 				indexCount = indexCount,
@@ -112,7 +112,7 @@ public struct FMdlGeometryHeader : IValidated, IImportableData<FMdlGeometryHeade
 		catch (Exception ex)
 		{
 			_logger?.LogException("Failed to read FMDL geometry header!", ex, LogEntrySeverity.Normal);
-			_outGeometryHeader = default;
+			_outData = default;
 			return false;
 		}
 	}
