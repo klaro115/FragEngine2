@@ -14,7 +14,7 @@ public static class EngineServiceCollectionExt
 {
 	#region Constants
 
-	public const int defaultServiceCount = 6;
+	public const int defaultServiceCount = 7;
 
 	#endregion
 	#region Methods
@@ -55,6 +55,7 @@ public static class EngineServiceCollectionExt
 			.AddSingleton(_config)
 			.AddSingleton(_loggerInstance)
 			.AddSingleton(platformService)
+			.AddSingleton<RuntimeService>()
 			.AddSingleton<TimeService>()
 			.AddSingleton<InputService>()
 			.AddSingleton<WindowService>();

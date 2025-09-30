@@ -4,7 +4,9 @@ using FragEngine.EngineCore.Config;
 using FragEngine.Graphics;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Resources;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace FragEngine.Helpers;
@@ -18,7 +20,8 @@ public static class EngineStartupHelper
 
 	private const int minServiceCount =
 		EngineServiceCollectionExt.defaultServiceCount +
-		GraphicsServiceCollectionExt.defaultServiceCount;
+		GraphicsServiceCollectionExt.defaultServiceCount +
+		ResourcesServiceCollectionExt.defaultServiceCount;
 
 	#endregion
 	#region Methods
@@ -29,7 +32,7 @@ public static class EngineStartupHelper
 	/// <param name="_appLogic">An application logic instance that will control the engine.</param>
 	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
 	/// <returns>True if the engine was created successfully, false otherwise.</returns>
-	public static bool CreateDefaultEngine(IAppLogic _appLogic, out Engine? _outEngine)
+	public static bool CreateDefaultEngine(IAppLogic _appLogic, [NotNullWhen(true)] out Engine? _outEngine)
 	{
 		ConsoleLogger logger = new();
 		return CreateDefaultEngine(_appLogic, logger, out _outEngine);
@@ -42,7 +45,7 @@ public static class EngineStartupHelper
 	/// <param name="_loggerInstance">A logger that shall be added to the engine as its primary logging service singleton.</param>
 	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
 	/// <returns>True if the engine was created successfully, false otherwise.</returns>
-	public static bool CreateDefaultEngine(IAppLogic _appLogic, ILogger _loggerInstance, out Engine? _outEngine)
+	public static bool CreateDefaultEngine(IAppLogic _appLogic, ILogger _loggerInstance, [NotNullWhen(true)] out Engine? _outEngine)
 	{
 		if (_loggerInstance is null || _loggerInstance.IsDisposed)
 		{
@@ -86,7 +89,7 @@ public static class EngineStartupHelper
 	/// <param name="_engineConfig">A custom engine configuration.</param>
 	/// <param name="_outEngine">Outputs a new engine instance, or null on failure.</param>
 	/// <returns>True if the engine was created successfully, false otherwise.</returns>
-	public static bool CreateDefaultEngine(IAppLogic _appLogic, ILogger _loggerInstance, EngineConfig _engineConfig, out Engine? _outEngine)
+	public static bool CreateDefaultEngine(IAppLogic _appLogic, ILogger _loggerInstance, EngineConfig _engineConfig, [NotNullWhen(true)] out Engine? _outEngine)
 	{
 		if (_loggerInstance is null || _loggerInstance.IsDisposed)
 		{
@@ -122,7 +125,7 @@ public static class EngineStartupHelper
 		}
 	}
 
-	internal static bool CreateDefaultServiceProvider(IServiceCollection? _services, out IServiceProvider? _outServiceProvider)
+	internal static bool CreateDefaultServiceProvider(IServiceCollection? _services, [NotNullWhen(true)] out IServiceProvider? _outServiceProvider)
 	{
 		if (_services is null || _services.Count < minServiceCount)
 		{
@@ -162,7 +165,7 @@ public static class EngineStartupHelper
 	/// <param name="_loggerInstance">An instance of the logging service implementation.</param>
 	/// <param name="_outServices">Outputs the service collection, or null on error.</param>
 	/// <returns>True if the service collection was created successfully, false otherwise.</returns>
-	public static bool CreateDefaultServiceCollection(ILogger _loggerInstance, out IServiceCollection? _outServices)
+	public static bool CreateDefaultServiceCollection(ILogger _loggerInstance, [NotNullWhen(true)] out IServiceCollection? _outServices)
 	{
 		if (_loggerInstance is null || _loggerInstance.IsDisposed)
 		{
@@ -187,7 +190,7 @@ public static class EngineStartupHelper
 	/// <param name="_engineConfig">A custom engine configuration.</param>
 	/// <param name="_outServices">Outputs the service collection, or null on error.</param>
 	/// <returns>True if the service collection was created successfully, false otherwise.</returns>
-	public static bool CreateDefaultServiceCollection(ILogger _loggerInstance, EngineConfig _engineConfig, out IServiceCollection? _outServices)
+	public static bool CreateDefaultServiceCollection(ILogger _loggerInstance, EngineConfig _engineConfig, [NotNullWhen(true)] out IServiceCollection? _outServices)
 	{
 		if (_loggerInstance is null || _loggerInstance.IsDisposed)
 		{
@@ -207,7 +210,8 @@ public static class EngineStartupHelper
 		{
 			_outServices = new ServiceCollection()
 				.UseEngine(_loggerInstance, _engineConfig!)
-				.UseGraphics();
+				.UseGraphics()
+				.UseResources();
 			//...
 
 			return true;
@@ -226,7 +230,7 @@ public static class EngineStartupHelper
 	/// <param name="_loggerInstance">An instance of the logging service implementation. If null, a default logger is used instead.</param>
 	/// <param name="_outConfig">Outputs the loaded config. If not found or on error, the default config is returned instead.</param>
 	/// <returns>True if the config was loaded from file, false otherwise.</returns>
-	public static bool LoadEngineConfig(ILogger? _loggerInstance, out EngineConfig _outConfig)
+	public static bool LoadEngineConfig(ILogger? _loggerInstance, [NotNullWhen(true)] out EngineConfig _outConfig)
 	{
 		_loggerInstance ??= new ConsoleLogger();
 

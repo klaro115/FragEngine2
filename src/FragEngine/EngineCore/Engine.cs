@@ -1,16 +1,15 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Input;
+using FragEngine.EngineCore.Internal;
 using FragEngine.EngineCore.StateMachine;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
-using FragEngine.Extensions;
 using FragEngine.Graphics;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FragEngine.EngineCore;
 
@@ -130,7 +129,7 @@ public sealed class Engine : IExtendedDisposable
 		appLogic = _appLogic;
 
 		// Initialize DI:
-		if (!InitializeDependencyInjection(_serviceCollection, out IServiceProvider? serviceProvider))
+		if (!EngineServiceSetupHelper.InitializeDependencyInjection(this, appLogic, _serviceCollection, out IServiceProvider? serviceProvider))
 		{
 			throw new Exception("Failed to initialize dependency injection!");
 		}
@@ -174,65 +173,6 @@ public sealed class Engine : IExtendedDisposable
 	~Engine()
 	{
 		if (!IsDisposed) Dispose(false);
-	}
-
-	private bool InitializeDependencyInjection(IServiceCollection? _serviceCollection, out IServiceProvider? _outServiceProvider)
-	{	
-		// If no customized service collection is provided, use a basic default setup:
-		if (_serviceCollection is null && !EngineStartupHelper.CreateDefaultServiceCollection(out _serviceCollection!))
-		{
-			_outServiceProvider = null;
-			return false;
-		}
-
-		// Ensure that a logging service is registered; if an implementation instance exists, use that for error logging:
-		ILogger? diLogger;
-		if (!_serviceCollection.HasService<ILogger>())
-		{
-			diLogger = new ConsoleLogger();
-			_serviceCollection.AddSingleton(diLogger);
-		}
-		else if ((diLogger = _serviceCollection.GetImplementationInstance<ILogger>()) is null)
-		{
-			diLogger = new ConsoleLogger();
-		}
-
-		// Load or create the main engine config, and register it as a singleton:
-		if (!_serviceCollection.HasService<EngineConfig>() && EngineStartupHelper.LoadEngineConfig(diLogger, out EngineConfig config))
-		{
-			_serviceCollection.AddSingleton(config);
-		}
-		else
-		{
-			config = _serviceCollection.GetImplementationInstance<EngineConfig>()!;
-		}
-		if (!config.IsValid())
-		{
-			diLogger.LogError("Cannot initialize dependency injection using invalid engine config!", LogEntrySeverity.Critical);
-			_outServiceProvider = null;
-			return false;
-		}
-
-		// If requested, add application logic as a service; remove it otherwise:
-		if (config.Startup.AddAppLogicToServiceProvider && !_serviceCollection.HasService<IAppLogic>())
-		{
-			_serviceCollection.AddSingleton(appLogic);
-		}
-		else if (_serviceCollection.HasService<IAppLogic>())
-		{
-			_serviceCollection.RemoveAll<EngineConfig>();
-		}
-
-		// Add the engine itself as a singleton:
-		_serviceCollection.AddSingleton(this);
-
-		// Create the final service provider for the engine-wide DI:
-		if (!EngineStartupHelper.CreateDefaultServiceProvider(_serviceCollection, out _outServiceProvider))
-		{
-			return false;
-		}
-
-		return true;
 	}
 
 	private bool ExecutePostInitilizationCallback(FuncEnginePostInitialization? _funcPostInitAction)
