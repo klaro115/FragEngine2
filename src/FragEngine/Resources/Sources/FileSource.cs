@@ -104,13 +104,13 @@ public sealed class FileSource : IResourceSource
 		}
 		catch (FileNotFoundException ex)
 		{
-			logger.LogException($"Resource file 3D model resource '{_sourceKey}' does not exist!", ex, LogEntrySeverity.Normal);
+			logger.LogException($"Resource file for resource '{_sourceKey}' does not exist!", ex, LogEntrySeverity.Normal);
 			_outStream = null;
 			return false;
 		}
 		catch (Exception ex)
 		{
-			logger.LogException($"Failed to open resource stream for 3D model resource '{_sourceKey}'!", ex, LogEntrySeverity.Normal);
+			logger.LogException($"Failed to open resource stream for resource '{_sourceKey}'!", ex, LogEntrySeverity.Normal);
 			_outStream = null;
 			return false;
 		}
