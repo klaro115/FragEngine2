@@ -4,6 +4,7 @@ using FragEngine.Graphics.Contexts;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Scenes;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Veldrid;
 
@@ -90,6 +91,8 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 
 	private ulong projectionChecksum = CameraProjectionSettings.UNINITIALIZED_CHECKSUM;
 	private ulong ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
+
+	private static int initializedCameraCount = 0;
 
 	#endregion
 	#region Properties
@@ -183,6 +186,12 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 	/// </summary>
 	public WindowHandle? ConnectedWindow { get; private set; } = null;
 
+	/// <summary>
+	/// Gets the current number of cameras that are initialized and have not been disposed.
+	/// This includes all cameras instances across the entire application, not just for this engine instance.
+	/// </summary>
+	public static int InitializedCameraCount => initializedCameraCount;
+
 	#endregion
 	#region Constructors
 
@@ -211,6 +220,8 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 		{
 			throw new Exception($"Failed to create constant buffer '{nameof(CBCamera)}'!", ex);
 		}
+
+		Interlocked.Increment(ref initializedCameraCount);
 	}
 
 	~Camera()
@@ -234,10 +245,16 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 			EndFrame();
 		}
 
+		if (!IsDisposed)
+		{
+			Interlocked.Decrement(ref initializedCameraCount);
+		}
+
 		IsDisposed = true;
 
 		bufCbCamera?.Dispose();
 		ownTarget?.Dispose();
+
 	}
 
 	/// <summary>
@@ -261,9 +278,12 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 	/// <param name="_sceneCtx">A context object with scene-wide GPU resources and settings.</param>
 	/// <param name="_cameraIndex">The index of this camera. This index may be used to map camera-specific resources
 	/// and is exposed to shaders via the pass-specific '<see cref="CBCamera"/>' constant buffer.</param>
-	/// <returns></returns>
+	/// <returns>True if a new frame was started successfully, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">Scene context may not be null.</exception>
 	public bool BeginFrame(in SceneContext _sceneCtx, uint _cameraIndex)
 	{
+		ArgumentNullException.ThrowIfNull(_sceneCtx);
+		
 		if (IsDisposed)
 		{
 			logger.LogError("Cannot begin frame using disposed camera!");
@@ -272,6 +292,11 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 		if (IsDrawingFrame)
 		{
 			logger.LogError("Cannot begin frame using camera that is already drawing!");
+			return false;
+		}
+		if (!_sceneCtx.IsValid())
+		{
+			logger.LogError("Cannot begin frame using invalid scene context!");
 			return false;
 		}
 
@@ -347,8 +372,12 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 		FrameEnded?.Invoke(this, cbCameraData.cameraIndex, currentFrameIndex);
 	}
 
-	public bool BeginPass(in SceneContext _sceneCtx, CommandList _cmdList, uint _passIndex, out CameraPassContext? _outCameraPassCtx)
+	public bool BeginPass(in SceneContext _sceneCtx, CommandList _cmdList, uint _passIndex, [NotNullWhen(true)] out CameraPassContext? _outCameraPassCtx)
 	{
+		ArgumentNullException.ThrowIfNull(_sceneCtx);
+		ArgumentNullException.ThrowIfNull(_cmdList);
+		ObjectDisposedException.ThrowIf(_cmdList.IsDisposed, _cmdList);
+
 		if (!IsDrawingFrame)
 		{
 			_outCameraPassCtx = null;

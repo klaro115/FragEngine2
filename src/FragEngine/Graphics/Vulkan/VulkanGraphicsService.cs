@@ -1,7 +1,9 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
+using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Logging;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -17,8 +19,9 @@ internal sealed class VulkanGraphicsService(
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
+	TimeService _timeService,
 	EngineConfig _config)
-	: GraphicsService(_logger, _platformService, _windowService, _config)
+	: GraphicsService(_logger, _platformService, _windowService, _timeService, _config)
 {
 	#region Methods
 
@@ -139,7 +142,7 @@ internal sealed class VulkanGraphicsService(
 		return true;
 	}
 
-	internal override bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain)
+	internal override bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain)
 	{
 		throw new NotImplementedException();
 	}

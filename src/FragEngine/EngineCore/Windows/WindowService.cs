@@ -3,6 +3,7 @@ using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -142,7 +143,7 @@ public sealed class WindowService : IExtendedDisposable
 	/// <param name="_windowIndex">The index of the window, may not be negative.</param>
 	/// <param name="_outHandle">Outputs a handle to the window, or null, if the index was invalid.</param>
 	/// <returns>True if an open window exists at that index, false otherwise.</returns>
-	public bool GetWindow(int _windowIndex, out WindowHandle? _outHandle)
+	public bool GetWindow(int _windowIndex, [NotNullWhen(true)] out WindowHandle? _outHandle)
 	{
 		if (IsDisposed)
 		{
@@ -173,7 +174,7 @@ public sealed class WindowService : IExtendedDisposable
 	/// <param name="_windowId">The ID number of the window.</param>
 	/// <param name="_outHandle">Outputs a handle to the window, or null, if the ID was not found.</param>
 	/// <returns>True if an open window exists with that ID, false otherwise.</returns>
-	public bool GetWindowByID(uint _windowId, out WindowHandle? _outHandle)
+	public bool GetWindowByID(uint _windowId, [NotNullWhen(true)] out WindowHandle? _outHandle)
 	{
 		if (IsDisposed)
 		{
@@ -319,7 +320,7 @@ public sealed class WindowService : IExtendedDisposable
 	/// <param name="_isFullscreen">Whether this is a fullscreen window.</param>
 	/// <param name="_outHandle">Outputs a handle for the newly created windows, or null on failure.</param>
 	/// <returns>True if a new window was created, false otherwise.</returns>
-	public bool CreateWindow(string _title, Vector2 _position, Vector2 _resolution, bool _isFullscreen, out WindowHandle? _outHandle)
+	public bool CreateWindow(string _title, Vector2 _position, Vector2 _resolution, bool _isFullscreen, [NotNullWhen(true)] out WindowHandle? _outHandle)
 	{
 		if (string.IsNullOrEmpty(_title))
 		{
@@ -396,8 +397,7 @@ public sealed class WindowService : IExtendedDisposable
 		}
 
 		// Register window:
-		bool wasAdded = AddWindow(window, swapchain!, out _outHandle);
-		if (!wasAdded)
+		if (!AddWindow(window, swapchain!, out _outHandle))
 		{
 			window.Close();
 			_outHandle = null;
@@ -414,7 +414,7 @@ public sealed class WindowService : IExtendedDisposable
 	/// <param name="_swapchain">The window's associated swapchain, through which content is presented.</param>
 	/// <param name="_outHandle">Outputs a handle to the window, or null on failure.</param>
 	/// <returns>True if the window was successfully registered, false otherwise.</returns>
-	public bool AddWindow(Sdl2Window _newWindow, Swapchain _swapchain, out WindowHandle? _outHandle)
+	public bool AddWindow(Sdl2Window _newWindow, Swapchain _swapchain, [NotNullWhen(true)] out WindowHandle? _outHandle)
 	{
 		if (_newWindow is null || !_newWindow.Exists)
 		{

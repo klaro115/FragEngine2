@@ -24,6 +24,9 @@ public sealed class TimeService : IExtendedDisposable
 	private TimeSpan targetDeltaTime = TimeSpan.FromMilliseconds(1000.0 / 60.0);
 	private float targetFrameRate = 60;
 
+	private readonly TimeSpan[] frameTimeBuffer = new TimeSpan[10];
+	private int frameTimeBufferIdx = 0;
+
 	#endregion
 	#region Properties
 
@@ -88,6 +91,17 @@ public sealed class TimeService : IExtendedDisposable
 	public TimeSpan CurrentFrameStartTime { get; private set; }
 
 	/// <summary>
+	/// Gets the index of the current frame.<para/>
+	/// This refers to frames in the context of engine update cycles.
+	/// </summary>
+	public uint CurrentFrameIndex { get; private set; } = 0;
+
+	/// <summary>
+	/// Gets the current frame rate average for the last 10 frames, in Hertz.
+	/// </summary>
+	public float CurrentFrameRate { get; private set; } = 60.0f;
+
+	/// <summary>
 	/// Gets or sets the desired delta time, i.e. the targeted minimum duration of one frame.
 	/// </summary>
 	public TimeSpan TargetDeltaTime
@@ -129,6 +143,11 @@ public sealed class TimeService : IExtendedDisposable
 
 		ingameTimeStopwatch.Start();
 		applicationTimeStopwatch.Start();
+
+		for (int i = 0; i < frameTimeBuffer.Length; ++i)
+		{
+			frameTimeBuffer[i] = TargetDeltaTime;
+		}
 
 		ResetLevelTime();
 	}
@@ -258,6 +277,9 @@ public sealed class TimeService : IExtendedDisposable
 
 		semaphore.Wait();
 
+		// Increment global frame index:
+		CurrentFrameIndex++;
+
 		// Update app delta times:
 		TimeSpan currentFrameEndTime = applicationTimeStopwatch.Elapsed;
 
@@ -275,6 +297,20 @@ public sealed class TimeService : IExtendedDisposable
 			IngameDeltaTime = AppDeltaTime;
 			IngameDeltaTimeSeconds = AppDeltaTimeSeconds;
 		}
+
+		// Calculate smoothed frame rate:
+		frameTimeBuffer[frameTimeBufferIdx++] = AppDeltaTime;
+		if (frameTimeBufferIdx >= frameTimeBuffer.Length)
+		{
+			frameTimeBufferIdx = 0;
+		}
+		TimeSpan averageFrameTime = TimeSpan.Zero;
+		foreach (TimeSpan frameTime in frameTimeBuffer)
+		{
+			averageFrameTime += frameTime;
+		}
+		averageFrameTime /= frameTimeBuffer.Length;
+		CurrentFrameRate = 1.0f / (float)averageFrameTime.TotalSeconds;
 
 		// Calculate thread sleep time:
 		if (AppDeltaTime < TargetDeltaTime)

@@ -1,9 +1,12 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
+using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Helpers;
 using FragEngine.Logging;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.Versioning;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
@@ -14,12 +17,14 @@ namespace FragEngine.Graphics.Dx11;
 /// Graphics service implementation for the Direct3D 11 graphics API.
 /// </summary>
 /// <param name="_logger">The logger service.</param>
+[SupportedOSPlatform("windows")]
 internal sealed class Dx11GraphicsService(
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
+	TimeService _timeService,
 	EngineConfig _config)
-	: GraphicsService(_logger, _platformService, _windowService, _config)
+	: GraphicsService(_logger, _platformService, _windowService, _timeService, _config)
 {
 	#region Methods
 
@@ -140,7 +145,7 @@ internal sealed class Dx11GraphicsService(
 		return true;
 	}
 
-	internal override bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain)
+	internal override bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain)
 	{
 		if (_window is null || !_window.Exists)
 		{

@@ -25,12 +25,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private InputKeyState escapeKeyState = InputKeyState.Invalid;
 	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
 
-	private CBGraphics cbGraphicsData;
 	private CBScene cbSceneData;
 
 	private Camera? camera = null;
 	private CommandList? cmdList = null;
-	private DeviceBuffer? bufCbGraphics = null;
 	private DeviceBuffer? bufCbScene = null;
 
 	#endregion
@@ -168,12 +166,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		camera?.Dispose();
 		cmdList?.Dispose();
 		bufCbScene?.Dispose();
-		bufCbGraphics?.Dispose();
 
 		camera = null;
 		cmdList = null;
 		bufCbScene = null;
-		bufCbGraphics = null;
 	}
 
 	private bool CreateCamera()
@@ -207,7 +203,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		// Create various scene-wide resources:
 		try
 		{
-			bufCbGraphics ??= engine.Graphics.ResourceFactory.CreateBuffer(CBGraphics.BufferDesc);
 			bufCbScene ??= engine.Graphics.ResourceFactory.CreateBuffer(CBScene.BufferDesc);
 			cmdList ??= engine.Graphics.ResourceFactory.CreateCommandList();
 		}
@@ -233,12 +228,14 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private bool DrawCamera()
 	{
-		GraphicsContext graphicsCtx = new()
+		cmdList!.Begin();
+
+		if (!engine.Graphics.BeginFrame(cmdList, out GraphicsContext? graphicsCtx))
 		{
-			Graphics = engine.Graphics,
-			CbGraphics = cbGraphicsData,
-			BufCbGraphics = bufCbGraphics!,
-		};
+			cmdList.End();
+			return false;
+		}
+
 		SceneContext sceneCtx = new(graphicsCtx)
 		{
 			CbScene = cbSceneData,
@@ -247,13 +244,12 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		bool success = true;
 
-		cmdList!.Begin();
 
-		cmdList.UpdateBuffer(bufCbGraphics, 0, ref cbGraphicsData);
 		cmdList.UpdateBuffer(bufCbScene, 0, ref cbSceneData);
 
 		if (!camera!.BeginFrame(in sceneCtx, 0u))
 		{
+			cmdList.End();
 			return false;
 		}
 

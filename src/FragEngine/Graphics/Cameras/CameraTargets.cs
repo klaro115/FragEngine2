@@ -1,6 +1,7 @@
 ﻿using FragEngine.Extensions;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using System.Diagnostics.CodeAnalysis;
 using Veldrid;
 
 namespace FragEngine.Graphics.Cameras;
@@ -172,7 +173,7 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 	/// <returns>True if a new camera target was created, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Graphics service, logger, and output settings may not be null.</exception>
 	/// <exception cref="ObjectDisposedException">Graphics service has already been disposed.</exception>
-	public static bool CreateFromOutputSettings(GraphicsService _graphicsService, ILogger _logger, CameraOutputSettings _outputSettings, out CameraTargets? _outTargets)
+	public static bool CreateFromOutputSettings(GraphicsService _graphicsService, ILogger _logger, CameraOutputSettings _outputSettings, [NotNullWhen(true)] out CameraTargets? _outTargets)
 	{
 		ArgumentNullException.ThrowIfNull(_graphicsService);
 		ArgumentNullException.ThrowIfNull(_logger);
@@ -291,7 +292,7 @@ public sealed class CameraTargets : IExtendedDisposable, IValidated
 	/// <returns>True if a new camera target was created, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Logger and framebuffer may not be null.</exception>
 	/// <exception cref="ObjectDisposedException">Framebuffer has already been disposed.</exception>
-	public static bool CreateFromFramebuffer(ILogger _logger, Framebuffer _srcFramebuffer, bool _transferOwnershipOfResources, out CameraTargets? _outTargets)
+	public static bool CreateFromFramebuffer(ILogger _logger, Framebuffer _srcFramebuffer, bool _transferOwnershipOfResources, [NotNullWhen(true)] out CameraTargets? _outTargets)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_srcFramebuffer);

@@ -1,6 +1,7 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
 using FragEngine.Extensions;
+using FragEngine.Extensions.Veldrid;
 using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.Dx11;
 using FragEngine.Graphics.Geometry.Export;
@@ -9,6 +10,7 @@ using FragEngine.Graphics.Metal;
 using FragEngine.Graphics.Vulkan;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using Veldrid;
 
 namespace FragEngine.Graphics;
 
@@ -79,21 +81,29 @@ public static class GraphicsServiceCollectionExt
 	private static bool AddPlatformSpecficServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
 		// Service count: 1
-		switch (_platformService.GraphicsBackend)
+		if (OperatingSystem.IsWindows() && _platformService.GraphicsBackend == GraphicsBackend.Direct3D11)
 		{
-			case Veldrid.GraphicsBackend.Direct3D11:
-				_serviceCollection.AddSingleton<GraphicsService, Dx11GraphicsService>();
-				break;
-			case Veldrid.GraphicsBackend.Vulkan:
-				_serviceCollection.AddSingleton<GraphicsService, VulkanGraphicsService>();
-				break;
-			case Veldrid.GraphicsBackend.Metal:
-				_serviceCollection.AddSingleton<GraphicsService, MetalGraphicsService>();
-				break;
-			default:
-				_logger.LogError($"Cannot add graphics service for unsupported graphics API '{_platformService.GraphicsBackend}'");
-				return false;
+			_serviceCollection.AddSingleton<GraphicsService, Dx11GraphicsService>();
 		}
+		else if ((OperatingSystem.IsIOS() ||
+				  OperatingSystem.IsMacOS() ||
+				  OperatingSystem.IsMacCatalyst()) &&
+				 _platformService.GraphicsBackend == GraphicsBackend.Metal)
+		{
+			_serviceCollection.AddSingleton<GraphicsService, MetalGraphicsService>();
+		}
+		else if (GraphicsBackend.Vulkan.IsSupportedOnCurrentPlatform() &&
+				 _platformService.GraphicsBackend == GraphicsBackend.Vulkan)
+		{
+			_serviceCollection.AddSingleton<GraphicsService, VulkanGraphicsService>();
+		}
+		else
+		{
+			_logger.LogError($"Cannot add graphics service for unsupported graphics API '{_platformService.GraphicsBackend}'");
+			return false;
+		}
+
+		//... (add further platform-specific services here)
 
 		return true;
 	}
@@ -105,9 +115,8 @@ public static class GraphicsServiceCollectionExt
 			.AddTransient<Camera>()
 			.AddSingleton<FMdlImporter>()
 			.AddSingleton<FMdlExporter>();
-		//...
 
-		//TODO [later]: Add further platform-agnostic services.
+		//... (add further platform-agnostic services here)
 
 		return true;
 	}

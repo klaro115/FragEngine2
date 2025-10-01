@@ -57,6 +57,8 @@ public sealed class RuntimeService
 			throw new Exception("Failed to identify the app's entry assembly!");
 		}
 		EntryAssembly = entryAssembly;
+
+		logger.LogMessage($"- Entry assembly: {EntryAssembly}");
 	}
 
 	#endregion

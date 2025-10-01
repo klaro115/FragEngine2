@@ -1,9 +1,13 @@
 ﻿using FragEngine.EngineCore;
 using FragEngine.EngineCore.Config;
+using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
+using FragEngine.Graphics.ConstantBuffers;
+using FragEngine.Graphics.Contexts;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -19,10 +23,14 @@ namespace FragEngine.Graphics;
 /// </summary>
 /// <param name="_logger">The engine's logging service.</param>
 /// <param name="_windowService">The engine's window management service.</param>
+/// <param name="_platformService">The engine's platform info service.</param>
+/// <param name="_timeService">The engine's time management service.</param>
+/// <param name="_config">The main engine configuration.</param>
 public abstract class GraphicsService(
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
+	TimeService _timeService,
 	EngineConfig _config) : IExtendedDisposable
 {
 	#region Events
@@ -47,6 +55,7 @@ public abstract class GraphicsService(
 	protected readonly ILogger logger = _logger;
 	protected readonly PlatformService platformService = _platformService;
 	protected readonly WindowService windowService = _windowService;
+	protected readonly TimeService timeService = _timeService;
 	protected readonly GraphicsConfig config = _config.Graphics;
 
 	private bool isInitialized = false;
@@ -56,6 +65,9 @@ public abstract class GraphicsService(
 	protected ConcurrentQueue<(CommandList CmdList, int Priority)> committedCommandLists = new();
 	protected PriorityQueue<CommandList, int> commandListExecutionQueue = new();
 	protected readonly ReaderWriterLockSlim commandListLock = new(LockRecursionPolicy.NoRecursion);   // Warning; Read/write is reversed here! Read=commit, Write=execution
+
+	protected CBGraphics cbGraphicsData = CBGraphics.Default;
+	protected DeviceBuffer? bufCbGraphics = null;
 
 	#endregion
 	#region Constants
@@ -120,6 +132,8 @@ public abstract class GraphicsService(
 	protected virtual void Dispose(bool _disposing)
 	{
 		IsDisposed = true;
+
+		bufCbGraphics?.Dispose();
 
 		MainWindow?.Dispose();
 		Device?.Dispose();
@@ -315,7 +329,7 @@ public abstract class GraphicsService(
 	/// <param name="_window">The SDL window to create a swapchain for.</param>
 	/// <param name="_outSwapchain">Output the new swapchain, or null, on failure.</param>
 	/// <returns>True if a swapchain could be created, false otherwise.</returns>
-	internal abstract bool CreateSwapchain(Sdl2Window _window, out Swapchain? _outSwapchain);
+	internal abstract bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain);
 
 	/// <summary>
 	/// Moves all committed command lists to execution queue, and sorts them by priority.
@@ -351,6 +365,47 @@ public abstract class GraphicsService(
 		{
 			MainSwapchainSwapped?.Invoke(MainWindow);
 		}
+	}
+
+	/// <summary>
+	/// Begins a new frame. Call this before committing any command lists.
+	/// </summary>
+	/// <param name="_firstCmdList">The command list that will be committed and executed first during the upcoming frame.</param>
+	/// <param name="_outGraphicsCtx">Output a graphics context object for the upcoming frame. Null on error.<para/>
+	/// WARNING: This is a transient instance that is only valid for one frame! Do not keep any references to this object or
+	/// the resources referenced therein, as they may be subject to change in-between frames.</param>
+	/// <returns>True if the frame was started successfully, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">Command list may not be null.</exception>
+	public virtual bool BeginFrame(CommandList _firstCmdList, [NotNullWhen(true)] out GraphicsContext? _outGraphicsCtx)
+	{
+		ArgumentNullException.ThrowIfNull(_firstCmdList);
+
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot begin frame on disposed graphics service!", LogEntrySeverity.High);
+			_outGraphicsCtx = null;
+			return false;
+		}
+
+		// Update and upload graphics constant buffer:
+		if (bufCbGraphics is null)
+		{
+			bufCbGraphics = ResourceFactory.CreateBuffer(CBGraphics.BufferDesc);
+			bufCbGraphics.Name = "BufCbGraphics";
+		}
+		cbGraphicsData.UpdateEngineData(in timeService, in windowService);
+
+		_firstCmdList.UpdateBuffer(bufCbGraphics, 0, ref cbGraphicsData);
+
+		// Assemble context object:
+		_outGraphicsCtx = new()
+		{
+			Graphics = this,
+			CbGraphics = cbGraphicsData,
+			BufCbGraphics = bufCbGraphics,
+			//...
+		};
+		return true;
 	}
 
 	#endregion
