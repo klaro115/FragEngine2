@@ -24,7 +24,7 @@ public static class GraphicsServiceCollectionExt
 	/// reference to check if the service provider contains a realistic number of services for normal
 	/// engine operation.
 	/// </summary>
-	public const int defaultServiceCount = 2;
+	public const int defaultServiceCount = 4;
 
 	#endregion
 	#region Methods
@@ -78,6 +78,7 @@ public static class GraphicsServiceCollectionExt
 
 	private static bool AddPlatformSpecficServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
+		// Service count: 1
 		switch (_platformService.GraphicsBackend)
 		{
 			case Veldrid.GraphicsBackend.Direct3D11:
@@ -99,6 +100,7 @@ public static class GraphicsServiceCollectionExt
 
 	private static bool AddPlatformAgnosticServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
+		// Service count: 3
 		_serviceCollection
 			.AddTransient<Camera>()
 			.AddSingleton<FMdlImporter>()

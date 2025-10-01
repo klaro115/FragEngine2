@@ -9,7 +9,7 @@ namespace FragEngine.Graphics.Geometry.Import.FMDL;
 /// Structure representing a geometry header for the FMDL 3D model format.
 /// This is always the second header in an FMDL resource file.
 /// </summary>
-public struct FMdlGeometryHeader : IValidated, IImportableData<FMdlGeometryHeader>
+public struct FMdlGeometryHeader : IValidated, IImportableData<FMdlGeometryHeader>, IExportableData
 {
 	#region Fields
 

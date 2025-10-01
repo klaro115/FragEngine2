@@ -1,6 +1,7 @@
 ﻿using FragEngine.Extensions;
 using FragEngine.Graphics.Geometry.Import.FMDL;
 using FragEngine.Logging;
+using Veldrid;
 
 namespace FragEngine.Graphics.Geometry.Export;
 
@@ -97,12 +98,90 @@ public sealed class FMdlExporter(ILogger _logger) : IModelExporter
 
 		//... (add additional headers here)
 
+
+		// Write geometry data:
 		targetPosition = fileStartPosition + fileHeader.dataOffset;
 		_writer.JumpTo(targetPosition, true);
 
-		//TODO: Write geometry data.
+		if (!WriteVertexData(_writer, in geometryHeader, in _surfaceData))
+		{
+			logger.LogError("Failed to write vertex data of FMDL file!");
+			return false;
+		}
 
-		return false;	//TEMP
+		if (!WriteIndexData(_writer, in geometryHeader, in _surfaceData))
+		{
+			logger.LogError("Failed to write index data of FMDL file!");
+			return false;
+		}
+
+		//... (add additional data here)
+
+
+		// Advance writer to predicted end of file, then exit:
+		targetPosition = fileStartPosition + fileHeader.fileSize;
+		if (targetPosition < _writer.BaseStream.Position)
+		{
+			logger.LogError("FMDL export wrote past predicted file size; sizes and offsets in headers may be incorrect!");
+			return false;
+		}
+		_writer.JumpTo(targetPosition, true);
+
+		return true;
+	}
+
+	private static bool WriteVertexData(BinaryWriter _writer, in FMdlGeometryHeader _geometryHeader, in MeshSurfaceData _surfaceData)
+	{
+		if (_geometryHeader.vertexCount == 0)
+		{
+			return true;
+		}
+
+		// Basic vertex data:
+		for (int i = 0; i < _geometryHeader.vertexCount; ++i)
+		{
+			_writer.BaseStream.WriteStruct(_surfaceData.VerticesBasic[i], BasicVertex.byteSize);
+		}
+
+		if (!_geometryHeader.hasExtendedVertexData)
+		{
+			return true;
+		}
+
+		// Extended vertex data:
+		for (int i = 0; i < _geometryHeader.vertexCount; ++i)
+		{
+			_writer.BaseStream.WriteStruct(_surfaceData.VerticesExt![i], ExtendedVertex.byteSize);
+		}
+
+		return true;
+	}
+
+	private static bool WriteIndexData(BinaryWriter _writer, in FMdlGeometryHeader _geometryHeader, in MeshSurfaceData _surfaceData)
+	{
+		if (_geometryHeader.indexCount == 0)
+		{
+			return true;
+		}
+
+		// 16-bit index data:
+		if (_geometryHeader.indexFormat == IndexFormat.UInt16)
+		{
+			for (int i = 0; i < _geometryHeader.indexCount; ++i)
+			{
+				_writer.Write(_surfaceData.Indices16![i]);
+			}
+
+			return true;
+		}
+
+		// 32-bit index data:
+		for (int i = 0; i < _geometryHeader.indexCount; ++i)
+		{
+			_writer.Write(_surfaceData.Indices32![i]);
+		}
+
+		return true;
 	}
 
 	#endregion
