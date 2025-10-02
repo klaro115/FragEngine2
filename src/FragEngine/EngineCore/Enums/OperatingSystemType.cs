@@ -3,14 +3,14 @@
 /// <summary>
 /// Enumeration of different operating systems.
 /// </summary>
-public enum OperatingSystemType
+public enum OperatingSystemType : byte
 {
 	// DESKTOP:
 
 	/// <summary>
 	/// Microsoft Windows desktop OS.
 	/// </summary>
-	Window,
+	Windows,
 	/// <summary>
 	/// Apple MacOS desktop OS.
 	/// </summary>
@@ -56,7 +56,7 @@ public static class OperatingSystemTypeExt
 	{
 		return _osType switch
 		{
-			OperatingSystemType.Window => true,
+			OperatingSystemType.Windows => true,
 			OperatingSystemType.MacOS => true,
 			OperatingSystemType.Linux => true,
 			OperatingSystemType.BSD => true,

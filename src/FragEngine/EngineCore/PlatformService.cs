@@ -89,7 +89,7 @@ public sealed class PlatformService
 		// DESKTOP PLATFORMS:
 		if (System.OperatingSystem.IsWindows())
 		{
-			_outOperatingSystem = OperatingSystemType.Window;
+			_outOperatingSystem = OperatingSystemType.Windows;
 			_outGraphicsBackend = config.Graphics.PreferNativeGraphicsAPI
 				? GraphicsBackend.Direct3D11
 				: GraphicsBackend.Vulkan;
