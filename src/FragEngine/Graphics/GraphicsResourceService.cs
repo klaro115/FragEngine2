@@ -34,7 +34,7 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	private Texture? texBlack = null;
 	private Texture? texTransparent = null;
 
-	private readonly object textureLockObj = new();
+	private readonly Lock textureLockObj = new();
 
 	#endregion
 	#region Properties
@@ -51,78 +51,22 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	/// <summary>
 	/// Gets a tiny texture that is pure white in color.
 	/// </summary>
-	public Texture TexWhite
-	{
-		get
-		{
-			lock (textureLockObj)
-			{
-				if (texWhite is null && !CreateSolidColorTexture(RgbaByte.White, out texWhite))
-				{
-					logger.LogError("Failed to create white default texture!");
-					return TexMissing;
-				}
-				return texWhite;
-			}
-		}
-	}
+	public Texture TexWhite => GetOrCreateDefaultTexture(ref texWhite, RgbaByte.White);
 
 	/// <summary>
 	/// Gets a tiny texture that is grey in color.
 	/// </summary>
-	public Texture TexGrey
-	{
-		get
-		{
-			lock (textureLockObj)
-			{
-				if (texGrey is null && !CreateSolidColorTexture(RgbaByte.Grey, out texGrey))
-				{
-					logger.LogError("Failed to create grey default texture!");
-					return TexMissing;
-				}
-				return texGrey;
-			}
-		}
-	}
+	public Texture TexGrey => GetOrCreateDefaultTexture(ref texGrey, RgbaByte.Grey);
 
 	/// <summary>
 	/// Gets a tiny texture that is black in color.
 	/// </summary>
-	public Texture TexBlack
-	{
-		get
-		{
-			lock (textureLockObj)
-			{
-				if (texBlack is null && !CreateSolidColorTexture(RgbaByte.Black, out texBlack))
-				{
-					logger.LogError("Failed to create black default texture!");
-					return TexMissing;
-				}
-				return texBlack;
-			}
-		}
-	}
+	public Texture TexBlack => GetOrCreateDefaultTexture(ref texBlack, RgbaByte.Black);
 
 	/// <summary>
 	/// Gets a tiny texture that is transparent. All color channels have the value 0.
 	/// </summary>
-	public Texture TexTransparent
-	{
-		get
-		{
-			lock (textureLockObj)
-			{
-				if (texTransparent is null && !CreateSolidColorTexture(new RgbaByte(0, 0, 0, 0), out texTransparent))
-				{
-					logger.LogError("Failed to create transparent default texture!");
-					return TexMissing;
-				}
-				return texTransparent;
-			}
-		}
-	}
+	public Texture TexTransparent => GetOrCreateDefaultTexture(ref texTransparent, new RgbaByte(0, 0, 0, 0));
 
 	#endregion
 	#region Constructors
@@ -153,7 +97,7 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		TexMissing = texture;
 
 		// Subscribe to lifecycle events:
-		graphicsService.Disposing += OnGraphicsServiceDisposing;
+		graphicsService.Disposing += Dispose;
 
 		logger.LogMessage($"- Default resources ready.");
 	}
@@ -185,7 +129,26 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		//...
 	}
 
-	private void OnGraphicsServiceDisposing() => Dispose();
+	private Texture GetOrCreateDefaultTexture(ref Texture? _texture, RgbaByte _fillColor)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot get or create default texture; graphics resource service has already been disposed!", LogEntrySeverity.High);
+			return null!;
+		}
+
+		lock (textureLockObj)
+		{
+			// Create texture if it doesn't exist yet:
+			if (_texture is null && !CreateSolidColorTexture(_fillColor, out _texture))
+			{
+				logger.LogError($"Failed to create default texture! (Color: #{_fillColor})");
+				return TexMissing;
+			}
+
+			return _texture;
+		}
+	}
 
 	/// <summary>
 	/// Creates a tiny 2D texture where all pixels have a solid color.
@@ -232,7 +195,7 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		}
 		catch (Exception ex)
 		{
-			logger.LogException($"Failed to create solid-color texture! (Color: {_fillColor})", ex);
+			logger.LogException($"Failed to create solid-color texture! (Color: #{_fillColor})", ex);
 			_outTexture.Dispose();
 			_outTexture = null;
 			return false;
