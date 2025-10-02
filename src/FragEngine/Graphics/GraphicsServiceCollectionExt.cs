@@ -26,7 +26,7 @@ public static class GraphicsServiceCollectionExt
 	/// reference to check if the service provider contains a realistic number of services for normal
 	/// engine operation.
 	/// </summary>
-	public const int defaultServiceCount = 4;
+	public const int defaultServiceCount = 5;
 
 	#endregion
 	#region Methods
@@ -112,6 +112,7 @@ public static class GraphicsServiceCollectionExt
 	{
 		// Service count: 3
 		_serviceCollection
+			.AddSingleton<GraphicsResourceService>()
 			.AddTransient<Camera>()
 			.AddSingleton<FMdlImporter>()
 			.AddSingleton<FMdlExporter>();

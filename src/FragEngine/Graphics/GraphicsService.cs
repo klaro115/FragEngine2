@@ -36,6 +36,12 @@ public abstract class GraphicsService(
 	#region Events
 
 	/// <summary>
+	/// Event that is triggered when this graphics is getting disposed.
+	/// This event is used to notify any engine system that hold graphics resources to release them ASAP.
+	/// </summary>
+	internal event Action? Disposing;
+
+	/// <summary>
 	/// Event that is triggered whenever the graphics settings are about to change.
 	/// </summary>
 	public event FuncGraphicsSettingsChanging? GraphicsSettingsChanging;
@@ -131,6 +137,11 @@ public abstract class GraphicsService(
 
 	protected virtual void Dispose(bool _disposing)
 	{
+		if (!IsDisposed)
+		{
+			Disposing?.Invoke();
+		}
+
 		IsDisposed = true;
 
 		bufCbGraphics?.Dispose();
@@ -368,17 +379,24 @@ public abstract class GraphicsService(
 	}
 
 	/// <summary>
-	/// Begins a new frame. Call this before committing any command lists.
+	/// Begins a new frame. Call this before populating any command lists.
 	/// </summary>
+	/// <remarks>
+	/// Note: There is no "EndFrame" method for the grapgics service. Instead, it will automatically end the frame and start
+	/// executing draw calls on the GPU once the drawing stage of the engine's update cycle ends. When that time times, all
+	/// command lists that need to be executed this frame should be finalized via '<see cref="CommitCommandList(CommandList, int)"/>'.
+	/// </remarks>
 	/// <param name="_firstCmdList">The command list that will be committed and executed first during the upcoming frame.</param>
 	/// <param name="_outGraphicsCtx">Output a graphics context object for the upcoming frame. Null on error.<para/>
 	/// WARNING: This is a transient instance that is only valid for one frame! Do not keep any references to this object or
 	/// the resources referenced therein, as they may be subject to change in-between frames.</param>
 	/// <returns>True if the frame was started successfully, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Command list may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Command list has already been disposed.</exception>
 	public virtual bool BeginFrame(CommandList _firstCmdList, [NotNullWhen(true)] out GraphicsContext? _outGraphicsCtx)
 	{
 		ArgumentNullException.ThrowIfNull(_firstCmdList);
+		ObjectDisposedException.ThrowIf(_firstCmdList.IsDisposed, _firstCmdList);
 
 		if (IsDisposed)
 		{
