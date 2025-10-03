@@ -5,9 +5,11 @@ using FragEngine.Graphics;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources;
+using FragEngine.Resources.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace FragEngine.Helpers;
 
@@ -230,7 +232,7 @@ public static class EngineStartupHelper
 	/// <param name="_loggerInstance">An instance of the logging service implementation. If null, a default logger is used instead.</param>
 	/// <param name="_outConfig">Outputs the loaded config. If not found or on error, the default config is returned instead.</param>
 	/// <returns>True if the config was loaded from file, false otherwise.</returns>
-	public static bool LoadEngineConfig(ILogger? _loggerInstance, [NotNullWhen(true)] out EngineConfig _outConfig)
+	public static bool LoadEngineConfig(ILogger? _loggerInstance, [NotNull] out EngineConfig _outConfig)
 	{
 		_loggerInstance ??= new ConsoleLogger();
 
@@ -244,17 +246,31 @@ public static class EngineStartupHelper
 			return false;
 		}
 
+		SerializerService serializer = new(_loggerInstance, new());
+
 		EngineConfig? config;
+		FileStream? fileStream = null;
 		try
 		{
-			string configJson = File.ReadAllText(configFilePath);
-			config = JsonSerializer.Deserialize<EngineConfig>(configJson);
+			JsonTypeInfo<EngineConfig> typeInfo = EngineCoreJsonContext.Default.EngineConfig;
+
+			fileStream = new(configFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+			if (!serializer.DeserializeFromJson(fileStream, typeInfo, out config))
+			{
+				_outConfig = EngineConfig.CreateDefault();
+				return false;
+			}
 		}
 		catch (Exception ex)
 		{
 			_loggerInstance.LogException($"Failed to load engine config JSON from file! (File path: '{configFilePath}')", ex, LogEntrySeverity.Normal);
 			_outConfig = EngineConfig.CreateDefault();
 			return false;
+		}
+		finally
+		{
+			fileStream?.Close();
 		}
 
 		if (config is null)
