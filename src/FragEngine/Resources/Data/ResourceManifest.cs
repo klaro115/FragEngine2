@@ -8,7 +8,7 @@ namespace FragEngine.Resources.Data;
 /// A serializable container and description object, defining one or more resources that may be loaded by the engine.
 /// </summary>
 [Serializable]
-public sealed class ResourceManifest : IValidated
+public sealed record class ResourceManifest : IValidated
 {
 	#region Properties
 

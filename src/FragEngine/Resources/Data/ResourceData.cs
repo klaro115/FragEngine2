@@ -10,7 +10,7 @@ namespace FragEngine.Resources.Data;
 /// engine's resource services.
 /// </summary>
 [Serializable]
-public sealed class ResourceData : IValidated
+public sealed record class ResourceData : IValidated
 {
 	#region Properties
 

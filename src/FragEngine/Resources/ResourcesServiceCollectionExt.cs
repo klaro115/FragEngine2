@@ -27,6 +27,10 @@ public static class ResourcesServiceCollectionExt
 	{
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 
+		_serviceCollection
+			.AddSingleton<ResourceService>();
+			//...
+
 		if (!AddSerialization(_serviceCollection))
 		{
 			throw new Exception("Failed to add serialization servies to service collection!");
@@ -57,6 +61,7 @@ public static class ResourcesServiceCollectionExt
 			_serviceCollection.AddSingleton(jsonOptions);
 		}
 
+		// Add services:
 		_serviceCollection
 			.AddSingleton<SerializerService>();
 			//...

@@ -8,7 +8,6 @@ using FragEngine.Resources;
 using FragEngine.Resources.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
 namespace FragEngine.Helpers;
