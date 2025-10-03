@@ -1,5 +1,8 @@
-﻿using FragEngine.Resources.Sources;
+﻿using FragEngine.Extensions;
+using FragEngine.Resources.Serialization;
+using FragEngine.Resources.Sources;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace FragEngine.Resources;
 
@@ -24,6 +27,11 @@ public static class ResourcesServiceCollectionExt
 	{
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 
+		if (!AddSerialization(_serviceCollection))
+		{
+			throw new Exception("Failed to add serialization servies to service collection!");
+		}
+
 		if (!AddResourceSources(_serviceCollection))
 		{
 			throw new Exception("Failed to add resource sources to service collection!");
@@ -33,11 +41,35 @@ public static class ResourcesServiceCollectionExt
 		return _serviceCollection;
 	}
 
+	private static bool AddSerialization(IServiceCollection _serviceCollection)
+	{
+		// Add a set of default options for JSON serialization:
+		if (!_serviceCollection.HasService<JsonSerializerOptions>())
+		{
+			JsonSerializerOptions jsonOptions = new()
+			{
+				AllowTrailingCommas = true,
+				WriteIndented = true,
+				IndentCharacter = '\t',
+				IgnoreReadOnlyFields = true,
+				IgnoreReadOnlyProperties = true,
+			};
+			_serviceCollection.AddSingleton(jsonOptions);
+		}
+
+		_serviceCollection
+			.AddSingleton<SerializerService>();
+			//...
+
+		return true;
+	}
+
 	private static bool AddResourceSources(IServiceCollection _serviceCollection)
 	{
 		_serviceCollection
 			.AddSingleton<FileSource>()
 			.AddSingleton<EmbeddedResourceSource>();
+			//...
 
 		return true;
 	}

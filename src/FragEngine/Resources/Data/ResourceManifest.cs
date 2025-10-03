@@ -1,4 +1,5 @@
 ﻿using FragEngine.EngineCore.Enums;
+using FragEngine.Interfaces;
 using Veldrid;
 
 namespace FragEngine.Resources.Data;
@@ -7,7 +8,7 @@ namespace FragEngine.Resources.Data;
 /// A serializable container and description object, defining one or more resources that may be loaded by the engine.
 /// </summary>
 [Serializable]
-public sealed class ResourceManifest
+public sealed class ResourceManifest : IValidated
 {
 	#region Properties
 
@@ -28,6 +29,17 @@ public sealed class ResourceManifest
 	/// Optional. If non-null, the manifest's resources may be used exclusively with this graphics backend/API.
 	/// </summary>
 	public GraphicsBackend? GraphicsRestriction { get; init; } = null;
+
+	#endregion
+	#region Methods
+
+	public bool IsValid()
+	{
+		bool isValid =
+			Resources is not null &&
+			OSRestriction is not OperatingSystemType.Unknown;
+		return isValid;
+	}
 
 	#endregion
 }

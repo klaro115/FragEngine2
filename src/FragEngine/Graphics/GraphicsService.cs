@@ -4,13 +4,16 @@ using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
+using FragEngine.Graphics.Data;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Resources.Serialization;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Veldrid;
 using Veldrid.Sdl2;
 
@@ -25,12 +28,14 @@ namespace FragEngine.Graphics;
 /// <param name="_windowService">The engine's window management service.</param>
 /// <param name="_platformService">The engine's platform info service.</param>
 /// <param name="_timeService">The engine's time management service.</param>
+/// <param name="_serializerService">The engine's serialization service.</param>
 /// <param name="_config">The main engine configuration.</param>
 public abstract class GraphicsService(
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
 	TimeService _timeService,
+	SerializerService _serializerService,
 	EngineConfig _config) : IExtendedDisposable
 {
 	#region Events
@@ -62,6 +67,7 @@ public abstract class GraphicsService(
 	protected readonly PlatformService platformService = _platformService;
 	protected readonly WindowService windowService = _windowService;
 	protected readonly TimeService timeService = _timeService;
+	protected readonly SerializerService serializerService = _serializerService;
 	protected readonly GraphicsConfig config = _config.Graphics;
 
 	private bool isInitialized = false;
@@ -264,7 +270,7 @@ public abstract class GraphicsService(
 	/// <summary>
 	/// Request graphics settings to be loaded anew from JSON file.
 	/// </summary>
-	/// <returns></returns>
+	/// <returns>True if graphics settings were loaded or set from defaults, false on error.</returns>
 	public bool ReloadGraphicsSettingsFromFile()
 	{
 		string settingsPath = Path.Combine(platformService.settingsDirectoryPath, "graphics.json");
@@ -278,15 +284,28 @@ public abstract class GraphicsService(
 		}
 
 		// Load settings from file:
+		FileStream? fileStream = null;
 		try
 		{
-			string settingsJson = File.ReadAllText(settingsPath);
-			newSettings = JsonSerializer.Deserialize<GraphicsSettings>(settingsJson);
+			fileStream = File.Open(settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+			JsonTypeInfo<GraphicsSettings> typeInfo = GraphicsDataJsonContext.Default.GraphicsSettings;
+
+			if (!serializerService.DeserializeFromJson(fileStream, typeInfo, out newSettings))
+			{
+				logger.LogWarning("Failed to load graphics settings from file, using default values instead.");
+				newSettings = null;
+				goto applySettings;
+			}
 		}
 		catch (Exception ex)
 		{
 			logger.LogException("Failed to load graphics settings from file, using default values instead.", ex);
 			goto applySettings;
+		}
+		finally
+		{
+			fileStream?.Close();
 		}
 		
 		if (newSettings is null)

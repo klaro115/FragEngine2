@@ -40,5 +40,25 @@ public static class IListExt
 		}
 	}
 
+	/// <summary>
+	/// Try to add an element to the list, unless it already exists in the list.
+	/// </summary>
+	/// <typeparam name="T">The type of list elements.</typeparam>
+	/// <param name="_list">This list.</param>
+	/// <param name="_newElement">A new element that should be added to the list.</param>
+	/// <returns>True if the element was added, false if it was already in the list.</returns>
+	public static bool TryAdd<T>(this IList<T> _list, T _newElement) where T : notnull
+	{
+		ArgumentNullException.ThrowIfNull(_list);
+
+		if (_list.Contains(_newElement))
+		{
+			return false;
+		}
+
+		_list.Add(_newElement);
+		return true;
+	}
+
 	#endregion
 }
