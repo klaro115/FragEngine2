@@ -1,9 +1,9 @@
-﻿using FragEngine.EngineCore;
-using FragEngine.Interfaces;
+﻿using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources.Data;
 using FragEngine.Resources.Enums;
 using FragEngine.Resources.Internal;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
@@ -14,11 +14,13 @@ public sealed class ResourceService : IExtendedDisposable
 	#region Fields
 
 	private readonly ILogger logger;
-	private readonly PlatformService platformService;
+	private readonly ResourceDataService resourceDataService;
 
 	private readonly ResourceLoadQueue queue;
 	private readonly Thread backgroundLoadThread;
 	private readonly CancellationTokenSource loadCancellationTokenSrc = new();
+
+	private readonly ConcurrentDictionary<string, ResourceHandle> allResources = new(-1, ResourceConstants.allResourcesStartingCapacity);
 
 	#endregion
 	#region Properties
@@ -28,13 +30,13 @@ public sealed class ResourceService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public ResourceService(ILogger _logger, PlatformService _platformService)
+	internal ResourceService(ILogger _logger, ResourceDataService _resourceDataService)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
-		ArgumentNullException.ThrowIfNull(_platformService);
+		ArgumentNullException.ThrowIfNull(_resourceDataService);
 
 		logger = _logger;
-		platformService = _platformService;
+		resourceDataService = _resourceDataService;
 
 		logger.LogStatus("# Initializing resource service.");
 
@@ -131,6 +133,51 @@ public sealed class ResourceService : IExtendedDisposable
 		{
 			logger.LogStatus($"{nameof(ResourceService)}: Background loading thread exited.");
 		}
+	}
+
+	/// <summary>
+	/// Checks if a resource exists.
+	/// </summary>
+	/// <param name="_resourceKey">A unique identifier key for the resource.</param>
+	/// <returns>True if a resource with this key exists, false otherwise.</returns>
+	public bool HasResource(string _resourceKey)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot check resources of disposed resource service!");
+			return false;
+		}
+		if (string.IsNullOrEmpty(_resourceKey))
+		{
+			logger.LogError("Null or blank resource keys are not permitted!");
+			return false;
+		}
+
+		return allResources.ContainsKey(_resourceKey);
+	}
+
+	/// <summary>
+	/// Gets a handle for a resource.
+	/// </summary>
+	/// <param name="_resourceKey">A unique identifier key for the resource.</param>
+	/// <param name="_outHandle">Outputs a handle for the resource, or null, if the resource could not be found.</param>
+	/// <returns>True if a resource handle was found, false otherwise.</returns>
+	public bool GetResourceHandle(string _resourceKey, [NotNullWhen(true)] out ResourceHandle? _outHandle)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot get resource handle from disposed resource service!");
+			_outHandle = null;
+			return false;
+		}
+		if (string.IsNullOrEmpty(_resourceKey))
+		{
+			logger.LogError("Cannot get resource handle for null or blank resource key!");
+			_outHandle = null;
+			return false;
+		}
+
+		return allResources.TryGetValue(_resourceKey, out _outHandle);
 	}
 
 	internal bool LoadResource(ResourceHandle _handle, bool _loadImmediately, FuncAssignLoadedResource _funcAssignResourceCallback)
@@ -270,7 +317,7 @@ public sealed class ResourceService : IExtendedDisposable
 
 		Debug.Assert(!IsDisposed, "Resource service that has already been disposed!");
 
-		if (!GetResourceData(_handle.ResourceKey, out ResourceData? resourceData))
+		if (!resourceDataService.GetResourceData(_handle.ResourceKey, out ResourceData? resourceData))
 		{
 			logger.LogError($"Failed to retrieve resource file data for resource '{_handle.ResourceKey}'!");
 			return false;
@@ -286,6 +333,11 @@ public sealed class ResourceService : IExtendedDisposable
 	/// <summary>
 	/// Aborts background loading of a resource.
 	/// </summary>
+	/// <remarks>
+	/// Note: This will remove a resource from the queue before it is loaded in the background, but it will not
+	/// interrupt an actively ongoing import on that thread. If the resource is in that stage, it will finish
+	/// loading anyways. Remember to dispose your resource handle if the resource is no longer needed.
+	/// </remarks>
 	/// <param name="_handle">The resource whose background loading you wish to abort.</param>
 	/// <returns>True if any ongoing loading process on the background thread has been aborted, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Resource handle may not be null.</exception>
@@ -324,10 +376,7 @@ public sealed class ResourceService : IExtendedDisposable
 			return false;
 		}
 
-		//TODO
-
-		_outData = null;	//TEMP
-		return false;
+		return resourceDataService.GetResourceData(_resourceKey, out _outData);
 	}
 
 	#endregion

@@ -9,13 +9,14 @@ namespace FragEngine.Resources.Internal;
 /// A thread-safe priority queue for loading resources in the background.
 /// </summary>
 /// <param name="_logger">The engine's logging service singleton.</param>
+/// <exception cref="ArgumentNullException">Logging service may not be null.</exception>
 internal sealed class ResourceLoadQueue(ILogger _logger) : IExtendedDisposable
 {
 	#region Fields
 
 	private readonly ILogger logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 
-	private readonly List<ResourceLoadHandle> list = new(50);
+	private readonly List<ResourceLoadHandle> list = new(ResourceConstants.loadingQueueStartingCapacity);
 
 	private int minPriorityInQueue = ResourceConstants.defaultResourceLoadPriority;
 	private int maxPriorityInQueue = ResourceConstants.defaultResourceLoadPriority;

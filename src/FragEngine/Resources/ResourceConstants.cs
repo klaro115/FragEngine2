@@ -14,5 +14,8 @@ public static class ResourceConstants
 
 	internal const int waitForLoadingToCompleteTimeoutMs = 2000;
 
+	internal const int allResourcesStartingCapacity = 50;
+	internal const int loadingQueueStartingCapacity = 50;
+
 	#endregion
 }

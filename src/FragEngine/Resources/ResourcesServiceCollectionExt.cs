@@ -1,4 +1,5 @@
 ﻿using FragEngine.Extensions;
+using FragEngine.Resources.Internal;
 using FragEngine.Resources.Serialization;
 using FragEngine.Resources.Sources;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +29,8 @@ public static class ResourcesServiceCollectionExt
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 
 		_serviceCollection
-			.AddSingleton<ResourceService>();
+			.AddSingleton<ResourceService>()
+			.AddSingleton<ResourceDataService>();
 			//...
 
 		if (!AddSerialization(_serviceCollection))

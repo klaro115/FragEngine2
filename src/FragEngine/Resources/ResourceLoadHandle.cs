@@ -81,6 +81,10 @@ internal sealed class ResourceLoadHandle(ResourceHandle _resourceHandle, FuncAss
 		//...
 	}
 
+	/// <summary>
+	/// Sets the result state of the resource's loading process.
+	/// </summary>
+	/// <param name="_wasLoadedSuccessfully">Whether the resource was loaded successfully.</param>
 	public void SetLoadingResult(bool _wasLoadedSuccessfully)
 	{
 		if (IsDisposed)
