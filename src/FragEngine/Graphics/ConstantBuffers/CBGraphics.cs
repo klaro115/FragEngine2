@@ -1,0 +1,100 @@
+﻿using FragEngine.EngineCore.Time;
+using FragEngine.EngineCore.Windows;
+using FragEngine.Graphics.Cameras;
+using System.Runtime.InteropServices;
+using Veldrid;
+
+namespace FragEngine.Graphics.ConstantBuffers;
+
+[StructLayout(LayoutKind.Sequential, Pack = sizeof(float), Size = byteSize)]
+public struct CBGraphics
+{
+	#region Fields
+
+	// Time data:
+	public float appTime;
+	public float levelTime;
+	public float ingameTime;
+
+	public float deltaTime;
+	public float frameRate;
+	public uint frameIndex;
+
+	// Graphics data:
+	public uint windowCount;
+	public uint sceneCount;
+	public uint cameraCount;
+
+	//...
+
+	#endregion
+	#region Constants
+
+	public const int byteSize =
+		5 * sizeof(float) +
+		4 * sizeof(uint);	// = 36 bytes
+
+	public const int packedByteSize = 48;
+
+	#endregion
+	#region Properties
+
+	/// <summary>
+	/// Gets default initial data for this constant buffer type.
+	/// </summary>
+	public static CBGraphics Default => new()
+	{
+		// Time data:
+		appTime = 0,
+		levelTime = 0,
+		ingameTime = 0,
+
+		deltaTime = 0.01666667f,
+		frameRate = 60,
+		frameIndex = 0,
+
+		// Graphics data:
+		windowCount = 1,
+		sceneCount = 1,
+		cameraCount = 1,
+
+		//...
+	};
+
+	/// <summary>
+	/// Gets the GPU buffer description for this constant buffer type.
+	/// </summary>
+	public static BufferDescription BufferDesc => new(packedByteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
+
+	#endregion
+	#region Methods
+
+	/// <summary>
+	/// Updates the contents of this constant buffer data type, using the current state of engine services.
+	/// </summary>
+	/// <param name="_timeService">The engine's time service singleton.</param>
+	/// <param name="_windowService">The engine's window service singleton.</param>
+	/// <exception cref="ArgumentNullException">Time service and window service may not be null.</exception>
+	public void UpdateEngineData(in TimeService _timeService, in WindowService _windowService)
+	{
+		ArgumentNullException.ThrowIfNull(_timeService);
+		ArgumentNullException.ThrowIfNull(_windowService);
+
+		// Time data:
+		appTime = (float)_timeService.AppTime.TotalSeconds;
+		levelTime = (float)_timeService.LevelTime.TotalSeconds;
+		ingameTime = (float)_timeService.IngameTime.TotalSeconds;
+
+		deltaTime = _timeService.IngameDeltaTimeSeconds;
+		frameRate = _timeService.CurrentFrameRate;
+		frameIndex = _timeService.CurrentFrameIndex;
+
+		// Graphics data:
+		windowCount = (uint)_windowService.WindowCount;
+		cameraCount = (uint)Camera.InitializedCameraCount;
+
+		//...
+	}
+
+	#endregion
+}
