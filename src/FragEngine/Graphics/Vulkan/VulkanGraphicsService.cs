@@ -188,39 +188,59 @@ internal sealed class VulkanGraphicsService(
 
 	private bool CreateSwapchainSource(Sdl2Window _window, [NotNullWhen(true)] out SwapchainSource? _outSource)
 	{
+		if (!_window.GetWindowManager(logger, out SysWMType windowManager))
+		{
+			logger.LogError("Cannot identify the system's window manager; unable to create swapchain source!");
+			_outSource = null;
+			return false;
+		}
+
+		// Windows:
 		if (OperatingSystem.IsWindows())
 		{
 			// Determine the app's instance handle:
 			if (!WindowsHelper.TryGetAppHInstance(logger, _window, out nint hInstance))
 			{
-				logger.LogError("Cannot determine the app's HInstance; unable to create Dx11/Win32 swapchain!");
+				logger.LogError("Cannot determine the app's HInstance; unable to create Vulkan/Win32 swapchain source!");
 				_outSource = null;
 				return false;
 			}
 
-			// Create a Win32 swapchain source:
 			_outSource = SwapchainSource.CreateWin32(_window.Handle, hInstance);
 		}
-		else if (OperatingSystem.IsLinux())
+		// Linux / Wayland:
+		else if (OperatingSystem.IsLinux() && windowManager == SysWMType.Wayland)
 		{
 			if (!_window.TryGetWaylandInfo(logger, out LinuxWaylandWMInfo waylandInfo))
 			{
-				logger.LogError("Cannot determine the window's handles; unable to create Wayland/Linux swapchain!");
+				logger.LogError("Cannot determine the window's handles; unable to create Wayland/Linux swapchain source!");
 				_outSource = null;
 				return false;
 			}
 
-			// Create a Linux/Wayland swapchain source:
 			_outSource = SwapchainSource.CreateWayland(waylandInfo.display, waylandInfo.surface);
-
-			//TODO [later]: Add support for X11 or other Linux window managers.
 		}
+		// Linux / X11:
+		else if (OperatingSystem.IsLinux() && windowManager == SysWMType.X11)
+		{
+			if (!_window.TryGetX11Info(logger, out LinuxX11WMInfo x11Info))
+			{
+				logger.LogError("Cannot determine the window's handles; unable to create X11/Linux swapchain source!");
+				_outSource = null;
+				return false;
+			}
+
+			_outSource = SwapchainSource.CreateXlib(x11Info.display, x11Info.window);
+		}
+		// Other:
 		else
 		{
 			logger.LogError("OS platform not supported or not implemented; unable to create swapchain source!");
 			_outSource = null;
 			return false;
 		}
+
+		// TODO [later]: Add support for Android & BSD.
 
 		return true;
 	}

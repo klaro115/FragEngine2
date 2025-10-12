@@ -50,7 +50,7 @@ public static class SDL_SysWMInfoExt
 
 		try
 		{
-			// 'SDL_SysWMinfo.info' is a union of platform-specific data. Cast it straight to the windows-specific data layout:
+			// 'SDL_SysWMinfo.info' is a union of platform-specific data. Cast it straight to the Windows-specific data layout:
 			nint pInfoUnion = (nint)(&_sysWmInfo.info);
 
 			WindowsWMInfo* pWindowsInfo = (WindowsWMInfo*)pInfoUnion;
@@ -71,7 +71,7 @@ public static class SDL_SysWMInfoExt
 	/// </remarks>
 	/// <param name="_sysWmInfo">Window manager info for an SDL window.</param>
 	/// <returns>The window's Wayland window manager info, or all-null pointers, if the window info could not be retrieved.</returns>
-	/// <exception cref="PlatformNotSupportedException">Method was called on a non-linux platform.</exception>
+	/// <exception cref="PlatformNotSupportedException">Method was called on a non-linux platform, or a Linux DE that doesn't use Wayland.</exception>
 	/// <exception cref="Exception">Failed to get window manager info from wayland-specific blob in info union. This is likely a pointer or casting error.</exception>
 	[SupportedOSPlatform("linux")]
 	public static unsafe LinuxWaylandWMInfo GetLinuxWaylandInfo(this SDL_SysWMinfo _sysWmInfo)
@@ -83,7 +83,7 @@ public static class SDL_SysWMInfoExt
 
 		try
 		{
-			// 'SDL_SysWMinfo.info' is a union of platform-specific data. Cast it straight to the windows-specific data layout:
+			// 'SDL_SysWMinfo.info' is a union of platform-specific data. Cast it straight to the Wayland-specific data layout:
 			nint pInfoUnion = (nint)(&_sysWmInfo.info);
 
 			LinuxWaylandWMInfo waylandInfo = *(LinuxWaylandWMInfo*)pInfoUnion;
@@ -93,6 +93,39 @@ public static class SDL_SysWMInfoExt
 		catch (Exception ex)
 		{
 			throw new Exception($"Failed to get Wayland info for Wayland-specific blob of {nameof(SDL_SysWMinfo)} struct!", ex);
+		}
+	}
+
+	/// <summary>
+	/// Gets the X11 info of an SDL window.
+	/// </summary>
+	/// <remarks>
+	/// This method is available on Linux platforms only, and expects the X11 window system.
+	/// </remarks>
+	/// <param name="_sysWmInfo">Window manager info for an SDL window.</param>
+	/// <returns>The window's X11 window manager info, or all-null pointers, if the window info could not be retrieved.</returns>
+	/// <exception cref="PlatformNotSupportedException">Method was called on a non-linux platform, or a Linux DE that doesn't use X11.</exception>
+	/// <exception cref="Exception">Failed to get window manager info from wayland-specific blob in info union. This is likely a pointer or casting error.</exception>
+	[SupportedOSPlatform("linux")]
+	public static unsafe LinuxX11WMInfo GetLinuxX11Info(this SDL_SysWMinfo _sysWmInfo)
+	{
+		if (_sysWmInfo.subsystem != SysWMType.X11)
+		{
+			throw new PlatformNotSupportedException($"Cannot get X11 info for non-X11 subsystem '{_sysWmInfo.subsystem}'!");
+		}
+
+		try
+		{
+			// 'SDL_SysWMinfo.info' is a union of platform-specific data. Cast it straight to the X11-specific data layout:
+			nint pInfoUnion = (nint)(&_sysWmInfo.info);
+
+			LinuxX11WMInfo waylandInfo = *(LinuxX11WMInfo*)pInfoUnion;
+
+			return waylandInfo;
+		}
+		catch (Exception ex)
+		{
+			throw new Exception($"Failed to get X11 info for X11-specific blob of {nameof(SDL_SysWMinfo)} struct!", ex);
 		}
 	}
 
