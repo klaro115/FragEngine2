@@ -24,6 +24,15 @@ public interface ILogger : IExtendedDisposable
 	void LogMessage(string _messageText);
 
 	/// <summary>
+	/// Logs multiple messages or status updates in immediate succession.
+	/// </summary>
+	/// <remarks>
+	/// This should be used when you're logging many lines of text that shouldn't be interrupted by logs from other threads.
+	/// </remarks>
+	/// <param name="_messageTexts">The contents of each message.</param>
+	void LogMessages(IList<string> _messageTexts);
+
+	/// <summary>
 	/// Logs a major status update.
 	/// </summary>
 	/// <param name="_messageText">The content of the message.</param>

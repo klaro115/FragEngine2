@@ -445,5 +445,34 @@ public abstract class GraphicsService(
 		return true;
 	}
 
+	protected virtual bool LogDeviceDetails()
+	{
+		GraphicsDeviceFeatures features = Device.Features;
+		List<string> logLines = new(10)
+		{
+			// Device:
+			 "+ Graphics Device:",
+			$"  - Name:               {Device.DeviceName}",
+			$"  - Vendor ID:          {Device.VendorName}",
+			$"  - API:                {Device.BackendType}",
+			$"  - API version:        {Device.ApiVersion}",
+
+			// Features:
+			 "+ GPU Features:",
+			$"  - Compute Shader:     {features.ComputeShader}",
+			$"  - Geometry Shader:    {features.GeometryShader}",
+			$"  - Tesselation Shader: {features.TessellationShaders}",
+			$"  - Draw Indirect:      {features.DrawIndirect}",
+			$"  - Structured Buffer:  {features.StructuredBuffer}",
+			$"  - Texture1D:          {features.Texture1D}",
+			$"  - Shader Float64:     {features.ShaderFloat64}",
+			//...
+		};
+
+		// Log all lines as one uninterrupted block:
+		logger.LogMessages(logLines);
+		return true;
+	}
+
 	#endregion
 }

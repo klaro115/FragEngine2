@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace FragEngine.Logging;
 
@@ -120,6 +121,21 @@ public sealed class ConsoleLogger : ILogger
 		Log(formattedMessage, normalColor);
 	}
 
+	public void LogMessages(IList<string> _messageTexts)
+	{
+		if (IsDisposed) return;
+
+		semaphore.Wait();
+
+		foreach (string messageText in _messageTexts)
+		{
+			string formattedMessage = $"[{DateTime.Now:G}] Message: {messageText}";
+			LogInternal(formattedMessage, normalColor);
+		}
+
+		semaphore.Release();
+	}
+
 	public void LogStatus(string _messageText)
 	{
 		string formattedMessage = $"[{DateTime.Now:G}] Status: {_messageText}";
@@ -176,12 +192,18 @@ public sealed class ConsoleLogger : ILogger
 
 		semaphore.Wait();
 
+		LogInternal(_formattedMessage, _color);
+
+		semaphore.Release();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private void LogInternal(string _formattedMessage, ConsoleColor _color)
+	{
 		ConsoleColor prevColor = Console.ForegroundColor;
 		Console.ForegroundColor = _color;
 		Console.WriteLine(_formattedMessage);
 		Console.ForegroundColor = prevColor;
-
-		semaphore.Release();
 	}
 
 	private static void CountSeverities(int[] _countersArray, LogEntrySeverity _severity)

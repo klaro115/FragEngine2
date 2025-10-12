@@ -48,6 +48,8 @@ internal sealed class Dx11GraphicsService(
 			return false;
 		}
 
+		LogDeviceDetails();
+
 		IsInitialized = true;
 		return true;
 	}
