@@ -156,6 +156,24 @@ public sealed class WindowHandle : IExtendedDisposable
 	}
 
 	/// <summary>
+	/// Gets the index of the screen this window is located on.
+	/// </summary>
+	/// <param name="_outScreenIdx">Outputs the index of the window's screen. On error, this is -1.</param>
+	/// <returns>True if the screen index could be determined, false otherwise.</returns>
+	public bool GetScreenIndex(out int _outScreenIdx)
+	{
+		if (!IsOpen)
+		{
+			logger.LogError("Cannot get screen index of closed window!");
+			_outScreenIdx = -1;
+			return false;
+		}
+
+		return windowService.GetScreenIndex(new(Window.X + 1, Window.Y + 1), out _outScreenIdx);
+		// ^Note: Bias of +1 is added to prevent off-by-one errors along monitor edges.
+	}
+
+	/// <summary>
 	/// Changes the size of this window.
 	/// </summary>
 	/// <param name="_newWidth">The new horizontal size of the window.</param>
@@ -193,7 +211,7 @@ public sealed class WindowHandle : IExtendedDisposable
 		}
 
 		// Measure window's current screen size:
-		if (!windowService.GetScreenIndex(new(Window.X, Window.Y), out int screenIdx))
+		if (!GetScreenIndex(out int screenIdx))
 		{
 			screenIdx = 0;
 		}
@@ -213,6 +231,77 @@ public sealed class WindowHandle : IExtendedDisposable
 
 		bool resized = ResizeWindow((int)screenResolution.X, (int)screenResolution.Y);
 		return resized;
+	}
+
+	/// <summary>
+	/// Moves the window to a different screen. The window's size will be clamped to the new screen's resolution.
+	/// </summary>
+	/// <param name="_screenIdx">The index of the screen the window should be moved to. May not be negative.</param>
+	/// <returns>True if the window was moved to the designated screen, false otherwise.</returns>
+	public bool MoveToScreen(int _screenIdx)
+	{
+		if (!IsOpen)
+		{
+			logger.LogError("Cannot move closed window to another screen!");
+			return false;
+		}
+
+		// Check if we're already on the right screen:
+		if (!GetScreenIndex(out int curScreenIdx))
+		{
+			curScreenIdx = 0;
+		}
+		if (curScreenIdx == _screenIdx)
+		{
+			return true;
+		}
+
+		// Get current and destination screen metrics:
+		if (!windowService.GetScreenMetrics(curScreenIdx, out Vector2 curDesktopPosition, out _, out _))
+		{
+			logger.LogError("Cannot resize window; failed to measure current screen resolution!");
+			return false;
+		}
+		if (!windowService.GetScreenMetrics(_screenIdx, out Vector2 dstDesktopPosition, out Vector2 dstScreenResolution, out _))
+		{
+			logger.LogError("Cannot resize window; failed to measure destination screen resolution!");
+			return false;
+		}
+
+		// Calculate new coordinates, resize if too large for destination:
+		Rectangle curBounds = Window.Bounds;
+		Rectangle dstBounds = curBounds with
+		{
+			X = curBounds.X - (int)curDesktopPosition.X + (int)dstDesktopPosition.X,
+			Y = curBounds.Y - (int)curDesktopPosition.Y + (int)dstDesktopPosition.Y,
+		};
+
+		if (curBounds.Width > dstScreenResolution.X)
+		{
+			dstBounds.X = 0;
+			dstBounds.Width = Math.Max((int)dstScreenResolution.X, 8);
+		}
+		else if (curBounds.Right - curDesktopPosition.X > dstScreenResolution.X)
+		{
+			dstBounds.X = (int)dstDesktopPosition.X + (int)dstScreenResolution.X - dstBounds.Width;
+		}
+
+		if (curBounds.Height > dstScreenResolution.Y)
+		{
+			dstBounds.Y = 0;
+			dstBounds.Height = Math.Max((int)dstScreenResolution.Y, 8);
+		}
+		else if (dstBounds.Bottom - dstScreenResolution.Y > 0)
+		{
+			dstBounds.Y = (int)dstDesktopPosition.Y + (int)dstScreenResolution.Y - dstBounds.Height;
+		}
+
+		// Apply changes:
+		Window.X = dstBounds.X;
+		Window.Y = dstBounds.Y;
+		Window.Width = dstBounds.Width;
+		Window.Height = dstBounds.Height;
+		return true;
 	}
 
 	/// <summary>

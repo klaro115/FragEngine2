@@ -228,6 +228,31 @@ public sealed class WindowService : IExtendedDisposable
 	}
 
 	/// <summary>
+	/// Gets the total number of displays/screens that are connected to this PC.
+	/// </summary>
+	/// <param name="_outScreenCount">Outputs the number of screens, or -1, on error.</param>
+	/// <returns>True if the screen count could be determined, false otherwise.</returns>
+	public bool GetScreenCount(out int _outScreenCount)
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot get screen count from window service that has already been disposed!");
+			_outScreenCount = -1;
+			return false;
+		}
+
+		_outScreenCount = Sdl2Native.SDL_GetNumVideoDisplays();
+		if (_outScreenCount <= 0)
+		{
+			logger.LogWarning("No screens could be detected. Are you running this in a headless client?", LogEntrySeverity.Trivial);
+			_outScreenCount = -1;
+			return false;
+		}
+
+		return true;
+	}
+
+	/// <summary>
 	/// Tries to get the index of the display/screen that a specific point is located on.
 	/// </summary>
 	/// <param name="_desktopPosition">A screen in desktop pixel space. This is a space that encloses all desktop screens.</param>
