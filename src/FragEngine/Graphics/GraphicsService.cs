@@ -68,6 +68,7 @@ public abstract class GraphicsService(
 	protected readonly WindowService windowService = _windowService;
 	protected readonly TimeService timeService = _timeService;
 	protected readonly SerializerService serializerService = _serializerService;
+	protected readonly EngineConfig engineConfig = _config;
 	protected readonly GraphicsConfig config = _config.Graphics;
 
 	private bool isInitialized = false;
@@ -257,7 +258,7 @@ public abstract class GraphicsService(
 
 		settings = _newSettings;
 
-		if (!HandleSetGraphicsSettings())
+		if (!HandleSetGraphicsSettings(in previousSettings))
 		{
 			logger.LogError("Failed to apply new graphics settings!", LogEntrySeverity.High);
 			return false;
@@ -321,8 +322,9 @@ public abstract class GraphicsService(
 	/// <summary>
 	/// Perform platform-specific logic after graphics settings have changed.
 	/// </summary>
+	/// <param name="_prevSettings">The previous graphics settings, to be used as reference.</param>
 	/// <returns>True if settings were applied and processed successfully, false otherwise.</returns>
-	protected abstract bool HandleSetGraphicsSettings();
+	protected abstract bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings);
 
 	/// <summary>
 	/// Get various settings and metrics for creating the main window.

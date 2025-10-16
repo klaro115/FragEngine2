@@ -81,7 +81,8 @@ public static class GraphicsServiceCollectionExt
 	private static bool AddPlatformSpecficServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
 		// Service count: 1
-		if (OperatingSystem.IsWindows() && _platformService.GraphicsBackend == GraphicsBackend.Direct3D11)
+		if (OperatingSystem.IsWindows() &&
+			_platformService.GraphicsBackend == GraphicsBackend.Direct3D11)
 		{
 			_serviceCollection.AddSingleton<GraphicsService, Dx11GraphicsService>();
 		}
@@ -92,7 +93,10 @@ public static class GraphicsServiceCollectionExt
 		{
 			_serviceCollection.AddSingleton<GraphicsService, MetalGraphicsService>();
 		}
-		else if (GraphicsBackend.Vulkan.IsSupportedOnCurrentPlatform() &&
+		else if (!OperatingSystem.IsIOS() &&
+				 !OperatingSystem.IsMacOS() &&
+				 !OperatingSystem.IsMacCatalyst() &&
+				 GraphicsBackend.Vulkan.IsSupportedOnCurrentPlatform() &&
 				 _platformService.GraphicsBackend == GraphicsBackend.Vulkan)
 		{
 			_serviceCollection.AddSingleton<GraphicsService, VulkanGraphicsService>();
@@ -110,7 +114,7 @@ public static class GraphicsServiceCollectionExt
 
 	private static bool AddPlatformAgnosticServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
-		// Service count: 3
+		// Service count: 4
 		_serviceCollection
 			.AddSingleton<GraphicsResourceService>()
 			.AddTransient<Camera>()

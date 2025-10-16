@@ -143,10 +143,48 @@ internal sealed class Dx11GraphicsService(
 		}
 	}
 
-	protected override bool HandleSetGraphicsSettings()
+	protected override bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
 	{
+		bool success = true;
+
+		// Update V-sync: (only available if created with main swapchain)
+		if (engineConfig.Startup.CreateMainWindowImmediately)
+		{
+			bool prevVSync = _prevSettings?.VSync ?? config.VSync;
+			bool curVSync = Settings?.VSync ?? config.VSync;
+			if (prevVSync != curVSync)
+			{
+				Device.SyncToVerticalBlank = curVSync;
+			}
+		}
+
+		// Update main window state:
+		if (MainWindow is not null &&
+			MainWindow.IsOpen &&
+			MainWindow.Window.WindowState != Settings!.WindowState)
+		{
+			MainWindow.Window.WindowState = Settings.WindowState;
+		}
+
+		// Update main window's monitor:
+		if (MainWindow is not null &&
+			MainWindow.IsOpen)
+		{
+			int prevScreenIdx = _prevSettings is not null && _prevSettings.OutputScreenIndex >= 0
+				? _prevSettings.OutputScreenIndex
+				: (int)config.MainWindowScreenIndex;
+			int curScreenIdx = Settings!.OutputScreenIndex >= 0
+				? Settings!.OutputScreenIndex
+				: (int)config.MainWindowScreenIndex;
+			if (prevScreenIdx != curScreenIdx)
+			{
+				success &= MainWindow.MoveToScreen(Settings.OutputScreenIndex);
+			}
+		}
+
 		//TODO
-		return true;
+
+		return success;
 	}
 
 	internal override bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain)

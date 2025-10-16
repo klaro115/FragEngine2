@@ -10,10 +10,10 @@ using FragEngine.Resources.Serialization;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.Versioning;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
-using Vortice;
 
 namespace FragEngine.Graphics.Vulkan;
 
@@ -21,6 +21,9 @@ namespace FragEngine.Graphics.Vulkan;
 /// Graphics service implementation for the Vulkan graphics API.
 /// </summary>
 /// <param name="_logger">The logger service.</param>
+[UnsupportedOSPlatform("ios")]
+[UnsupportedOSPlatform("macos")]
+[UnsupportedOSPlatform("maccatalyst")]
 internal sealed class VulkanGraphicsService(
 	ILogger _logger,
 	PlatformService _platformService,
@@ -145,7 +148,7 @@ internal sealed class VulkanGraphicsService(
 		}
 	}
 
-	protected override bool HandleSetGraphicsSettings()
+	protected override bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
 	{
 		//TODO
 		return true;

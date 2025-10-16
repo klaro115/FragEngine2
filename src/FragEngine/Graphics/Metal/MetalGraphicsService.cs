@@ -44,7 +44,7 @@ internal sealed class MetalGraphicsService(
 		throw new NotImplementedException();
 	}
 
-	protected override bool HandleSetGraphicsSettings()
+	protected override bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
 	{
 		throw new NotImplementedException();
 	}

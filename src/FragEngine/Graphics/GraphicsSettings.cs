@@ -29,6 +29,12 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 	public Vector2? OutputResolution { get; set; } = null;
 
 	/// <summary>
+	/// Whether to synchronize the main window swap chain and its graphics device to the screen's refresh rate.
+	/// If null, the V-Sync settings from graphics config are used instead.
+	/// </summary>
+	public bool? VSync { get; init; } = null;
+
+	/// <summary>
 	/// An upper limit for the frame rate at which the engine is allowed to render, in Hertz.
 	/// To disable frame rate limiting, just set this to an absurdly high value.
 	/// </summary>
@@ -106,6 +112,7 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 		{
 			OutputResolution = _config.FallbackOutputResolution,
 			OutputScreenIndex = (int)_config.MainWindowScreenIndex,
+			VSync = _config.VSync,
 		};
 		return settings;
 	}

@@ -24,6 +24,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private InputKeyState escapeKeyState = InputKeyState.Invalid;
 	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
+	private InputKeyState switchMonitorKeyState = InputKeyState.Invalid;
 
 	private CBScene cbSceneData;
 
@@ -89,6 +90,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		{
 			escapeKeyState = engine.InputService.GetKeyState(Key.Escape);
 			fullscreenKeyState = engine.InputService.GetKeyState(Key.Tab);
+			switchMonitorKeyState = engine.InputService.GetKeyState(Key.KeypadMultiply);
 
 			if (!CreateCamera())
 			{
@@ -129,13 +131,22 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	public bool UpdateRunningState_Input()
 	{
+		WindowHandle? mainWindow = engine.Graphics.MainWindow;
+
 		if (escapeKeyState.EventType == InputKeyEventType.Released)
 		{
 			engine.RequestExit();
 		}
-		if (fullscreenKeyState.EventType == InputKeyEventType.Released && engine.Graphics.MainWindow is not null)
+		if (fullscreenKeyState.EventType == InputKeyEventType.Released && mainWindow is not null)
 		{
-			engine.Graphics.MainWindow.FillScreen(true);
+			mainWindow.FillScreen(true);
+		}
+		if (switchMonitorKeyState.EventType == InputKeyEventType.Released && mainWindow is not null)
+		{
+			engine.WindowService.GetScreenCount(out int screenCount);
+			mainWindow.GetScreenIndex(out int screenIdx);
+			screenIdx = (screenIdx + 1) % screenCount;
+			mainWindow.MoveToScreen(screenIdx);
 		}
 
 		return true;
