@@ -148,12 +148,6 @@ internal sealed class VulkanGraphicsService(
 		}
 	}
 
-	protected override bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
-	{
-		//TODO
-		return true;
-	}
-
 	internal override bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain)
 	{
 		if (_window is null || !_window.Exists)

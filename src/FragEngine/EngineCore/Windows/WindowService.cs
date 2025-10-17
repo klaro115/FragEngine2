@@ -1,4 +1,5 @@
-﻿using FragEngine.Graphics;
+﻿using FragEngine.EngineCore.Config;
+using FragEngine.Graphics;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
@@ -36,6 +37,9 @@ public sealed class WindowService : IExtendedDisposable
 	internal readonly ILogger logger;
 	private readonly IServiceProvider serviceProvider;
 	private readonly PlatformService platformService;
+	private readonly EngineConfig engineConfig;
+
+	private bool isInitialized = false;
 
 	private readonly List<WindowHandle> windows = new(1);
 	private readonly SemaphoreSlim windowSemaphore = new(1, 1);
@@ -80,11 +84,18 @@ public sealed class WindowService : IExtendedDisposable
 	/// <param name="_logger">The logging service singleton.</param>
 	/// <param name="_serviceProvider">The engine's main service provider.</param>
 	/// <param name="_platformService">The platform service singleton.</param>
-	public WindowService(ILogger _logger, IServiceProvider _serviceProvider, PlatformService _platformService)
+	/// <exception cref="ArgumentNullException">Engine services may not be null.</exception>
+	public WindowService(ILogger _logger, IServiceProvider _serviceProvider, PlatformService _platformService, EngineConfig _engineConfig)
 	{
+		ArgumentNullException.ThrowIfNull(_logger);
+		ArgumentNullException.ThrowIfNull(_serviceProvider);
+		ArgumentNullException.ThrowIfNull(_platformService);
+		ArgumentNullException.ThrowIfNull(_engineConfig);
+
 		logger = _logger;
 		serviceProvider = _serviceProvider;
 		platformService = _platformService;
+		engineConfig = _engineConfig;
 
 		logger.LogStatus("# Initializing window service.");
 
@@ -135,6 +146,18 @@ public sealed class WindowService : IExtendedDisposable
 		CloseAllWindows();
 
 		windowSemaphore.Dispose();
+	}
+
+	private void Initialize(GraphicsService _graphicsService)
+	{
+		if (isInitialized)
+		{
+			return;
+		}
+
+		isInitialized = true;
+
+		_graphicsService.GraphicsSettingsChanged += OnGraphicsSettingsChanged;
 	}
 
 	/// <summary>
@@ -340,12 +363,12 @@ public sealed class WindowService : IExtendedDisposable
 	/// Note that this creates an empty window without any swapchain or graphics context.
 	/// </remarks>
 	/// <param name="_title">The title of the window.</param>
-	/// <param name="_position">The position of the window, in desktop space.</param>
+	/// <param name="_desktopPosition">The position of the window, in desktop space.</param>
 	/// <param name="_resolution">The size of the window, in pixels.</param>
 	/// <param name="_isFullscreen">Whether this is a fullscreen window.</param>
 	/// <param name="_outHandle">Outputs a handle for the newly created windows, or null on failure.</param>
 	/// <returns>True if a new window was created, false otherwise.</returns>
-	public bool CreateWindow(string _title, Vector2 _position, Vector2 _resolution, bool _isFullscreen, [NotNullWhen(true)] out WindowHandle? _outHandle)
+	public bool CreateWindow(string _title, Vector2 _desktopPosition, Vector2 _resolution, bool _isFullscreen, [NotNullWhen(true)] out WindowHandle? _outHandle)
 	{
 		if (string.IsNullOrEmpty(_title))
 		{
@@ -362,7 +385,7 @@ public sealed class WindowService : IExtendedDisposable
 			const SDL_WindowFlags desktopFullscreenFlags = SDL_WindowFlags.FullScreenDesktop | SDL_WindowFlags.Borderless;
 			flags |= fullscreenFlags;
 
-			if (!GetScreenIndex(_position, out int screenIdx))
+			if (!GetScreenIndex(_desktopPosition, out int screenIdx))
 			{
 				_outHandle = null;
 				return false;
@@ -376,7 +399,7 @@ public sealed class WindowService : IExtendedDisposable
 
 			if (Vector2.Round(_resolution) == Vector2.Round(screenResolution))
 			{
-				_position = screenPosition;
+				_desktopPosition = screenPosition;
 				flags |= desktopFullscreenFlags;
 			}
 		}
@@ -401,7 +424,7 @@ public sealed class WindowService : IExtendedDisposable
 		Sdl2Window window;
 		try
 		{
-			window = new(_title, (int)_position.X, (int)_position.Y, (int)_resolution.X, (int)_resolution.Y, flags, false);
+			window = new(_title, (int)_desktopPosition.X, (int)_desktopPosition.Y, (int)_resolution.X, (int)_resolution.Y, flags, false);
 			_ = window.PumpEvents();
 		}
 		catch (Exception ex)
@@ -456,6 +479,11 @@ public sealed class WindowService : IExtendedDisposable
 
 		GraphicsService graphics = serviceProvider.GetRequiredService<GraphicsService>();
 
+		if (!isInitialized)
+		{
+			Initialize(graphics);
+		}
+
 		int windowId = windowIdCounter++;
 		_outHandle = new(this, logger, graphics, _newWindow, _swapchain, windowId);
 
@@ -507,6 +535,12 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
+		if (!isInitialized)
+		{
+			GraphicsService graphics = serviceProvider.GetRequiredService<GraphicsService>();
+			Initialize(graphics);
+		}
+
 		_outInputSnapshot = null;
 
 		windowSemaphore.Wait();
@@ -535,6 +569,40 @@ public sealed class WindowService : IExtendedDisposable
 		finally
 		{
 			windowSemaphore.Release();
+		}
+	}
+
+	private void OnGraphicsSettingsChanged(GraphicsSettings? _previousSettings, GraphicsSettings _currentSettings)
+	{
+		if (IsDisposed) return;
+		
+		GraphicsService graphicsService = serviceProvider.GetRequiredService<GraphicsService>();
+		WindowHandle? mainWindow = graphicsService.MainWindow;
+
+		if (mainWindow is null || !mainWindow.IsOpen)
+		{
+			return;
+		}
+
+		// Update main window's monitor:
+		{
+			int prevScreenIdx = _previousSettings is not null && _previousSettings.OutputScreenIndex >= 0
+				? _previousSettings.OutputScreenIndex
+				: (int)engineConfig.Graphics.MainWindowScreenIndex;
+			int curScreenIdx = _currentSettings!.OutputScreenIndex >= 0
+				? _currentSettings!.OutputScreenIndex
+				: (int)engineConfig.Graphics.MainWindowScreenIndex;
+
+			if (prevScreenIdx != curScreenIdx && curScreenIdx >= 0)
+			{
+				mainWindow.MoveToScreen(_currentSettings.OutputScreenIndex);
+			}
+		}
+
+		// Update main window state:
+		if (mainWindow.Window.WindowState != _currentSettings.WindowState)
+		{
+			mainWindow.Window.WindowState = _currentSettings.WindowState;
 		}
 	}
 

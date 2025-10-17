@@ -158,30 +158,6 @@ internal sealed class Dx11GraphicsService(
 			}
 		}
 
-		// Update main window state:
-		if (MainWindow is not null &&
-			MainWindow.IsOpen &&
-			MainWindow.Window.WindowState != Settings!.WindowState)
-		{
-			MainWindow.Window.WindowState = Settings.WindowState;
-		}
-
-		// Update main window's monitor:
-		if (MainWindow is not null &&
-			MainWindow.IsOpen)
-		{
-			int prevScreenIdx = _prevSettings is not null && _prevSettings.OutputScreenIndex >= 0
-				? _prevSettings.OutputScreenIndex
-				: (int)config.MainWindowScreenIndex;
-			int curScreenIdx = Settings!.OutputScreenIndex >= 0
-				? Settings!.OutputScreenIndex
-				: (int)config.MainWindowScreenIndex;
-			if (prevScreenIdx != curScreenIdx)
-			{
-				success &= MainWindow.MoveToScreen(Settings.OutputScreenIndex);
-			}
-		}
-
 		//TODO
 
 		return success;

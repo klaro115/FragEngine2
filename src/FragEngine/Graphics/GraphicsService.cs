@@ -12,7 +12,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -324,7 +323,33 @@ public abstract class GraphicsService(
 	/// </summary>
 	/// <param name="_prevSettings">The previous graphics settings, to be used as reference.</param>
 	/// <returns>True if settings were applied and processed successfully, false otherwise.</returns>
-	protected abstract bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings);
+	protected virtual bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
+	{
+		bool success = true;
+
+		// Update V-sync:
+		{
+			bool prevVSync = _prevSettings?.VSync ?? config.VSync;
+			bool curVSync = Settings?.VSync ?? config.VSync;
+			if (prevVSync != curVSync)
+			{
+				// Via device: (only available if created with main swapchain)
+				if (engineConfig.Startup.CreateMainWindowImmediately)
+				{
+					Device.SyncToVerticalBlank = curVSync;
+				}
+				// Or directly over the swapchain:
+				else if (MainSwapchain is not null && !MainSwapchain.IsDisposed)
+				{
+					MainSwapchain.SyncToVerticalBlank = curVSync;
+				}
+			}
+		}
+
+		//...
+
+		return success;
+	}
 
 	/// <summary>
 	/// Get various settings and metrics for creating the main window.

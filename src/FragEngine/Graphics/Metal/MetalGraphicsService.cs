@@ -44,11 +44,6 @@ internal sealed class MetalGraphicsService(
 		throw new NotImplementedException();
 	}
 
-	protected override bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
-	{
-		throw new NotImplementedException();
-	}
-
 	internal override bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain)
 	{
 		throw new NotImplementedException();
