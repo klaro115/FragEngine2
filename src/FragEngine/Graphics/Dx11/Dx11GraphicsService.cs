@@ -143,26 +143,6 @@ internal sealed class Dx11GraphicsService(
 		}
 	}
 
-	protected override bool HandleSetGraphicsSettings(in GraphicsSettings? _prevSettings)
-	{
-		bool success = true;
-
-		// Update V-sync: (only available if created with main swapchain)
-		if (engineConfig.Startup.CreateMainWindowImmediately)
-		{
-			bool prevVSync = _prevSettings?.VSync ?? config.VSync;
-			bool curVSync = Settings?.VSync ?? config.VSync;
-			if (prevVSync != curVSync)
-			{
-				Device.SyncToVerticalBlank = curVSync;
-			}
-		}
-
-		//TODO
-
-		return success;
-	}
-
 	internal override bool CreateSwapchain(Sdl2Window _window, [NotNullWhen(true)] out Swapchain? _outSwapchain)
 	{
 		if (_window is null || !_window.Exists)

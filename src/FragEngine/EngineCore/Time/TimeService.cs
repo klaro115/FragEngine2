@@ -1,5 +1,7 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.Graphics;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 
 namespace FragEngine.EngineCore.Time;
@@ -13,11 +15,14 @@ public sealed class TimeService : IExtendedDisposable
 	#region Fields
 
 	private readonly ILogger logger;
+	private readonly IServiceProvider serviceProvider;
 
 	private readonly SemaphoreSlim semaphore = new(1, 1);
 
 	private readonly Stopwatch applicationTimeStopwatch = new();
 	private readonly Stopwatch ingameTimeStopwatch = new();
+
+	private bool isInitialized = false;
 
 	private TimeSpan levelStartIngameTimestamp = TimeSpan.Zero;
 
@@ -133,9 +138,19 @@ public sealed class TimeService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public TimeService(ILogger _logger)
+	/// <summary>
+	/// Creates a new time service.
+	/// </summary>
+	/// <param name="_logger">The engine's logging service.</param>
+	/// <param name="_serviceProvider">The engine's service provider.</param>
+	/// <exception cref="ArgumentNullException">Logger and service provider may not be null!</exception>
+	public TimeService(ILogger _logger, IServiceProvider _serviceProvider)
 	{
+		ArgumentNullException.ThrowIfNull(_logger);
+		ArgumentNullException.ThrowIfNull(_serviceProvider);
+
 		logger = _logger;
+		serviceProvider = _serviceProvider;
 
 		AppStartDateTimeUtc = DateTime.UtcNow;
 		PauseStartDateTimeUtc = DateTime.UtcNow;
@@ -172,6 +187,16 @@ public sealed class TimeService : IExtendedDisposable
 		ingameTimeStopwatch.Stop();
 		applicationTimeStopwatch.Stop();
 		semaphore.Dispose();
+	}
+
+	private void Initialize()
+	{
+		if (IsDisposed || isInitialized) return;
+
+		isInitialized = true;
+
+		GraphicsService graphicsService = serviceProvider.GetRequiredService<GraphicsService>();
+		graphicsService.GraphicsSettingsChanged += OnGraphicsSettingsChanged;
 	}
 
 	/// <summary>
@@ -252,6 +277,10 @@ public sealed class TimeService : IExtendedDisposable
 			logger.LogError("Time service has already been disposed!", LogEntrySeverity.High);
 			return false;
 		}
+		if (!isInitialized)
+		{
+			Initialize();
+		}
 
 		semaphore.Wait();
 
@@ -324,6 +353,13 @@ public sealed class TimeService : IExtendedDisposable
 
 		semaphore.Release();
 		return true;
+	}
+
+	private void OnGraphicsSettingsChanged(GraphicsSettings? _previousSettings, GraphicsSettings _currentSettings)
+	{
+		if (IsDisposed) return;
+
+		TargetFrameRate = _currentSettings.FrameRateLimit;
 	}
 
 	#endregion
