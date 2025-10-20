@@ -98,7 +98,7 @@ internal sealed class Dx11GraphicsService(
 				(int)windowPosition.Y,
 				(int)windowSize.X,
 				(int)windowSize.Y,
-				Settings.WindowState,
+				windowService.Settings.WindowState,
 				windowTitle);
 
 			try

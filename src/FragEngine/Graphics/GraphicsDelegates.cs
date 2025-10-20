@@ -1,16 +1,35 @@
 ﻿using FragEngine.EngineCore.Windows;
+using FragEngine.Graphics.Settings;
 
 namespace FragEngine.Graphics;
 
 /// <summary>
-/// Delegate for listener methods that respond when the graphics settings are about to change.
+/// Delegate for listener methods that respond when the display settings are about to change.<para/>
+/// This event is fired by the <see cref="WindowService"/>.
+/// </summary>
+/// <param name="_currentSettings">The current display settings.</param>
+/// <param name="_newSettings">The new settings that are about to come into effect.</param>
+public delegate void FuncDisplaySettingsChanging(in DisplaySettings? _currentSettings, DisplaySettings _newSettings);
+
+/// <summary>
+/// Delegate for listener methods that respond when the display settings have just changed.<para/>
+/// This event is fired by the <see cref="WindowService"/>.
+/// </summary>
+/// <param name="_previousSettings">The previous display settings, that no longer apply.</param>
+/// <param name="_currentSettings">The current display settings, that have just come into effect.</param>
+public delegate void FuncDisplaySettingsChanged(in DisplaySettings? _previousSettings, DisplaySettings _currentSettings);
+
+/// <summary>
+/// Delegate for listener methods that respond when the graphics settings are about to change.<para/>
+/// This event is fired by the <see cref="GraphicsService"/>.
 /// </summary>
 /// <param name="_currentSettings">The current graphics settings.</param>
 /// <param name="_newSettings">The new settings that are about to come into effect.</param>
 public delegate void FuncGraphicsSettingsChanging(GraphicsSettings? _currentSettings, GraphicsSettings _newSettings);
 
 /// <summary>
-/// Delegate for listener methods that respond when the graphics settings have just changed.
+/// Delegate for listener methods that respond when the graphics settings have just changed.<para/>
+/// This event is fired by the <see cref="GraphicsService"/>.
 /// </summary>
 /// <param name="_previousSettings">The previous graphics settings, that no longer apply.</param>
 /// <param name="_currentSettings">The current graphics settings, that have just come into effect.</param>

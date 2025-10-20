@@ -3,6 +3,8 @@ using FragEngine.EngineCore.Enums;
 using FragEngine.Extensions;
 using FragEngine.Graphics.Constants;
 using FragEngine.Logging;
+using FragEngine.Resources.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Veldrid;
 
 namespace FragEngine.EngineCore;
@@ -16,6 +18,7 @@ public sealed class PlatformService
 
 	private readonly ILogger logger;
 	private readonly EngineConfig config;
+	private readonly SerializerService serializerService;
 
 	/// <summary>
 	/// Root path to the directory where the app and its data is located.
@@ -50,10 +53,11 @@ public sealed class PlatformService
 	/// <exception cref="PlatformNotSupportedException">Operating system is not supported.</exception>
 	/// <exception cref="DirectoryNotFoundException">Root directory path could not be located.</exception>
 	/// <exception cref="Exception">Failed to prepare root directories.</exception>
-	public PlatformService(ILogger _logger, EngineConfig _config)
+	public PlatformService(ILogger _logger, EngineConfig _config, SerializerService _serializerService)
 	{
 		logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 		config = _config ?? throw new ArgumentNullException(nameof(_config));
+		serializerService = _serializerService ?? throw new ArgumentNullException(nameof(_serializerService));
 
 		logger.LogStatus("# Initializing platform service.");
 
@@ -172,6 +176,53 @@ public sealed class PlatformService
 		}
 		string rootDirectoryPath = Path.GetDirectoryName(rootDirPath)!;
 		return rootDirectoryPath;
+	}
+
+	internal bool LoadSettingsFromJsonFile<T>(string _relativeSettingsFilePath, JsonTypeInfo<T> _typeInfo, out T? _outSettings) where T : class, new()
+	{
+		ArgumentNullException.ThrowIfNull(_relativeSettingsFilePath);
+		ArgumentNullException.ThrowIfNull(_typeInfo);
+
+		string settingsPath = Path.Combine(settingsDirectoryPath, _relativeSettingsFilePath);
+
+		// If settings file does not exit, use default values:
+		if (!File.Exists(settingsPath))
+		{
+			logger.LogWarning("Settings JSON does not exit, using default values instead.", LogEntrySeverity.Trivial);
+			_outSettings = null;
+			return false;
+		}
+
+		// Load settings from file:
+		FileStream? fileStream = null;
+		try
+		{
+			fileStream = File.Open(settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+			if (!serializerService.DeserializeFromJson(fileStream, _typeInfo, out _outSettings))
+			{
+				logger.LogWarning("Failed to load settings from JSON file, using default values instead.");
+				_outSettings = null;
+				return false;
+			}
+		}
+		catch (Exception ex)
+		{
+			logger.LogException("Failed to load settings from JSON file, using default values instead.", ex);
+			_outSettings = null;
+			return false;
+		}
+		finally
+		{
+			fileStream?.Close();
+		}
+
+		if (_outSettings is null)
+		{
+			logger.LogWarning("Settings loaded from JSON file were null, using default values instead.", LogEntrySeverity.Trivial);
+		}
+
+		return true;
 	}
 
 	#endregion

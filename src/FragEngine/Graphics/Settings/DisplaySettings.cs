@@ -2,13 +2,13 @@
 using System.Numerics;
 using Veldrid;
 
-namespace FragEngine.Graphics;
+namespace FragEngine.Graphics.Settings;
 
 /// <summary>
-/// Graphical settings that may be changed after launch.
+/// Display settings that may be changed after launch.
 /// </summary>
 [Serializable]
-public sealed class GraphicsSettings : IValidated, IChecksumVersioned
+public sealed class DisplaySettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 
@@ -27,18 +27,6 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 	/// after any upscaling has taken place. If null, native screen size or FullHD will be used.
 	/// </summary>
 	public Vector2? OutputResolution { get; set; } = null;
-
-	/// <summary>
-	/// Whether to synchronize the main window swap chain and its graphics device to the screen's refresh rate.
-	/// If null, the V-Sync settings from graphics config are used instead.
-	/// </summary>
-	public bool? VSync { get; init; } = null;
-
-	/// <summary>
-	/// An upper limit for the frame rate at which the engine is allowed to render, in Hertz.
-	/// To disable frame rate limiting, just set this to an absurdly high value.
-	/// </summary>
-	public float FrameRateLimit { get; set; } = 240;
 
 	/// <summary>
 	/// The desired window state to display the app in.
@@ -65,10 +53,8 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 
 	public bool IsValid()
 	{
-		bool isResolutionValid = OutputResolution is null || (OutputResolution.Value.X > 8 && OutputResolution.Value.Y > 0);
-		bool isFrameRateValid = FrameRateLimit > 0.01;
-
-		return isResolutionValid && isFrameRateValid;
+		bool isResolutionValid = OutputResolution is null || (OutputResolution.Value.X >= 8 && OutputResolution.Value.Y >= 0);
+		return isResolutionValid;
 	}
 
 	private ulong CalculateChecksum()
@@ -89,11 +75,8 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 			newChecksum |= (ulong)Math.Clamp(OutputResolution.Value.Y, 8, 8192) << 17;
 		}
 
-		// 10-bit frame rate limit, with half-frame resolution:
-		newChecksum |= (ulong)Math.Clamp(FrameRateLimit * 2, 0, 1024) << 30;
-
 		// 3-bit window state:
-		newChecksum |= (ulong)WindowState << 40;
+		newChecksum |= (ulong)WindowState << 30;
 
 		return newChecksum;
 	}
@@ -102,17 +85,17 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 	/// Creates a set of default settings that align with a given graphics configuration.
 	/// </summary>
 	/// <param name="_config">The graphics configuration.</param>
-	/// <returns>A new graphics settings object.</returns>
+	/// <returns>A new display settings object.</returns>
 	/// <exception cref="ArgumentNullException">Graphics config may not be null.</exception>
-	public static GraphicsSettings CreateDefaultForConfig(GraphicsConfig _config)
+	public static DisplaySettings CreateDefaultForConfig(GraphicsConfig _config)
 	{
 		ArgumentNullException.ThrowIfNull(_config);
 
-		GraphicsSettings settings = new()
+		DisplaySettings settings = new()
 		{
 			OutputResolution = _config.FallbackOutputResolution,
 			OutputScreenIndex = (int)_config.MainWindowScreenIndex,
-			VSync = _config.VSync,
+			//...
 		};
 		return settings;
 	}

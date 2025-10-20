@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using FragEngine.Graphics.Settings;
+using System.Text.Json.Serialization;
 
 namespace FragEngine.Graphics.Data;
 

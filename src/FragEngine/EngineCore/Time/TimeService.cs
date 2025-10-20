@@ -1,4 +1,5 @@
 ﻿using FragEngine.Graphics;
+using FragEngine.Graphics.Settings;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;

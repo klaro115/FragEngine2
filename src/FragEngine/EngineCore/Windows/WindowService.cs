@@ -1,5 +1,6 @@
 ﻿using FragEngine.EngineCore.Config;
 using FragEngine.Graphics;
+using FragEngine.Graphics.Settings;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
@@ -31,6 +32,15 @@ public sealed class WindowService : IExtendedDisposable
 	/// </summary>
 	public event FuncWindowClosed? WindowClosed;
 
+	/// <summary>
+	/// Event that is triggered whenever the graphics settings are about to change.
+	/// </summary>
+	public event FuncDisplaySettingsChanging? DisplaySettingsChanging;
+	/// <summary>
+	/// Event that is triggered whenever the graphics settings have changed.
+	/// </summary>
+	public event FuncDisplaySettingsChanged? DisplaySettingsChanged;
+
 	#endregion
 	#region Fields
 
@@ -39,14 +49,14 @@ public sealed class WindowService : IExtendedDisposable
 	private readonly PlatformService platformService;
 	private readonly EngineConfig engineConfig;
 
-	private bool isInitialized = false;
-
 	private readonly List<WindowHandle> windows = new(1);
 	private readonly SemaphoreSlim windowSemaphore = new(1, 1);
 
 	private int windowIdCounter = 0;
 
 	private WindowHandle? focusedWindow = null;
+
+	private DisplaySettings? settings = null;
 
 	#endregion
 	#region Properties
@@ -73,6 +83,15 @@ public sealed class WindowService : IExtendedDisposable
 				WindowFocusChanged?.Invoke(focusedWindow);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Gets or sets the current display settings.
+	/// </summary>
+	public DisplaySettings Settings
+	{
+		get => settings ??= GetDisplaySettings();
+		set => SetDisplaySettings(value);
 	}
 
 	#endregion
@@ -146,18 +165,6 @@ public sealed class WindowService : IExtendedDisposable
 		CloseAllWindows();
 
 		windowSemaphore.Dispose();
-	}
-
-	private void Initialize(GraphicsService _graphicsService)
-	{
-		if (isInitialized)
-		{
-			return;
-		}
-
-		isInitialized = true;
-
-		_graphicsService.GraphicsSettingsChanged += OnGraphicsSettingsChanged;
 	}
 
 	/// <summary>
@@ -479,11 +486,6 @@ public sealed class WindowService : IExtendedDisposable
 
 		GraphicsService graphics = serviceProvider.GetRequiredService<GraphicsService>();
 
-		if (!isInitialized)
-		{
-			Initialize(graphics);
-		}
-
 		int windowId = windowIdCounter++;
 		_outHandle = new(this, logger, graphics, _newWindow, _swapchain, windowId);
 
@@ -535,12 +537,6 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
-		if (!isInitialized)
-		{
-			GraphicsService graphics = serviceProvider.GetRequiredService<GraphicsService>();
-			Initialize(graphics);
-		}
-
 		_outInputSnapshot = null;
 
 		windowSemaphore.Wait();
@@ -572,16 +568,67 @@ public sealed class WindowService : IExtendedDisposable
 		}
 	}
 
-	private void OnGraphicsSettingsChanged(GraphicsSettings? _previousSettings, GraphicsSettings _currentSettings)
+	/// <summary>
+	/// Gets the current display settings, or reloads them from file.
+	/// </summary>
+	/// <returns>The currently applicable display settings.</returns>
+	public DisplaySettings GetDisplaySettings()
 	{
-		if (IsDisposed) return;
+		if (settings is not null)
+		{
+			return settings;
+		}
+
+		ReloadDisplaySettingsFromFile();
+
+		return settings!;
+	}
+
+	public bool SetDisplaySettings(in DisplaySettings _newSettings)
+	{
+		if (_newSettings is null)
+		{
+			logger.LogError("Cannot assign null display settings!");
+			return false;
+		}
+		if (!_newSettings.IsValid())
+		{
+			logger.LogError("Cannot assign invalid display settings!");
+			return false;
+		}
+
+		// Check if graphics settings are actually changing, quietly return if they haven't:
+		if (settings is not null && _newSettings.Checksum == settings.Checksum)
+		{
+			return true;
+		}
+
+		// Assign new settings:
+		DisplaySettings? previousSettings = settings;
+		DisplaySettingsChanging?.Invoke(previousSettings, _newSettings);
+
+		settings = _newSettings;
+
+		if (!HandleSetDisplaySettings(in previousSettings))
+		{
+			logger.LogError("Failed to apply new graphics settings!", LogEntrySeverity.High);
+			return false;
+		}
+
+		DisplaySettingsChanged?.Invoke(previousSettings, settings);
+		return true;
+	}
+
+	private bool HandleSetDisplaySettings(in DisplaySettings? _previousSettings)
+	{
+		if (IsDisposed) return false;
 		
 		GraphicsService graphicsService = serviceProvider.GetRequiredService<GraphicsService>();
 		WindowHandle? mainWindow = graphicsService.MainWindow;
 
 		if (mainWindow is null || !mainWindow.IsOpen)
 		{
-			return;
+			return false;
 		}
 
 		// Update main window's monitor:
@@ -589,20 +636,20 @@ public sealed class WindowService : IExtendedDisposable
 			int prevScreenIdx = _previousSettings is not null && _previousSettings.OutputScreenIndex >= 0
 				? _previousSettings.OutputScreenIndex
 				: (int)engineConfig.Graphics.MainWindowScreenIndex;
-			int curScreenIdx = _currentSettings!.OutputScreenIndex >= 0
-				? _currentSettings!.OutputScreenIndex
+			int curScreenIdx = settings!.OutputScreenIndex >= 0
+				? settings!.OutputScreenIndex
 				: (int)engineConfig.Graphics.MainWindowScreenIndex;
 
 			if (prevScreenIdx != curScreenIdx && curScreenIdx >= 0)
 			{
-				mainWindow.MoveToScreen(_currentSettings.OutputScreenIndex);
+				mainWindow.MoveToScreen(settings.OutputScreenIndex);
 			}
 		}
 
 		// Update main window state:
-		if (mainWindow.Window.WindowState != _currentSettings.WindowState)
+		if (mainWindow.Window.WindowState != settings.WindowState)
 		{
-			mainWindow.Window.WindowState = _currentSettings.WindowState;
+			mainWindow.Window.WindowState = settings.WindowState;
 		}
 	}
 

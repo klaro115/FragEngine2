@@ -5,6 +5,7 @@ using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
 using FragEngine.Graphics.Data;
+using FragEngine.Graphics.Settings;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources.Serialization;
@@ -232,7 +233,7 @@ public abstract class GraphicsService(
 	/// </summary>
 	/// <param name="_newSettings">The new graphics settings.</param>
 	/// <returns>True if graphics settings were changed successfully, false otherwise.</returns>
-	public bool SetGraphicsSettings(GraphicsSettings _newSettings)
+	public bool SetGraphicsSettings(in GraphicsSettings _newSettings)
 	{
 		if (_newSettings is null)
 		{
@@ -360,7 +361,8 @@ public abstract class GraphicsService(
 	/// <returns>True if main window settings could be determined, false otherwise.</returns>
 	protected bool GetWindowSettings(out string _outWindowTitle, out Vector2 _outWindowPosition, out Vector2 _outWindowSize)
 	{
-		int screenIndex = Settings.OutputScreenIndex >= 0 ? Settings.OutputScreenIndex : (int)config.MainWindowScreenIndex;
+		DisplaySettings displaySettings = windowService.Settings;
+		int screenIndex = displaySettings.OutputScreenIndex >= 0 ? displaySettings.OutputScreenIndex : (int)config.MainWindowScreenIndex;
 
 		if (!windowService.GetScreenMetrics(screenIndex, out Vector2 screenPosition, out Vector2 screenResolution, out _))
 		{
@@ -375,7 +377,7 @@ public abstract class GraphicsService(
 		}
 
 		_outWindowTitle = !string.IsNullOrEmpty(config.MainWindowTitle) ? config.MainWindowTitle : EngineConstants.engineDisplayName;
-		_outWindowSize = Settings.OutputResolution ?? Vector2.Min(screenResolution, new Vector2(1920, 1080));
+		_outWindowSize = displaySettings.OutputResolution ?? Vector2.Min(screenResolution, new Vector2(1920, 1080));
 		_outWindowPosition = screenPosition + screenResolution / 2 - _outWindowSize / 2;
 		return true;
 	}
