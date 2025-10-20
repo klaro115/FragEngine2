@@ -1,5 +1,6 @@
 ﻿using FragEngine.EngineCore.Config;
 using FragEngine.Graphics;
+using FragEngine.Graphics.Data;
 using FragEngine.Graphics.Settings;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
@@ -7,6 +8,7 @@ using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Text.Json.Serialization.Metadata;
 using Veldrid;
 using Veldrid.Sdl2;
 
@@ -33,11 +35,11 @@ public sealed class WindowService : IExtendedDisposable
 	public event FuncWindowClosed? WindowClosed;
 
 	/// <summary>
-	/// Event that is triggered whenever the graphics settings are about to change.
+	/// Event that is triggered whenever the display settings are about to change.
 	/// </summary>
 	public event FuncDisplaySettingsChanging? DisplaySettingsChanging;
 	/// <summary>
-	/// Event that is triggered whenever the graphics settings have changed.
+	/// Event that is triggered whenever the display settings have changed.
 	/// </summary>
 	public event FuncDisplaySettingsChanged? DisplaySettingsChanged;
 
@@ -47,6 +49,7 @@ public sealed class WindowService : IExtendedDisposable
 	internal readonly ILogger logger;
 	private readonly IServiceProvider serviceProvider;
 	private readonly PlatformService platformService;
+	protected readonly SettingsService settingsService;
 	private readonly EngineConfig engineConfig;
 
 	private readonly List<WindowHandle> windows = new(1);
@@ -103,17 +106,20 @@ public sealed class WindowService : IExtendedDisposable
 	/// <param name="_logger">The logging service singleton.</param>
 	/// <param name="_serviceProvider">The engine's main service provider.</param>
 	/// <param name="_platformService">The platform service singleton.</param>
+	/// <param name="_settingsService">The engine's settings helper service.</param>
 	/// <exception cref="ArgumentNullException">Engine services may not be null.</exception>
-	public WindowService(ILogger _logger, IServiceProvider _serviceProvider, PlatformService _platformService, EngineConfig _engineConfig)
+	public WindowService(ILogger _logger, IServiceProvider _serviceProvider, PlatformService _platformService, SettingsService _settingsService, EngineConfig _engineConfig)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_serviceProvider);
 		ArgumentNullException.ThrowIfNull(_platformService);
+		ArgumentNullException.ThrowIfNull(_settingsService);
 		ArgumentNullException.ThrowIfNull(_engineConfig);
 
 		logger = _logger;
 		serviceProvider = _serviceProvider;
 		platformService = _platformService;
+		settingsService = _settingsService;
 		engineConfig = _engineConfig;
 
 		logger.LogStatus("# Initializing window service.");
@@ -586,6 +592,11 @@ public sealed class WindowService : IExtendedDisposable
 
 	public bool SetDisplaySettings(in DisplaySettings _newSettings)
 	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot change display settings of disposed window service!");
+			return false;
+		}
 		if (_newSettings is null)
 		{
 			logger.LogError("Cannot assign null display settings!");
@@ -597,7 +608,7 @@ public sealed class WindowService : IExtendedDisposable
 			return false;
 		}
 
-		// Check if graphics settings are actually changing, quietly return if they haven't:
+		// Check if display settings are actually changing, quietly return if they haven't:
 		if (settings is not null && _newSettings.Checksum == settings.Checksum)
 		{
 			return true;
@@ -611,11 +622,68 @@ public sealed class WindowService : IExtendedDisposable
 
 		if (!HandleSetDisplaySettings(in previousSettings))
 		{
-			logger.LogError("Failed to apply new graphics settings!", LogEntrySeverity.High);
+			logger.LogError("Failed to apply new display settings!", LogEntrySeverity.High);
 			return false;
 		}
 
 		DisplaySettingsChanged?.Invoke(previousSettings, settings);
+		return true;
+	}
+
+	/// <summary>
+	/// Request display settings to be loaded anew from JSON file.
+	/// </summary>
+	/// <returns>True if display settings were loaded or set from defaults, false on error.</returns>
+	public bool ReloadDisplaySettingsFromFile()
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot reload display settings for disposed window service!");
+			return false;
+		}
+
+		const string relativeSettingsPath = "display.json";
+		JsonTypeInfo<DisplaySettings> typeInfo = GraphicsDataJsonContext.Default.DisplaySettings;
+
+		if (!settingsService.LoadSettingsFromJsonFile(relativeSettingsPath, in typeInfo, out DisplaySettings? newSettings) || newSettings is null)
+		{
+			logger.LogWarning("Display settings could not be loaded from JSON file, using default values instead.", LogEntrySeverity.Trivial);
+			newSettings = DisplaySettings.CreateDefaultForConfig(engineConfig.Graphics);
+		}
+
+		return SetDisplaySettings(newSettings);
+	}
+
+	/// <summary>
+	/// Request display settings to be adjusted to the main window's current state.
+	/// This does nothing if there is no main window.
+	/// </summary>
+	/// <remarks>
+	/// Note: In theory, this method should only be called in 2 scenarios:
+	/// <list type="bullet">
+	///	    <item>A) The user opens a settings menu.</item>
+	///	    <item>B) You are saving the current display settings to file before the app exits.</item>
+	/// </list>
+	/// </remarks>
+	/// <returns>True if display settings were updated successfully, false on error.</returns>
+	public bool UpdateDisplaySettingsFromMainWindow()
+	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot update display settings for disposed window service!");
+			return false;
+		}
+
+		GraphicsService graphicsService = serviceProvider.GetRequiredService<GraphicsService>();
+		WindowHandle? mainWindow = graphicsService.MainWindow;
+
+		if (mainWindow is null || !mainWindow.IsOpen)
+		{
+			logger.LogWarning("No main window found, cannot update display settings.");
+			return true;
+		}
+
+		settings = DisplaySettings.CreateFromWindowState(in mainWindow);
 		return true;
 	}
 
@@ -651,6 +719,8 @@ public sealed class WindowService : IExtendedDisposable
 		{
 			mainWindow.Window.WindowState = settings.WindowState;
 		}
+
+		return true;
 	}
 
 	#endregion

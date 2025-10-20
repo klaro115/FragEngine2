@@ -1,4 +1,5 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.EngineCore.Time;
+using FragEngine.Interfaces;
 
 namespace FragEngine.Graphics.Settings;
 
@@ -74,6 +75,36 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 		GraphicsSettings settings = new()
 		{
 			VSync = _config.VSync,
+			//...
+		};
+		return settings;
+	}
+
+	/// <summary>
+	/// Creates a set of settings from the current state of the engine's services' state.
+	/// </summary>
+	/// <param name="_graphicsService">The engine's graphics service.</param>
+	/// <param name="_timeService">The engine's time management service.</param>
+	/// <returns>A new graphics settings object.</returns>
+	/// <exception cref="ArgumentNullException">Graphics service may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Graphics service may not be disposed.</exception>
+	public static GraphicsSettings CreateFromEngineServiceStates(in GraphicsService _graphicsService, in TimeService? _timeService)
+	{
+		ArgumentNullException.ThrowIfNull(_graphicsService);
+		ObjectDisposedException.ThrowIf(_graphicsService.IsDisposed, _graphicsService);
+
+		bool vSync = _graphicsService.MainWindow is not null
+			? _graphicsService.Device.SyncToVerticalBlank
+			: _graphicsService.MainSwapchain is not null && _graphicsService.MainSwapchain.SyncToVerticalBlank;
+
+		float targetFrameRate = _timeService is not null
+			? _timeService.TargetFrameRate
+			: 1000;
+
+		GraphicsSettings settings = new()
+		{
+			VSync = vSync,
+			FrameRateLimit = targetFrameRate,
 			//...
 		};
 		return settings;

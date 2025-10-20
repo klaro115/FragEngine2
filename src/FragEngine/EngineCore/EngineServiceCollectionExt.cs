@@ -14,7 +14,12 @@ public static class EngineServiceCollectionExt
 {
 	#region Constants
 
-	public const int defaultServiceCount = 7;
+	/// <summary>
+	/// The minimum number of core engine services that are added by default. This constant is used as a
+	/// reference to check if the service provider contains a realistic number of services for normal
+	/// engine operation.
+	/// </summary>
+	public const int defaultServiceCount = 8;
 
 	#endregion
 	#region Methods
@@ -58,7 +63,8 @@ public static class EngineServiceCollectionExt
 			.AddSingleton<RuntimeService>()
 			.AddSingleton<TimeService>()
 			.AddSingleton<InputService>()
-			.AddSingleton<WindowService>();
+			.AddSingleton<WindowService>()
+			.AddSingleton<SettingsService>();
 
 		return _serviceCollection;
 	}

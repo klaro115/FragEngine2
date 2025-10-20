@@ -6,7 +6,6 @@ using FragEngine.EngineCore.Windows.Linux;
 using FragEngine.Extensions.SDL;
 using FragEngine.Helpers;
 using FragEngine.Logging;
-using FragEngine.Resources.Serialization;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -29,9 +28,9 @@ internal sealed class VulkanGraphicsService(
 	PlatformService _platformService,
 	WindowService _windowService,
 	TimeService _timeService,
-	SerializerService _serializerService,
+	SettingsService _settingsService,
 	EngineConfig _config)
-	: GraphicsService(_logger, _platformService, _windowService, _timeService, _serializerService, _config)
+	: GraphicsService(_logger, _platformService, _windowService, _timeService, _settingsService, _config)
 {
 	#region Methods
 
@@ -103,7 +102,7 @@ internal sealed class VulkanGraphicsService(
 				(int)windowPosition.Y,
 				(int)windowSize.X,
 				(int)windowSize.Y,
-				Settings.WindowState,
+				windowService.Settings.WindowState,
 				windowTitle);
 
 			try

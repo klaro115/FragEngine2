@@ -1,4 +1,6 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.EngineCore.Windows;
+using FragEngine.Interfaces;
+using System.Diagnostics;
 using System.Numerics;
 using Veldrid;
 
@@ -87,7 +89,7 @@ public sealed class DisplaySettings : IValidated, IChecksumVersioned
 	/// <param name="_config">The graphics configuration.</param>
 	/// <returns>A new display settings object.</returns>
 	/// <exception cref="ArgumentNullException">Graphics config may not be null.</exception>
-	public static DisplaySettings CreateDefaultForConfig(GraphicsConfig _config)
+	public static DisplaySettings CreateDefaultForConfig(in GraphicsConfig _config)
 	{
 		ArgumentNullException.ThrowIfNull(_config);
 
@@ -95,6 +97,35 @@ public sealed class DisplaySettings : IValidated, IChecksumVersioned
 		{
 			OutputResolution = _config.FallbackOutputResolution,
 			OutputScreenIndex = (int)_config.MainWindowScreenIndex,
+			//...
+		};
+		return settings;
+	}
+
+	/// <summary>
+	/// Creates a set of settings from the current state of an existing window.
+	/// </summary>
+	/// <param name="_windowHandle">An existing window, typically the engine's main window.</param>
+	/// <returns>A new display settings object.</returns>
+	/// <exception cref="ArgumentNullException">Window handle may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Window handle may not be disposed.</exception>
+	internal static DisplaySettings CreateFromWindowState(in WindowHandle _windowHandle)
+	{
+		ArgumentNullException.ThrowIfNull(_windowHandle);
+		ObjectDisposedException.ThrowIf(_windowHandle.IsDisposed, _windowHandle);
+
+		Debug.Assert(_windowHandle.IsOpen, "Cannot create display settings for closed window!");
+
+		if (!_windowHandle.GetScreenIndex(out int screenIdx))
+		{
+			screenIdx = 0;
+		}
+
+		DisplaySettings settings = new()
+		{
+			OutputResolution = new(_windowHandle.Window.Width, _windowHandle.Window.Height),
+			OutputScreenIndex = screenIdx,
+			WindowState = _windowHandle.Window.WindowState,
 			//...
 		};
 		return settings;

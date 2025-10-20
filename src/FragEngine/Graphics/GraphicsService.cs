@@ -8,7 +8,6 @@ using FragEngine.Graphics.Data;
 using FragEngine.Graphics.Settings;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
-using FragEngine.Resources.Serialization;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -28,14 +27,14 @@ namespace FragEngine.Graphics;
 /// <param name="_windowService">The engine's window management service.</param>
 /// <param name="_platformService">The engine's platform info service.</param>
 /// <param name="_timeService">The engine's time management service.</param>
-/// <param name="_serializerService">The engine's serialization service.</param>
+/// <param name="_settingsService">The engine's settings helper service.</param>
 /// <param name="_config">The main engine configuration.</param>
 public abstract class GraphicsService(
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
 	TimeService _timeService,
-	SerializerService _serializerService,
+	SettingsService _settingsService,
 	EngineConfig _config) : IExtendedDisposable
 {
 	#region Events
@@ -67,8 +66,8 @@ public abstract class GraphicsService(
 	protected readonly PlatformService platformService = _platformService;
 	protected readonly WindowService windowService = _windowService;
 	protected readonly TimeService timeService = _timeService;
-	protected readonly SerializerService serializerService = _serializerService;
 	protected readonly EngineConfig engineConfig = _config;
+	protected readonly SettingsService settingsService = _settingsService;
 	protected readonly GraphicsConfig config = _config.Graphics;
 
 	private bool isInitialized = false;
@@ -235,6 +234,11 @@ public abstract class GraphicsService(
 	/// <returns>True if graphics settings were changed successfully, false otherwise.</returns>
 	public bool SetGraphicsSettings(in GraphicsSettings _newSettings)
 	{
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot change graphics settings of disposed graphics service!");
+			return false;
+		}
 		if (_newSettings is null)
 		{
 			logger.LogError("Cannot assign null graphics settings!");
@@ -274,49 +278,22 @@ public abstract class GraphicsService(
 	/// <returns>True if graphics settings were loaded or set from defaults, false on error.</returns>
 	public bool ReloadGraphicsSettingsFromFile()
 	{
-		string settingsPath = Path.Combine(platformService.settingsDirectoryPath, "graphics.json");
-		GraphicsSettings? newSettings = null;
-
-		// If settings file does not exit, use default values:
-		if (!File.Exists(settingsPath))
+		if (IsDisposed)
 		{
-			logger.LogWarning("Graphics settings JSON does not exit, using default values instead.", LogEntrySeverity.Trivial);
-			goto applySettings;
+			logger.LogError("Cannot reload graphics settings for disposed graphics service!");
+			return false;
 		}
 
-		// Load settings from file:
-		FileStream? fileStream = null;
-		try
-		{
-			fileStream = File.Open(settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+		const string relativeSettingsPath = "graphics.json";
+		JsonTypeInfo<GraphicsSettings> typeInfo = GraphicsDataJsonContext.Default.GraphicsSettings;
 
-			JsonTypeInfo<GraphicsSettings> typeInfo = GraphicsDataJsonContext.Default.GraphicsSettings;
-
-			if (!serializerService.DeserializeFromJson(fileStream, typeInfo, out newSettings))
-			{
-				logger.LogWarning("Failed to load graphics settings from file, using default values instead.");
-				newSettings = null;
-				goto applySettings;
-			}
-		}
-		catch (Exception ex)
+		if (!settingsService.LoadSettingsFromJsonFile(relativeSettingsPath, in typeInfo, out GraphicsSettings? newSettings) || newSettings is null)
 		{
-			logger.LogException("Failed to load graphics settings from file, using default values instead.", ex);
-			goto applySettings;
-		}
-		finally
-		{
-			fileStream?.Close();
-		}
-		
-		if (newSettings is null)
-		{
-			logger.LogWarning("Engine config loaded from file was null, using default values instead.", LogEntrySeverity.Trivial);
+			logger.LogWarning("Graphics settings could not be loaded from JSON file, using default values instead.", LogEntrySeverity.Trivial);
+			newSettings = GraphicsSettings.CreateDefaultForConfig(config);
 		}
 
-	applySettings:
-		newSettings ??= GraphicsSettings.CreateDefaultForConfig(config);
-		return SetGraphicsSettings(newSettings!);
+		return SetGraphicsSettings(newSettings);
 	}
 
 	/// <summary>

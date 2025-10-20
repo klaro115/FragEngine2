@@ -3,7 +3,6 @@ using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Logging;
-using FragEngine.Resources.Serialization;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
 using Veldrid;
@@ -23,9 +22,9 @@ internal sealed class MetalGraphicsService(
 	PlatformService _platformService,
 	WindowService _windowService,
 	TimeService _timeService,
-	SerializerService _serializerService,
+	SettingsService _settingsService,
 	EngineConfig _config)
-	: GraphicsService(_logger, _platformService, _windowService, _timeService, _serializerService, _config)
+	: GraphicsService(_logger, _platformService, _windowService, _timeService, _settingsService, _config)
 {
 	#region Methods
 
