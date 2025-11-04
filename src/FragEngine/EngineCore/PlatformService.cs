@@ -25,6 +25,10 @@ public sealed class PlatformService
 	/// Path to the directory where engine configs and settings files are located.
 	/// </summary>
 	public readonly string settingsDirectoryPath = string.Empty;
+	/// <summary>
+	/// Path to the directory where application asset files and resources are located.
+	/// </summary>
+	public readonly string assetDirectoryPath = string.Empty;
 
 	#endregion
 	#region Properties
@@ -71,6 +75,7 @@ public sealed class PlatformService
 		// Application paths:
 		rootDirectoryPath = GetRootDirectoryPath();
 		settingsDirectoryPath = Path.Combine(rootDirectoryPath, "settings" + Path.DirectorySeparatorChar);
+		assetDirectoryPath = Path.Combine(rootDirectoryPath, "assets" + Path.DirectorySeparatorChar);
 
 		if (!CreateRootDirectories())
 		{

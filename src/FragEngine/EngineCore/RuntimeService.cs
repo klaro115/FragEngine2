@@ -32,6 +32,11 @@ public sealed class RuntimeService
 	/// </remarks>
 	public Assembly EntryAssembly { get; }
 
+	/// <summary>
+	/// Gets the assembly containing the core engine modules and types.
+	/// </summary>
+	public Assembly EngineAssembly { get; }
+
 	#endregion
 	#region Constructors
 
@@ -57,6 +62,7 @@ public sealed class RuntimeService
 			throw new Exception("Failed to identify the app's entry assembly!");
 		}
 		EntryAssembly = entryAssembly;
+		EngineAssembly = typeof(Engine).Assembly;
 
 		logger.LogMessage($"- Entry assembly: {EntryAssembly}");
 	}

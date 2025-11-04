@@ -17,5 +17,9 @@ public static class ResourceConstants
 	internal const int allResourcesStartingCapacity = 50;
 	internal const int loadingQueueStartingCapacity = 50;
 
+
+	public const string resourceManifestFileExtension = ".fres";
+
+
 	#endregion
 }

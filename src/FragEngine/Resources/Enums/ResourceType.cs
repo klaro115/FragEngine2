@@ -65,6 +65,7 @@ public enum ResourceSubType_Model : int
 {
 	PolygonMesh		= 0,
 	SplineSurface,
+	VoxelGrid,
 }
 
 /// <summary>
