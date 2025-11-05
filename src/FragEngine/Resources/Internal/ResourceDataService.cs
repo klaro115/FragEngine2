@@ -1,4 +1,5 @@
 ﻿using FragEngine.EngineCore;
+using FragEngine.Extensions;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources.Data;
@@ -48,6 +49,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 	/// <param name="_platformService">The engine's platform management service.</param>
 	/// <param name="_serializerService">The engine's data serialization service.</param>
 	/// <exception cref="ArgumentNullException">Engine services may not be null.</exception>
+	/// <exception cref="Exception">Failed to prepare assets directories.</exception>
 	public ResourceDataService(
 		ILogger _logger,
 		RuntimeService _runtimeService,
@@ -64,7 +66,15 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		platformService = _platformService;
 		serializerService = _serializerService;
 
-		//TODO: Create assets root directory if missing!
+		logger.LogStatus("# Initializing resource data service.");
+
+		if (!CreateRootDirectories())
+		{
+			throw new Exception("Failed to prepare asset root directories!");
+		}
+
+		string truncatedDirectoryPath = platformService.assetDirectoryPath.TruncateWithEllipsis(64, "...", StringExt.TruncationType.Start);
+		logger.LogMessage($"- Assets directory: {truncatedDirectoryPath}");
 	}
 
 	~ResourceDataService()
@@ -88,6 +98,29 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		resourceDataLock.Dispose();
 	}
 
+	private bool CreateRootDirectories()
+	{
+		if (!Directory.Exists(platformService.rootDirectoryPath))
+		{
+			logger.LogError("Application root directory does not exist!");
+			return false;
+		}
+
+		try
+		{
+			if (!Directory.Exists(platformService.assetDirectoryPath))
+			{
+				Directory.CreateDirectory(platformService.assetDirectoryPath);
+			}
+			return true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogException("Failed to create assets directory!", ex, LogEntrySeverity.Critical);
+			return false;
+		}
+	}
+
 	/// <summary>
 	/// Tries to retrieve resource file data for a specific resource.
 	/// </summary>
@@ -104,7 +137,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 
 		if (!resourceDataLock.TryEnterReadLock(semaphoreWaitTimeoutMs))
 		{
-			logger.LogError("Failed to apply resource scan results; waiting for write-lock timed out!", LogEntrySeverity.High);
+			logger.LogError("Failed to apply resource scan results; waiting for read-lock timed out!", LogEntrySeverity.High);
 			_outData = null;
 			return false;
 		}
@@ -134,20 +167,20 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		Dictionary<string, ResourceData> newData = new(newCapacity);
 
 		// Try loading all embedded resources embedded in assemblies:
-		if (!GetEmbeddedResourceData(runtimeService.EngineAssembly, newData))
+		if (!GetResourceDataFromEmbeddedFiles(runtimeService.EngineAssembly, newData))
 		{
 			logger.LogError("Failed to scan assets in embedded resources of engine assembly!");
 			return false;
 		}
 
-		if (!GetEmbeddedResourceData(runtimeService.EntryAssembly, newData))
+		if (!GetResourceDataFromEmbeddedFiles(runtimeService.EntryAssembly, newData))
 		{
 			logger.LogError("Failed to scan assets in embedded resources of app's entry assembly!");
 			return false;
 		}
 
 		// Try loading all file-based resources from assets directory:
-		if (!GetAssetFileResourceData(newData))
+		if (!GetResourceDataFromAssetsDirectory(newData))
 		{
 			logger.LogError("Failed to scan assets in asset file directory!");
 			return false;
@@ -174,7 +207,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		}
 	}
 
-	private bool GetEmbeddedResourceData(in Assembly _assembly, Dictionary<string, ResourceData> _dstData)
+	private bool GetResourceDataFromEmbeddedFiles(in Assembly _assembly, Dictionary<string, ResourceData> _dstData)
 	{
 		ArgumentNullException.ThrowIfNull(_assembly);
 
@@ -214,7 +247,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		return true;
 	}
 
-	private bool GetAssetFileResourceData(Dictionary<string, ResourceData> _dstData)
+	private bool GetResourceDataFromAssetsDirectory(Dictionary<string, ResourceData> _dstData)
 	{
 		string assetRootDir = platformService.assetDirectoryPath;
 		if (!Directory.Exists(assetRootDir))
