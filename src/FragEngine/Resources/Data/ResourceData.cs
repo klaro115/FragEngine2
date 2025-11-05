@@ -1,6 +1,7 @@
 ﻿using FragEngine.EngineCore.Enums;
 using FragEngine.Interfaces;
 using FragEngine.Resources.Enums;
+using System.Text.Json.Serialization;
 using Veldrid;
 
 namespace FragEngine.Resources.Data;
@@ -27,6 +28,16 @@ public sealed record class ResourceData : IValidated
 
 	// DATA LOCATION:
 
+	/// <summary>
+	/// The type of location where the resource's data is loaded from. Typically, whether the resource
+	/// data is loaded from asset files or from an embedded assembly file.
+	/// </summary>
+	/// <remarks>
+	/// Note: This property is not serialized to JSON. When scanning for resources, this value will be
+	/// set to the actual location of the manifest file that contains this resource data definition.
+	/// </remarks>
+	[JsonIgnore]
+	public ResourceLocationType Location { get; init; } = ResourceLocationType.AssetFile;
 	/// <summary>
 	/// A relative file path leading to the resource's data file. This path is relative to the resource
 	/// manifest file that this resource data was read from.
@@ -91,6 +102,7 @@ public sealed record class ResourceData : IValidated
 			!string.IsNullOrWhiteSpace(ResourceKey) &&
 			!string.IsNullOrEmpty(FormatKey) &&
 			Type != ResourceType.Unknown &&
+			Location != ResourceLocationType.Unknown &&
 			OSRestriction is not OperatingSystemType.Unknown;
 		return isValid;
 	}

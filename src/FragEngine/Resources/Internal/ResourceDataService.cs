@@ -3,6 +3,7 @@ using FragEngine.Extensions;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources.Data;
+using FragEngine.Resources.Enums;
 using FragEngine.Resources.Serialization;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -227,7 +228,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 			{
 				stream = _assembly.GetManifestResourceStream(resourceName)!;
 
-				if (!ReadResourceManifestFromStream(in stream, _dstData))
+				if (!ReadResourceManifestFromStream(in stream, _dstData, ResourceLocationType.EmbeddedFile))
 				{
 					logger.LogError($"Failed to read resource manifest from embedded file! (File: '{resourceName}', Assembly: '{_assembly.GetName().Name}')");
 					return false;
@@ -267,7 +268,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 			{
 				stream = File.Open(manifestFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-				if (!ReadResourceManifestFromStream(in stream, _dstData))
+				if (!ReadResourceManifestFromStream(in stream, _dstData, ResourceLocationType.AssetFile))
 				{
 					logger.LogError($"Failed to read resource manifest from embedded file! (File path: '{manifestFilePath}'");
 					return false;
@@ -287,7 +288,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		return true;
 	}
 
-	private bool ReadResourceManifestFromStream(in Stream _stream, Dictionary<string, ResourceData> _dstData)
+	private bool ReadResourceManifestFromStream(in Stream _stream, Dictionary<string, ResourceData> _dstData, ResourceLocationType _locationType)
 	{
 		ArgumentNullException.ThrowIfNull(_stream);
 
@@ -317,7 +318,9 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		// Add all resources with new keys to the dictionary:
 		foreach (ResourceData data in manifest.Resources)
 		{
-			if (!_dstData.TryAdd(data.ResourceKey, data))
+			ResourceData locatedData = data with { Location = _locationType };
+
+			if (!_dstData.TryAdd(data.ResourceKey, locatedData))
 			{
 				logger.LogWarning($"A resource with key '{data.ResourceKey}' has already been registered.", LogEntrySeverity.Trivial);
 			}
