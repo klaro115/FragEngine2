@@ -264,6 +264,18 @@ public record struct Pose : IEquatable<Pose>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void Scale(float _scaleFactor) => scale *= _scaleFactor;
 
+	/// <summary>
+	/// Transforms a point in position in local space to the pose's parent space.
+	/// </summary>
+	/// <param name="_localPoint">A position coordinate in the pose's local space.</param>
+	/// <returns>A transformed point in the pose's parent space.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public readonly Vector3 Transform(Vector3 _localPoint)
+	{
+		Vector3 parentPoint = position + Vector3.Transform(_localPoint * scale, rotation);
+		return parentPoint;
+	}
+
 	#endregion
 	#region Methods Hierarchy
 
