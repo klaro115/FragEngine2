@@ -22,13 +22,13 @@ public sealed class DisplaySettings : IValidated, IChecksumVersioned
 	/// <summary>
 	/// Index of the preferred output screen. If negative or invalid, the config's value is used.
 	/// </summary>
-	public int OutputScreenIndex { get; set; } = -1;
+	public int OutputScreenIndex { get; init; } = -1;
 
 	/// <summary>
 	/// Resolution to render the final output image at. This is the actual output resolution on screen,
 	/// after any upscaling has taken place. If null, native screen size or FullHD will be used.
 	/// </summary>
-	public Vector2? OutputResolution { get; set; } = null;
+	public Vector2? OutputResolution { get; init; } = null;
 
 	/// <summary>
 	/// The desired window state to display the app in.

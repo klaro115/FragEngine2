@@ -26,7 +26,7 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 	/// An upper limit for the frame rate at which the engine is allowed to render, in Hertz.
 	/// To disable frame rate limiting, just set this to an absurdly high value.
 	/// </summary>
-	public float FrameRateLimit { get; set; } = 240;
+	public float FrameRateLimit { get; init; } = 240;
 
 	public ulong Checksum
 	{
@@ -56,8 +56,11 @@ public sealed class GraphicsSettings : IValidated, IChecksumVersioned
 	{
 		ulong newChecksum = 0ul;
 
+		// 1-bit V-sync:
+		newChecksum |= VSync is true ? 1ul : 0;
+
 		// 10-bit frame rate limit, with half-frame resolution:
-		newChecksum |= (ulong)Math.Clamp(FrameRateLimit * 2, 0, 1024) << 0;
+		newChecksum |= (ulong)Math.Clamp(FrameRateLimit * 2, 0, 1024) << 1;
 
 		return newChecksum;
 	}
