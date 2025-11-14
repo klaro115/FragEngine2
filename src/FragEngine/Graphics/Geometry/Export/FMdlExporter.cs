@@ -8,6 +8,8 @@ namespace FragEngine.Graphics.Geometry.Export;
 /// <summary>
 /// 3D model exporter for the engine's own FMDL (Fragment MoDeL) file format.
 /// </summary>
+/// <param name="_logger">A logging service for outputting errors.</param>
+/// <exception cref="ArgumentNullException">Logging service may not be null.</exception>
 public sealed class FMdlExporter(ILogger _logger) : IModelExporter
 {
 	#region Fields
@@ -138,20 +140,12 @@ public sealed class FMdlExporter(ILogger _logger) : IModelExporter
 		}
 
 		// Basic vertex data:
-		for (int i = 0; i < _geometryHeader.vertexCount; ++i)
-		{
-			_writer.BaseStream.WriteStruct(_surfaceData.VerticesBasic[i], BasicVertex.byteSize);
-		}
-
-		if (!_geometryHeader.hasExtendedVertexData)
-		{
-			return true;
-		}
+		_writer.BaseStream.WriteStructs(_surfaceData.VerticesBasic, (int)_geometryHeader.vertexCount, BasicVertex.byteSize);
 
 		// Extended vertex data:
-		for (int i = 0; i < _geometryHeader.vertexCount; ++i)
+		if (_geometryHeader.hasExtendedVertexData)
 		{
-			_writer.BaseStream.WriteStruct(_surfaceData.VerticesExt![i], ExtendedVertex.byteSize);
+			_writer.BaseStream.WriteStructs(_surfaceData.VerticesExt!, (int)_geometryHeader.vertexCount, ExtendedVertex.byteSize);
 		}
 
 		return true;

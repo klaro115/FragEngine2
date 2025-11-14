@@ -8,6 +8,8 @@ namespace FragEngine.Graphics.Geometry.Import.FMDL;
 /// <summary>
 /// 3D model importer for the engine's own FMDL (Fragment MoDeL) file format.
 /// </summary>
+/// <param name="_logger">A logging service for outputting errors.</param>
+/// <exception cref="ArgumentNullException">Logging service may not be null.</exception>
 public sealed class FMdlImporter(ILogger _logger) : IModelImporter
 {
 	#region Fields
@@ -139,12 +141,7 @@ public sealed class FMdlImporter(ILogger _logger) : IModelImporter
 		}
 
 		// Basic vertex data:
-
-		_outVerticesBasic = new BasicVertex[_geometryHeader.vertexCount];
-		for (int i = 0; i < _geometryHeader.vertexCount; ++i)
-		{
-			_outVerticesBasic[i] = _reader.BaseStream.ReadStruct<BasicVertex>(BasicVertex.byteSize);
-		}
+		_outVerticesBasic = _reader.BaseStream.ReadStructs<BasicVertex>((int)_geometryHeader.vertexCount, BasicVertex.byteSize);
 
 		if (!_geometryHeader.hasExtendedVertexData)
 		{
@@ -153,12 +150,7 @@ public sealed class FMdlImporter(ILogger _logger) : IModelImporter
 		}
 
 		// Extended vertex data:
-
-		_outVerticesExt = new ExtendedVertex[_geometryHeader.vertexCount];
-		for (int i = 0; i < _geometryHeader.vertexCount; ++i)
-		{
-			_outVerticesExt[i] = _reader.BaseStream.ReadStruct<ExtendedVertex>(ExtendedVertex.byteSize);
-		}
+		_outVerticesExt = _reader.BaseStream.ReadStructs<ExtendedVertex>((int)_geometryHeader.vertexCount, ExtendedVertex.byteSize);
 
 		return true;
 	}
