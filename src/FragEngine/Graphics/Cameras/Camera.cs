@@ -28,7 +28,7 @@ namespace FragEngine.Graphics.Cameras;
 /// PROJECTION: This camera class is capable of both perpective and orthographic projection. You can access and adjust projection
 /// behaviour through the '<see cref="ProjectionSettings"/>' property.
 /// </summary>
-public sealed class Camera : IExtendedDisposable, IWindowClient
+public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 {
 	#region Types
 
@@ -81,6 +81,9 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 	private bool isDrawingFrame = false;
 	private bool isDrawingPass = false;
 	private uint currentFrameIndex = 0u;
+
+	private bool isViewportFrustumDirty = true;
+	private AABB viewportFrustumBounds = AABB.Zero;
 
 	private IPoseSource currentPoseSource;
 
@@ -142,7 +145,11 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 	public IPoseSource CurrentPoseSource
 	{
 		get => currentPoseSource;
-		set => currentPoseSource = value ?? new ConstantPoseSource(CurrentPose);
+		set
+		{
+			currentPoseSource = value ?? new ConstantPoseSource(CurrentPose);
+			isViewportFrustumDirty = true;
+		}
 	}
 
 	/// <summary>
@@ -327,6 +334,9 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 			cbCameraData.farClipPlane = ProjectionSettings.FarClipPlane;
 		}
 
+		// Recalculate viewport frustum's bounding box:
+		_ = GetBoundingBox();
+
 		// Check if any previously assigned override targets are still alive:
 		if (OverrideTarget is not null && OverrideTarget.IsDisposed)
 		{
@@ -424,6 +434,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 			CmdList = _cmdList,
 			CbCamera = cbCameraData,
 			BufCbCamera = bufCbCamera!,
+			ViewportFrustumBounds = viewportFrustumBounds,
 			//...
 		};
 
@@ -479,6 +490,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 		CameraOutputSettings prevOutputSettings = OutputSettings;
 		OutputSettings = _newOutputSettings;
 
+		isViewportFrustumDirty = true;
 		OutputSettingsChanged?.Invoke(this, prevOutputSettings, OutputSettings);
 		return true;
 	}
@@ -523,6 +535,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 		CameraProjectionSettings prevProjectionSettings = ProjectionSettings;
 		ProjectionSettings = _newProjectionSettings;
 
+		isViewportFrustumDirty = true;
 		ProjectionSettingsChanged?.Invoke(this, prevProjectionSettings, ProjectionSettings);
 		return true;
 	}
@@ -791,6 +804,33 @@ public sealed class Camera : IExtendedDisposable, IWindowClient
 	}
 
 	public void OnSwapchainSwapped(WindowHandle _windowHandle) { }
+
+	/// <summary>
+	/// Gets or calculates a bounding box volume that fully encloses the camera's viewport frustum.
+	/// </summary>
+	/// <returns>The viewport frustum's AABB.</returns>
+	public AABB GetBoundingBox()
+	{
+		if (isViewportFrustumDirty)
+		{
+			Vector3[] cornerPoints = new Vector3[8];
+			//AABB.CornerPoints cornerPoints = new();
+			for (int i = 0; i < 8; ++i)
+			{
+				Vector3 clipSpacePos = new(
+					(i & 1) == 1 ? 1f : -1f,
+					(i & 2) == 2 ? 1f : -1f,
+					(i & 4) == 4 ? 1f : 0f);
+
+				cornerPoints[i] = Vector3.Transform(clipSpacePos, cbCameraData.mtxClip2World);	//TODO: Perspective projection may be broken here!?
+			}
+
+			viewportFrustumBounds = new(cornerPoints);
+			isViewportFrustumDirty = false;
+		}
+
+		return viewportFrustumBounds;
+	}
 
 	#endregion
 }

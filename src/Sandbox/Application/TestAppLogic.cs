@@ -8,6 +8,7 @@ using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Scenes;
 using System.Numerics;
 using Veldrid;
 
@@ -205,6 +206,16 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			engine.Logger.LogException("Failed to create main camera!", ex, LogEntrySeverity.Critical);
 			return false;
 		}
+
+		camera.SetProjectionSettings(new()
+		{
+			NearClipPlane = 0.1f,
+			FarClipPlane = 100.0f,
+			FieldOfViewDegrees = 60.0f,
+			OrthographicSize = 5,
+			ProjectionType = CameraProjectionType.Perspective,
+		});
+		camera.CurrentPose = new Pose(new(0, 0, -10), Quaternion.Identity, Vector3.One);
 		
 		if (!mainWindow.ConnectClient(camera))
 		{

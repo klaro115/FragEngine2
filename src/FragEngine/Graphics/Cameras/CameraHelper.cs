@@ -36,14 +36,26 @@ public static class CameraHelper
 		}
 
 		// Local space => Clip space:
-		Matrix4x4 mtxLocal2Clip = Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(
-			_projectionSettings.FieldOfViewRadians,
-			_outputSettings.AspectRatio,
-			_projectionSettings.NearClipPlane,
-			_projectionSettings.FarClipPlane);
+		Matrix4x4 mtxLocal2Clip;
+		if (_projectionSettings.ProjectionType == CameraProjectionType.Perspective)
+		{
+			mtxLocal2Clip = Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(
+				_projectionSettings.FieldOfViewRadians,
+				_outputSettings.AspectRatio,
+				_projectionSettings.NearClipPlane,
+				_projectionSettings.FarClipPlane);
+		}
+		else
+		{
+			mtxLocal2Clip = Matrix4x4.CreateOrthographicLeftHanded(
+				_projectionSettings.OrthographicSize * _outputSettings.AspectRatio,
+				_projectionSettings.OrthographicSize,
+				_projectionSettings.NearClipPlane,
+				_projectionSettings.FarClipPlane);
+		}
 
 		// Combined: World space => Clip space:
-		_outMtxWorld2Clip = Matrix4x4.Multiply(mtxWorld2Local, mtxLocal2Clip);		//TODO [CRITICAL]: Check/Test if order is correct!
+		_outMtxWorld2Clip = mtxWorld2Local * mtxLocal2Clip;
 
 		// Inverse: Clip space => World space:
 		if (!Matrix4x4.Invert(_outMtxWorld2Clip, out _outMtxClip2World))
