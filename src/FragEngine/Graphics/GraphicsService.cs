@@ -2,10 +2,13 @@
 using FragEngine.EngineCore.Config;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
+using FragEngine.Extensions.Veldrid;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
 using FragEngine.Graphics.Data;
+using FragEngine.Graphics.Enums;
 using FragEngine.Graphics.Settings;
+using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using System.Collections.Concurrent;
@@ -131,6 +134,14 @@ public abstract class GraphicsService(
 		get => settings ??= GetGraphicsSettings();
 		set => SetGraphicsSettings(value);
 	}
+
+	/// <summary>
+	/// Gets flags of all GPU features supported by the graphics device.
+	/// </summary>
+	/// <remarks>
+	/// You may apply bit masks to this enum value, to quickly and easily check feature support at run-time.
+	/// </remarks>
+	public GraphicsDeviceFeatureFlags DeviceFeatures { get; private set; } = GraphicsDeviceFeatureFlags.None;
 
 	#endregion
 	#region Methods
@@ -339,7 +350,10 @@ public abstract class GraphicsService(
 	protected bool GetWindowSettings(out string _outWindowTitle, out Vector2 _outWindowPosition, out Vector2 _outWindowSize)
 	{
 		DisplaySettings displaySettings = windowService.Settings;
-		int screenIndex = displaySettings.OutputScreenIndex >= 0 ? displaySettings.OutputScreenIndex : (int)config.MainWindowScreenIndex;
+
+		int screenIndex = displaySettings.OutputScreenIndex >= 0
+			? displaySettings.OutputScreenIndex
+			: (int)config.MainWindowScreenIndex;
 
 		if (!windowService.GetScreenMetrics(screenIndex, out Vector2 screenPosition, out Vector2 screenResolution, out _))
 		{
@@ -353,7 +367,9 @@ public abstract class GraphicsService(
 			}
 		}
 
-		_outWindowTitle = !string.IsNullOrEmpty(config.MainWindowTitle) ? config.MainWindowTitle : EngineConstants.engineDisplayName;
+		_outWindowTitle = !string.IsNullOrEmpty(config.MainWindowTitle)
+			? config.MainWindowTitle
+			: EngineConstants.engineDisplayName;
 		_outWindowSize = displaySettings.OutputResolution ?? Vector2.Min(screenResolution, new Vector2(1920, 1080));
 		_outWindowPosition = screenPosition + screenResolution / 2 - _outWindowSize / 2;
 		return true;
@@ -451,9 +467,18 @@ public abstract class GraphicsService(
 		return true;
 	}
 
-	protected virtual bool LogDeviceDetails()
+	/// <summary>
+	/// Checks and logs various details about the graphics device, such as the GPU model, and its hardware capabilities.
+	/// </summary>
+	/// <returns>True if device details were queried and processed successfully, false otherwise.</returns>
+	protected virtual bool QueryDeviceDetails()
 	{
 		GraphicsDeviceFeatures features = Device.Features;
+
+		// Store feature flags for support checks at run-time:
+		DeviceFeatures = features.GetEnumFlags();
+
+		// Log core featurs and device details:
 		List<string> logLines = new(10)
 		{
 			// Device:
@@ -478,6 +503,34 @@ public abstract class GraphicsService(
 		// Log all lines as one uninterrupted block:
 		logger.LogMessages(logLines);
 		return true;
+	}
+
+	/// <summary>
+	/// Checks if all GPU features for the application's minimum requirements are supported.
+	/// An error listing all missing feature flags is logged if any required features are missing.
+	/// </summary>
+	/// <returns>True if the minimum feature requirements are met, false otherwise.</returns>
+	protected bool CheckMinimumDeviceFeatureSupport()
+	{
+		// Check if all minimum feature requirements are met:
+		if (DeviceFeatures.HasFlag(config.MinimumDeviceFeatureRequirements))
+		{
+			return true;
+		}
+
+		// Identify all feature flags that are missing:
+		GraphicsDeviceFeatureFlags missingFlags = config.MinimumDeviceFeatureRequirements & (~DeviceFeatures);
+		List<GraphicsDeviceFeatureFlags> missingFeatures = EnumHelper.GetRaisedFlags(missingFlags);
+
+		// Log error message:
+		string errorMessageTxt = $"Graphics device is missing {missingFeatures.Count} required GPU features! Missing feature flags:";
+		foreach (GraphicsDeviceFeatureFlags flag in missingFeatures)
+		{
+			errorMessageTxt += $"\n  - {flag}";
+		}
+		logger.LogError(errorMessageTxt, LogEntrySeverity.Fatal);
+
+		return false;
 	}
 
 	#endregion

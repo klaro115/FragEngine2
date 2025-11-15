@@ -47,7 +47,16 @@ internal sealed class Dx11GraphicsService(
 			return false;
 		}
 
-		LogDeviceDetails();
+		if (!QueryDeviceDetails())
+		{
+			logger.LogError("Failed to graphics query device details and feature support!");
+			return false;
+		}
+
+		if (!CheckMinimumDeviceFeatureSupport())
+		{
+			return false;
+		}
 
 		IsInitialized = true;
 		return true;
