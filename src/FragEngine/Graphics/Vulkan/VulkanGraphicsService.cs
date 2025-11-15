@@ -52,7 +52,16 @@ internal sealed class VulkanGraphicsService(
 			return false;
 		}
 
-		LogDeviceDetails();
+		if (!QueryDeviceDetails())
+		{
+			logger.LogError("Failed to graphics query device details and feature support!");
+			return false;
+		}
+
+		if (!CheckMinimumDeviceFeatureSupport())
+		{
+			return false;
+		}
 
 		IsInitialized = true;
 		return true;
@@ -281,7 +290,7 @@ internal sealed class VulkanGraphicsService(
 		return true;
 	}
 
-	protected override bool LogDeviceDetails()
+	protected override bool QueryDeviceDetails()
 	{
 		GraphicsDeviceFeatures features = Device.Features;
 		List<string> logLines = new(10)

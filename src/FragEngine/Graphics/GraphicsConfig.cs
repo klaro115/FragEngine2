@@ -1,4 +1,5 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.Graphics.Enums;
+using FragEngine.Interfaces;
 using System.Numerics;
 
 namespace FragEngine.Graphics;
@@ -53,6 +54,12 @@ public sealed class GraphicsConfig : IValidated
 	/// Whether the main swapchain output should prefer sRGB formats.
 	/// </summary>
 	public bool OutputIsSRgb { get; init; } = true;
+
+	/// <summary>
+	/// Gets bit flags for all graphics device features that require support for the application to run correctly.
+	/// If one or more of these features are unsupported by the GPU, the application will exit immediately.
+	/// </summary>
+	public GraphicsDeviceFeatureFlags MinimumDeviceFeatureRequirements { get; init; } = GraphicsDeviceFeatureFlags.None;
 
 	#endregion
 	#region Methods
