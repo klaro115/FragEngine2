@@ -30,17 +30,6 @@ namespace FragEngine.Graphics.Cameras;
 /// </summary>
 public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 {
-	#region Types
-
-	private sealed class ConstantPoseSource(Pose _initialPose) : IPoseSource
-	{
-		public Pose currentPose = _initialPose;
-
-		public Pose GetLocalPose() => currentPose;
-		public Pose GetWorldPose() => currentPose;
-	}
-
-	#endregion
 	#region Events
 
 	/// <summary>
@@ -130,7 +119,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 		{
 			if (currentPoseSource is ConstantPoseSource constantSource)
 			{
-				constantSource.currentPose = value;
+				constantSource.CurrentPose = value;
 			}
 			else
 			{

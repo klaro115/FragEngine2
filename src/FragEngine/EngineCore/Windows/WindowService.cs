@@ -49,7 +49,7 @@ public sealed class WindowService : IExtendedDisposable
 	internal readonly ILogger logger;
 	private readonly IServiceProvider serviceProvider;
 	private readonly PlatformService platformService;
-	protected readonly SettingsService settingsService;
+	private readonly SettingsService settingsService;
 	private readonly EngineConfig engineConfig;
 
 	private readonly List<WindowHandle> windows = new(1);
