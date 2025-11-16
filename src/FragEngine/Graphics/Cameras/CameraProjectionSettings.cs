@@ -13,17 +13,15 @@ public sealed class CameraProjectionSettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 
-	private ulong checksum = UNINITIALIZED_CHECKSUM;
+	private ulong checksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 
-	private float nearClipPlane = 0.1f;
-	private float farClipPlane = 1000.0f;
-	private float fieldOfViewRad = 60.0f * MathConstants.Deg2Rad;
-	private float orthographicsSize = 5.0f;
+	private float nearClipPlane = CameraConstants.defaultNearClipPlane;
+	private float farClipPlane = CameraConstants.defaultFarClipPlane;
+	private float fieldOfViewRad = CameraConstants.defaultFieldOfViewDegrees * MathConstants.Deg2Rad;
+	private float orthographicsSize = CameraConstants.defaultOrthographicSize;
 
 	#endregion
 	#region Constants
-
-	internal const ulong UNINITIALIZED_CHECKSUM = 0ul;
 
 	private const float CLIPPING_EPSILON = 0.0001f;
 
@@ -94,7 +92,7 @@ public sealed class CameraProjectionSettings : IValidated, IChecksumVersioned
 	{
 		get
 		{
-			if (checksum != UNINITIALIZED_CHECKSUM)
+			if (checksum != CameraConstants.UNINITIALIZED_CHECKSUM)
 			{
 				return checksum;
 			}
@@ -110,9 +108,9 @@ public sealed class CameraProjectionSettings : IValidated, IChecksumVersioned
 	public static CameraProjectionSettings Default => new()
 	{
 		ProjectionType = CameraProjectionType.Perspective,
-		NearClipPlane = 0.1f,
-		FarClipPlane = 1000.0f,
-		FieldOfViewDegrees = 60.0f,
+		NearClipPlane = CameraConstants.defaultNearClipPlane,
+		FarClipPlane = CameraConstants.defaultFarClipPlane,
+		FieldOfViewDegrees = CameraConstants.defaultFieldOfViewDegrees,
 	};
 
 	#endregion

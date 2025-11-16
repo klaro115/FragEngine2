@@ -81,8 +81,8 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 
 	private CameraTargets? ownTarget = null;
 
-	private ulong projectionChecksum = CameraProjectionSettings.UNINITIALIZED_CHECKSUM;
-	private ulong ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
+	private ulong projectionChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
+	private ulong ownTargetChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 
 	private static int initializedCameraCount = 0;
 
@@ -258,8 +258,8 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 	/// </summary>
 	public void MarkDirty()
 	{
-		projectionChecksum = CameraProjectionSettings.UNINITIALIZED_CHECKSUM;
-		ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
+		projectionChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
+		ownTargetChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 	}
 
 	/// <summary>
@@ -473,7 +473,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 
 		// Output settings have changed, purge internal render targets:
 		ownTarget?.Dispose();
-		ownTargetChecksum = CameraOutputSettings.UNINITIALIZED_CHECKSUM;
+		ownTargetChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 
 		// Adopt new settings:
 		CameraOutputSettings prevOutputSettings = OutputSettings;

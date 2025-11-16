@@ -11,19 +11,11 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 {
 	#region Fields
 
-	private ulong checksum = UNINITIALIZED_CHECKSUM;
+	private ulong checksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 
-	private uint resolutionX = 8;
-	private uint resolutionY = 8;
+	private uint resolutionX = CameraConstants.defaultOutputResolutionX;
+	private uint resolutionY = CameraConstants.defaultOutputResolutionY;
 	private bool hasStencilBuffer = false;
-
-	#endregion
-	#region Constants
-
-	internal const ulong UNINITIALIZED_CHECKSUM = 0ul;
-
-	private const uint MIN_RESOLUTION = 8;
-	private const uint MAX_RESOLUTION = 8192;
 
 	#endregion
 	#region Properties
@@ -35,7 +27,7 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	public required uint ResolutionX
 	{
 		get => resolutionX;
-		init => resolutionX = Math.Clamp(value, MIN_RESOLUTION, MAX_RESOLUTION);
+		init => resolutionX = Math.Clamp(value, CameraConstants.minOutputResolution, CameraConstants.maxOutputResolution);
 	}
 	/// <summary>
 	/// The vertical output resolution, in pixels.
@@ -44,7 +36,7 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	public required uint ResolutionY
 	{
 		get => resolutionY;
-		init => resolutionY = Math.Clamp(value, MIN_RESOLUTION, MAX_RESOLUTION);
+		init => resolutionY = Math.Clamp(value, CameraConstants.minOutputResolution, CameraConstants.maxOutputResolution);
 	}
 
 	/// <summary>
@@ -90,7 +82,7 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	{
 		get
 		{
-			if (checksum != UNINITIALIZED_CHECKSUM)
+			if (checksum != CameraConstants.UNINITIALIZED_CHECKSUM)
 			{
 				return checksum;
 			}
@@ -105,8 +97,8 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 	/// </summary>
 	public static CameraOutputSettings Default => new()
 	{
-		ResolutionX = 640,
-		ResolutionY = 480,
+		ResolutionX = CameraConstants.defaultOutputResolutionX,
+		ResolutionY = CameraConstants.defaultOutputResolutionY,
 		HasColorTarget = true,
 		HasDepthBuffer = true,
 		HasStencilBuffer = false,
@@ -187,8 +179,8 @@ public sealed class CameraOutputSettings : IValidated, IChecksumVersioned
 		// Prepare temporary variables:
 		Texture? mainTexture = null;
 
-		uint resolutionX = MIN_RESOLUTION;
-		uint resolutionY = MIN_RESOLUTION;
+		uint resolutionX = CameraConstants.minOutputResolution;
+		uint resolutionY = CameraConstants.minOutputResolution;
 
 		PixelFormat colorFormat = PixelFormat.B8_G8_R8_A8_UNorm;
 		PixelFormat depthFormat = PixelFormat.D24_UNorm_S8_UInt;

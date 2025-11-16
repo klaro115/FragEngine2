@@ -9,6 +9,7 @@ using FragEngine.Graphics.Contexts;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Scenes;
+using Microsoft.Extensions.DependencyInjection;
 using System.Numerics;
 using Veldrid;
 
@@ -194,31 +195,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		mainWindow!.IsResizable = true;
 
 		// Create camera instance:
-		try
+		if (!CameraHelper.CreatePerspectiveCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 1, -5))), _attachToWindowHandle: mainWindow))
 		{
-			camera = new(engine.Graphics, engine.Logger)
-			{
-				CurrentPose = new(new(0, 1, -5), Quaternion.Identity, Vector3.One),
-			};
-		}
-		catch (Exception ex)
-		{
-			engine.Logger.LogException("Failed to create main camera!", ex, LogEntrySeverity.Critical);
-			return false;
-		}
-
-		camera.SetProjectionSettings(new()
-		{
-			NearClipPlane = 0.1f,
-			FarClipPlane = 100.0f,
-			FieldOfViewDegrees = 60.0f,
-			OrthographicSize = 5,
-			ProjectionType = CameraProjectionType.Perspective,
-		});
-		camera.CurrentPose = new Pose(new(0, 0, -10), Quaternion.Identity, Vector3.One);
-		
-		if (!mainWindow.ConnectClient(camera))
-		{
+			engine.Logger.LogError("Failed to create main camera!", LogEntrySeverity.Critical);
 			return false;
 		}
 
