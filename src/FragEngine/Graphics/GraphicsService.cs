@@ -479,12 +479,18 @@ public abstract class GraphicsService(
 		DeviceFeatures = features.GetEnumFlags();
 
 		// Log core featurs and device details:
+		string vendorDetail = string.Empty;
+		if (Device.TryGetVendorCompanyName(out string vendorCompanyName))
+		{
+			vendorDetail = $" ({vendorCompanyName})";
+		}
+
 		List<string> logLines = new(10)
 		{
 			// Device:
 			 "+ Graphics Device:",
 			$"  - Name:               {Device.DeviceName}",
-			$"  - Vendor ID:          {Device.VendorName}",
+			$"  - Vendor ID:          {Device.VendorName}{vendorDetail}",
 			$"  - API:                {Device.BackendType}",
 			$"  - API version:        {Device.ApiVersion}",
 
