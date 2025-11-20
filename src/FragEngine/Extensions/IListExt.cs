@@ -28,7 +28,7 @@ public static class IListExt
 			throw new IndexOutOfRangeException($"Copy start index {nameof(_startIndex)} is out of range!");
 		}
 		int endIndex = _startIndex + _count;
-		if (_count < 0 || endIndex >= _list.Count || _count > _destination.Count)
+		if (_count < 0 || endIndex > _list.Count || _count > _destination.Count)
 		{
 			throw new ArgumentException("Copy count is out of range!", nameof(_count));
 		}
