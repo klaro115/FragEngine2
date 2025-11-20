@@ -6,6 +6,7 @@ using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
+using FragEngine.Graphics.Geometry;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Scenes;
@@ -34,6 +35,8 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private CommandList? cmdList = null;
 	private DeviceBuffer? bufCbScene = null;
 
+	private MeshSurface? cubeMesh = null;
+
 	#endregion
 	#region Properties
 
@@ -61,6 +64,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private void Dispose(bool _)
 	{
 		DisposeCamera();
+		DisposeScene();
 	}
 
 	public bool Initialize(Engine _engine)
@@ -72,6 +76,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	public void Shutdown()
 	{
 		DisposeCamera();
+		DisposeScene();
 	}
 
 	// ENGINE STATEMACHINE:
@@ -98,11 +103,16 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			{
 				DisposeCamera();
 			}
+			if (!CreateScene())
+			{
+				DisposeScene();
+			}
 		}
 		
 		if (_currentState >= EngineStateType.Unloading)
 		{
 			DisposeCamera();
+			DisposeScene();
 		}
 
 		return true;
@@ -212,6 +222,28 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			engine.Logger.LogException("Failed to create scene graphics resources!", ex, LogEntrySeverity.Critical);
 			return false;
 		}
+
+		return true;
+	}
+
+	private void DisposeScene()
+	{
+		cubeMesh?.Dispose();
+
+		cubeMesh = null;
+	}
+
+	private bool CreateScene()
+	{
+		PrimitivesFactory factory = engine.Provider.GetRequiredService<PrimitivesFactory>();
+
+		if (!factory.CreateCubeMesh(Vector3.One, out cubeMesh, _createExtendedVertexData: false))
+		{
+			engine.Logger.LogError("Failed to create cube mesh!!");
+			return false;
+		}
+
+		//...
 
 		return true;
 	}

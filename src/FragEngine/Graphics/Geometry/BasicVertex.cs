@@ -58,6 +58,16 @@ public record struct BasicVertex
 		new VertexElementDescription(nameof(uvs), VertexElementFormat.Float2, VertexElementSemantic.TextureCoordinate));
 
 	#endregion
+	#region Constructors
+
+	public BasicVertex(Vector3 _position, Vector3 _normal, Vector2 _uvs)
+	{
+		position = _position;
+		normal = _normal;
+		uvs = _uvs;
+	}
+
+	#endregion
 	#region Methods
 
 	public readonly override string ToString() => $"(Position: {position}; Normals: {normal}, UVs: {uvs})";
