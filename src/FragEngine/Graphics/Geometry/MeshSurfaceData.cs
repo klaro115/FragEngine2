@@ -137,6 +137,51 @@ public sealed class MeshSurfaceData : IValidated
 	}
 
 	/// <summary>
+	/// Assigns vertex data to this mesh.
+	/// </summary>
+	/// <param name="_verticesBasic">The new basic vertex data.</param>
+	/// <param name="_verticesExt">Optional. The new extended vertex data. If empty, the mesh will only have basic geometry data.</param>
+	/// <param name="_vertexCount">The number of vertices to assign. If negative, the length of '<see cref="_verticesBasic"/>' is used instead.</param>
+	/// <param name="_logger">Optional. A logging service, for outputting error messages. If null, no errors are logged.</param>
+	/// <returns>True if vertex data could be assigned successfully, false otherwise.</returns>
+	public bool SetVertices(ReadOnlySpan<BasicVertex> _verticesBasic, ReadOnlySpan<ExtendedVertex> _verticesExt, int _vertexCount = -1, ILogger? _logger = null)
+	{
+		// Check completeness of data spans:
+		if (_vertexCount < 0)
+		{
+			_vertexCount = _verticesBasic.Length;
+		}
+		else if (_verticesBasic.Length < _vertexCount)
+		{
+			_logger?.LogError($"Span '{nameof(_verticesBasic)}' contains fewer elements than '{nameof(_vertexCount)}'!");
+			return false;
+		}
+
+		bool hasExtendedVertexData = !_verticesExt.IsEmpty;
+		if (hasExtendedVertexData && _verticesExt.Length < _vertexCount)
+		{
+			_logger?.LogError($"Span '{nameof(_verticesExt)}' contains insufficient elements!");
+			return false;
+		}
+
+		// Copy data to local arrays:
+		VerticesBasic = new BasicVertex[_vertexCount];
+		_verticesBasic.CopyTo(VerticesBasic.AsSpan(0, _vertexCount));
+
+		if (hasExtendedVertexData)
+		{
+			VerticesExt = new ExtendedVertex[_vertexCount];
+			_verticesExt.CopyTo(VerticesExt.AsSpan(0, _vertexCount));
+		}
+		else
+		{
+			VerticesExt = null;
+		}
+
+		return true;
+	}
+
+	/// <summary>
 	/// Assigns index data to this mesh.
 	/// </summary>
 	/// <param name="_newIndices">The new index data in 16-bit format, may not be null.
@@ -188,6 +233,52 @@ public sealed class MeshSurfaceData : IValidated
 	/// <summary>
 	/// Assigns index data to this mesh.
 	/// </summary>
+	/// <param name="_newIndices">The new index data in 16-bit format.
+	/// Each set of 3 indices define 1 triangular polygon, therefore length should be a multiple of 3.</param>
+	/// <param name="_indexCount">The number of indices to assign. If negative, the length of <see cref="_newIndices"/> is used instead.</param>
+	/// <param name="_indexFormat">The desired data format when assigning the indices. Default is 16-bit.</param>
+	/// <param name="_logger">Optional. A logging service, for outputting error messages. If null, no errors are logged.</param>
+	/// <returns>True if index data could be assigned successfully, false otherwise.</returns>
+	public bool SetIndices16(ReadOnlySpan<ushort> _newIndices, int _indexCount = -1, IndexFormat _indexFormat = IndexFormat.UInt16, ILogger? _logger = null)
+	{
+		// Check completeness of data spans:
+		if (_indexCount < 0)
+		{
+			_indexCount = _newIndices.Length;
+		}
+		else if (_newIndices.Length < _indexCount)
+		{
+			_logger?.LogError($"Span '{nameof(_newIndices)}' contains fewer elements than '{nameof(_indexCount)}'!");
+			return false;
+		}
+
+		// Copy data to local array:
+		if (_indexFormat == IndexFormat.UInt32)
+		{
+			Indices16 = null;
+			Indices32 = new int[_indexCount];
+			for (int i = 0; i < _indexCount; i++)
+			{
+				Indices32[i] = _newIndices[i];
+			}
+
+		}
+		else if (_newIndices != Indices16)
+		{
+			Indices16 = new ushort[_indexCount];
+			Indices32 = null;
+			_newIndices.CopyTo(Indices16.AsSpan(0, _indexCount));
+		}
+
+		IndexCount = _indexCount;
+		TriangleCount = IndexCount / 3;
+
+		return true;
+	}
+
+	/// <summary>
+	/// Assigns index data to this mesh.
+	/// </summary>
 	/// <param name="_newIndices">The new index data in 32-bit format, may not be null.
 	/// Each set of 3 indices define 1 triangular polygon, therefore count should be a multiple of 3.</param>
 	/// <param name="_indexCount">The number of indices to assign. If negative, the length of <see cref="_newIndices"/> is used instead.</param>
@@ -200,7 +291,7 @@ public sealed class MeshSurfaceData : IValidated
 	{
 		ArgumentNullException.ThrowIfNull(_newIndices);
 
-		// Check completeness of data arrays:
+		// Check completeness of data array:
 		if (_indexCount < 0)
 		{
 			_indexCount = _newIndices.Count;
@@ -227,6 +318,53 @@ public sealed class MeshSurfaceData : IValidated
 			Indices16 = null;
 			Indices32 = new int[_indexCount];
 			_newIndices.CopyTo(Indices32, 0, _indexCount);
+		}
+
+		IndexCount = _indexCount;
+		TriangleCount = IndexCount / 3;
+
+		return true;
+	}
+
+	/// <summary>
+	/// Assigns index data to this mesh.
+	/// </summary>
+	/// <param name="_newIndices">The new index data in 32-bit format.
+	/// Each set of 3 indices define 1 triangular polygon, therefore count should be a multiple of 3.</param>
+	/// <param name="_indexCount">The number of indices to assign. If negative, the length of <see cref="_newIndices"/> is used instead.</param>
+	/// <param name="_indexFormat">The desired data format when assigning the indices. Default is 32-bit.
+	/// Do not set this value to 16-bit if the mesh has more than 65K vertices.</param>
+	/// <param name="_logger">Optional. A logging service, for outputting error messages. If null, no errors are logged.</param>
+	/// <returns>True if index data could be assigned successfully, false otherwise.</returns>
+	public bool SetIndices32(ReadOnlySpan<int> _newIndices, int _indexCount = -1, IndexFormat _indexFormat = IndexFormat.UInt32, ILogger? _logger = null)
+	{
+		// Check completeness of data span:
+		if (_indexCount < 0)
+		{
+			_indexCount = _newIndices.Length;
+		}
+		else if (_newIndices.Length < _indexCount)
+		{
+			_logger?.LogError($"Span '{nameof(_newIndices)}' contains fewer elements than '{nameof(_indexCount)}'!");
+			return false;
+		}
+
+		// Copy data to local array:
+		if (_indexFormat == IndexFormat.UInt16)
+		{
+			Indices16 = new ushort[_indexCount];
+			Indices32 = null;
+			for (int i = 0; i < _indexCount; i++)
+			{
+				Indices16[i] = (ushort)_newIndices[i];
+			}
+
+		}
+		else if (_newIndices != Indices32)
+		{
+			Indices16 = null;
+			Indices32 = new int[_indexCount];
+			_newIndices.CopyTo(Indices32.AsSpan(0, _indexCount));
 		}
 
 		IndexCount = _indexCount;

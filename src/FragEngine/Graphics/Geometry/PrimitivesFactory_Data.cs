@@ -4,6 +4,13 @@ using Veldrid;
 
 namespace FragEngine.Graphics.Geometry;
 
+// NOTE: This partial class implements the creation of geometry data on the CPU side. Main methods are `Create[Shape]Data`.
+
+/// <summary>
+/// Factory service for creating 3D models of primitive shapes.
+/// </summary>
+/// <param name="_serviceProvider">The engine's service provider, used for instantiating meshes.</param>
+/// <param name="_logger">The engine's logging service singleton.</param>
 public partial class PrimitivesFactory(IServiceProvider _serviceProvider, ILogger _logger)
 {
 	#region Fields
@@ -14,13 +21,23 @@ public partial class PrimitivesFactory(IServiceProvider _serviceProvider, ILogge
 	#endregion
 	#region Methods
 
+	/// <summary>
+	/// Creates the surface geometry data for a cube.
+	/// </summary>
+	/// <remarks>
+	/// The cube mesh will be centered on the coordinate origin, with its maximum extents stretching the same in all directions.
+	/// </remarks>
+	/// <param name="_size">The dimensions of the cube.</param>
+	/// <param name="_createExtendedVertexData">Whether to also generate extended vertex data for this mesh.</param>
+	/// <returns>The mesh data.</returns>
 	public MeshSurfaceData CreateCubeData(in Vector3 _size, bool _createExtendedVertexData = true)
 	{
 		float x = _size.X * 0.5f;
 		float y = _size.Y * 0.5f;
 		float z = _size.Z * 0.5f;
 
-		BasicVertex[] vertsBasic =
+		// Define geometry:
+		Span<BasicVertex> vertsBasic =
 		[
 			// Left:
 			new(new(-x, -y, -z), -Vector3.UnitX, new(1, 0)),
@@ -53,7 +70,7 @@ public partial class PrimitivesFactory(IServiceProvider _serviceProvider, ILogge
 			new(new(-x,  y,  z),  Vector3.UnitY, new(0, 1)),
 			new(new( x,  y,  z),  Vector3.UnitY, new(1, 1)),
 		];
-		ushort[] indices =
+		Span<ushort> indices =
 		[
 			// Left:
 			0, 1, 2,
@@ -62,7 +79,7 @@ public partial class PrimitivesFactory(IServiceProvider _serviceProvider, ILogge
 			//TODO
 		];
 
-		ExtendedVertex[]? vertsExt = null;
+		Span<ExtendedVertex> vertsExt = _createExtendedVertexData ? stackalloc ExtendedVertex[vertsBasic.Length] : [];
 
 		if (_createExtendedVertexData)
 		{
@@ -72,6 +89,7 @@ public partial class PrimitivesFactory(IServiceProvider _serviceProvider, ILogge
 			];
 		}
 
+		// Create and populate data object:
 		MeshSurfaceData data = new();
 
 		data.SetVertices(vertsBasic, vertsExt, vertsBasic.Length, logger);
