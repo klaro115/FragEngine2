@@ -18,6 +18,18 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Embedded\ResourceManifest.fres" />
+	  <None Remove="Embedded\Shaders\PS_Fallback.hlsl" />
+	  <None Remove="Embedded\Shaders\VS_Fallback.hlsl" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Embedded\ResourceManifest.fres" />
+	  <EmbeddedResource Include="Embedded\Shaders\PS_Fallback.hlsl" />
+	  <EmbeddedResource Include="Embedded\Shaders\VS_Fallback.hlsl" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
 	  <PackageReference Include="Veldrid" Version="4.9.0" />
 	  <PackageReference Include="Veldrid.SDL2" Version="4.9.0" />

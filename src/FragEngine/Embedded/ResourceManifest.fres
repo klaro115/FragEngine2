@@ -1,0 +1,30 @@
+{
+	"Resources": [
+		{
+			"ResourceKey": "VS_Fallback",
+			"FallbackResourceKey": null,
+			"RelativePath": "Shaders/VS_Fallback.hlsl",
+			"DataOffset": 0,
+			"DataSize": 1054,
+			"FormatKey": "hlsl",
+			"Type": 14,
+			"SubType": 1,
+			"OSRestriction": null,
+			"GraphicsRestriction": 0
+		},
+		{
+			"ResourceKey": "PS_Fallback",
+			"FallbackResourceKey": null,
+			"RelativePath": "Shaders/PS_Fallback.hlsl",
+			"DataOffset": 0,
+			"DataSize": 734,
+			"FormatKey": "hlsl",
+			"Type": 14,
+			"SubType": 5,
+			"OSRestriction": null,
+			"GraphicsRestriction": 0
+		}
+	],
+	"OSRestriction": null,
+	"GraphicsRestriction": null
+}
