@@ -48,9 +48,13 @@ public interface IAppLogic
 	/// <summary>
 	/// Run update logic for the engine's loading state. This is called once per frame.
 	/// </summary>
+	/// <param name="_hasDataScanCompleted">The loading state runs a resource data scan in the background.
+	/// This indicates whether this scan has concluded; if true, all resource keys and resource manifests
+	/// have been located and are ready for use. If false, assets cannot be loaded via the resource cannot
+	/// services yet.</param>
 	/// <param name="_outLoadingIsDone">Outputs whether application-side loading has been completed.</param>
 	/// <returns>True if loading logic was updated successfully, false if a breaking error arose.</returns>
-	public bool UpdateLoadingState(out bool _outLoadingIsDone);
+	public bool UpdateLoadingState(bool _hasDataScanCompleted, out bool _outLoadingIsDone);
 	/// <summary>
 	/// Run update logic for the engine's unloading state. This is called once per frame.
 	/// </summary>

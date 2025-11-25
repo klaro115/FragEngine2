@@ -16,6 +16,7 @@ public enum ResourceType
 	Video,
 	Audio,
 	Model,
+	Shader,
 
 	// PURE DATA:
 
@@ -66,6 +67,20 @@ public enum ResourceSubType_Model : int
 	PolygonMesh		= 0,
 	SplineSurface,
 	VoxelGrid,
+}
+
+/// <summary>
+/// Enumeration of resource sub-types for 3D models and geometry.
+/// </summary>
+public enum ResourceSubType_Shader : int
+{
+	Compute = 0,
+	Vertex,
+	Geometry,
+	TesselationCtrl,
+	TesselationEval,
+	Pixel,
+	//...
 }
 
 /// <summary>

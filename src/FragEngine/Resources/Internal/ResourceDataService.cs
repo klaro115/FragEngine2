@@ -164,24 +164,27 @@ internal sealed class ResourceDataService : IExtendedDisposable
 	{
 		ObjectDisposedException.ThrowIf(IsDisposed, this);
 
+		logger.LogMessage("Starting resource data scan...");
+
 		int newCapacity = Math.Max(allResourceData.Count, ResourceConstants.allResourcesStartingCapacity);
 		Dictionary<string, ResourceData> newData = new(newCapacity);
+		int manifestCount = 0;
 
 		// Try loading all embedded resources embedded in assemblies:
-		if (!GetResourceDataFromEmbeddedFiles(runtimeService.EngineAssembly, newData))
+		if (!GetResourceDataFromEmbeddedFiles(runtimeService.EngineAssembly, newData, ref manifestCount))
 		{
 			logger.LogError("Failed to scan assets in embedded resources of engine assembly!");
 			return false;
 		}
 
-		if (!GetResourceDataFromEmbeddedFiles(runtimeService.EntryAssembly, newData))
+		if (!GetResourceDataFromEmbeddedFiles(runtimeService.EntryAssembly, newData, ref manifestCount))
 		{
 			logger.LogError("Failed to scan assets in embedded resources of app's entry assembly!");
 			return false;
 		}
 
 		// Try loading all file-based resources from assets directory:
-		if (!GetResourceDataFromAssetsDirectory(newData))
+		if (!GetResourceDataFromAssetsDirectory(newData, ref manifestCount))
 		{
 			logger.LogError("Failed to scan assets in asset file directory!");
 			return false;
@@ -200,6 +203,8 @@ internal sealed class ResourceDataService : IExtendedDisposable
 			{
 				allResourceData.TryAdd(key, data);
 			}
+
+			logger.LogMessage($"Resource data scan complete; Found {allResourceData.Count} keyed resources across {manifestCount} manifests.");
 			return true;
 		}
 		finally
@@ -208,7 +213,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		}
 	}
 
-	private bool GetResourceDataFromEmbeddedFiles(in Assembly _assembly, Dictionary<string, ResourceData> _dstData)
+	private bool GetResourceDataFromEmbeddedFiles(in Assembly _assembly, Dictionary<string, ResourceData> _dstData, ref int _manifestCount)
 	{
 		ArgumentNullException.ThrowIfNull(_assembly);
 
@@ -233,6 +238,8 @@ internal sealed class ResourceDataService : IExtendedDisposable
 					logger.LogError($"Failed to read resource manifest from embedded file! (File: '{resourceName}', Assembly: '{_assembly.GetName().Name}')");
 					return false;
 				}
+
+				_manifestCount++;
 			}
 			catch (Exception ex)
 			{
@@ -248,7 +255,7 @@ internal sealed class ResourceDataService : IExtendedDisposable
 		return true;
 	}
 
-	private bool GetResourceDataFromAssetsDirectory(Dictionary<string, ResourceData> _dstData)
+	private bool GetResourceDataFromAssetsDirectory(Dictionary<string, ResourceData> _dstData, ref int _manifestCount)
 	{
 		string assetRootDir = platformService.assetDirectoryPath;
 		if (!Directory.Exists(assetRootDir))
@@ -273,6 +280,8 @@ internal sealed class ResourceDataService : IExtendedDisposable
 					logger.LogError($"Failed to read resource manifest from embedded file! (File path: '{manifestFilePath}'");
 					return false;
 				}
+
+				_manifestCount++;
 			}
 			catch (Exception ex)
 			{

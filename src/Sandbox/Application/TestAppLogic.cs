@@ -120,7 +120,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	// LOADING / UNLOADING:
 
-	public bool UpdateLoadingState(out bool _loadingIsDone)
+	public bool UpdateLoadingState(bool _hasDataScanCompleted, out bool _loadingIsDone)
 	{
 		bool success = true;
 
@@ -199,7 +199,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	{
 		if (!GetMainWindow(out WindowHandle? mainWindow))
 		{
-			engine.Logger.LogError("Engine does not have a live main window!!");
+			engine.Logger.LogError("Engine does not have a live main window!");
 			return false;
 		}
 		mainWindow!.IsResizable = true;
@@ -239,7 +239,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		if (!factory.CreateCubeMesh(Vector3.One, out cubeMesh, _createExtendedVertexData: false))
 		{
-			engine.Logger.LogError("Failed to create cube mesh!!");
+			engine.Logger.LogError("Failed to create cube mesh!");
 			return false;
 		}
 
