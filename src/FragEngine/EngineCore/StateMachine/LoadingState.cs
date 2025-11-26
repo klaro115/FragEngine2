@@ -35,11 +35,18 @@ internal sealed class LoadingState(Engine _engine, IAppLogic _appLogic) : MainLo
 
 	protected override void Dispose(bool _disposing)
 	{
-		dataScanCompletionSource?.SetCanceled();
+		if (dataScanCompletionSource is not null && !dataScanCompletionSource.Task.IsCompleted)
+		{
+			dataScanCompletionSource?.SetCanceled();
+		}
 
 		base.Dispose(_disposing);
 	}
 
+	/// <summary>
+	/// Initializes the state and starts the resource data scan on a background thread.
+	/// </summary>
+	/// <returns>True if the state was initialized successfully, false otherwise.</returns>
 	public override bool Initialize()
 	{
 		if (!base.Initialize())
@@ -59,6 +66,7 @@ internal sealed class LoadingState(Engine _engine, IAppLogic _appLogic) : MainLo
 		catch (Exception ex)
 		{
 			engine.Logger.LogException("Failed to start resource data scan thread!", ex, Logging.LogEntrySeverity.Fatal);
+			dataScanCompletionSource.SetCanceled();
 			return false;
 		}
 

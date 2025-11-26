@@ -18,15 +18,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="Embedded\ResourceManifest.fres" />
-	  <None Remove="Embedded\Shaders\PS_Fallback.hlsl" />
-	  <None Remove="Embedded\Shaders\VS_Fallback.hlsl" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <EmbeddedResource Include="Embedded\ResourceManifest.fres" />
-	  <EmbeddedResource Include="Embedded\Shaders\PS_Fallback.hlsl" />
-	  <EmbeddedResource Include="Embedded\Shaders\VS_Fallback.hlsl" />
+	  <None Remove="Embedded\**" />
+	  <EmbeddedResource Include="Embedded\**" />
 	</ItemGroup>
 
 	<ItemGroup>
