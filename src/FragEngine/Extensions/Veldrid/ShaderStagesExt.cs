@@ -55,5 +55,24 @@ public static class ShaderStagesExt
 			: string.Empty;
 	}
 
+	/// <summary>
+	/// Gets the default entry point function name corresponding to this resource stage.
+	/// </summary>
+	/// <param name="_stage">This shader stage.</param>
+	/// <returns>The name of the entry point function.</returns>
+	public static string GetDefaultEntryPoint(this ShaderStages _stage)
+	{
+		return _stage switch
+		{
+			ShaderStages.Vertex => "MainVertex",
+			ShaderStages.Geometry => "MainGeometry",
+			ShaderStages.TessellationControl => "MainTesselationCtrl",
+			ShaderStages.TessellationEvaluation => "MainTesselationEval",
+			ShaderStages.Fragment => "MainPixel",
+			ShaderStages.Compute => "MainCompute",
+			_ => "Main",
+		};
+	}
+
 	#endregion
 }

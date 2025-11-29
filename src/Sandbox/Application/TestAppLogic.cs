@@ -3,12 +3,14 @@ using FragEngine.EngineCore;
 using FragEngine.EngineCore.Input;
 using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Windows;
+using FragEngine.Graphics;
 using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
 using FragEngine.Graphics.Geometry;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Resources;
 using FragEngine.Scenes;
 using Microsoft.Extensions.DependencyInjection;
 using System.Numerics;
@@ -36,6 +38,8 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private DeviceBuffer? bufCbScene = null;
 
 	private MeshSurface? cubeMesh = null;
+	private Shader? shaderVertex = null;
+	private Shader? shaderPixel = null;
 
 	#endregion
 	#region Properties
@@ -240,6 +244,14 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		if (!factory.CreateCubeMesh(Vector3.One, out cubeMesh, _createExtendedVertexData: false))
 		{
 			engine.Logger.LogError("Failed to create cube mesh!");
+			return false;
+		}
+
+		GraphicsResourceService graphicsResources = engine.Provider.GetRequiredService<GraphicsResourceService>();
+		if ((shaderVertex = graphicsResources.VSFallback) is null ||
+			(shaderPixel = graphicsResources.PSFallback) is null)
+		{
+			engine.Logger.LogError("Failed to load fallback shaders!");
 			return false;
 		}
 

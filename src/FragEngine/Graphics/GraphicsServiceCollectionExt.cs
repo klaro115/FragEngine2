@@ -8,6 +8,7 @@ using FragEngine.Graphics.Geometry;
 using FragEngine.Graphics.Geometry.Export;
 using FragEngine.Graphics.Geometry.Import.FMDL;
 using FragEngine.Graphics.Metal;
+using FragEngine.Graphics.Shaders.Import;
 using FragEngine.Graphics.Vulkan;
 using FragEngine.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +28,7 @@ public static class GraphicsServiceCollectionExt
 	/// reference to check if the service provider contains a realistic number of services for normal
 	/// engine operation.
 	/// </summary>
-	public const int defaultServiceCount = 7;
+	public const int defaultServiceCount = 8;
 
 	#endregion
 	#region Methods
@@ -115,13 +116,14 @@ public static class GraphicsServiceCollectionExt
 
 	private static bool AddPlatformAgnosticServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
-		// Service count: 6
+		// Service count: 7
 		_serviceCollection
 			// Singletons:
 			.AddSingleton<GraphicsResourceService>()
 			.AddSingleton<PrimitivesFactory>()
 			.AddSingleton<FMdlImporter>()
 			.AddSingleton<FMdlExporter>()
+			.AddSingleton<SourceCodeShaderImporter>()
 			// Transient:
 			.AddTransient<Camera>()
 			.AddTransient<MeshSurface>();
