@@ -1,6 +1,8 @@
-﻿using FragEngine.Extensions.Veldrid;
+﻿using FragEngine.EngineCore.Config;
+using FragEngine.Extensions.Veldrid;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Resources;
 using System.Diagnostics.CodeAnalysis;
 using Veldrid;
 
@@ -26,6 +28,8 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	#region Fields
 
 	private readonly GraphicsService graphicsService;
+	private readonly GraphicsConfig config;
+	private readonly ResourceService resourceService;
 	private readonly ILogger logger;
 
 	// Default textures:
@@ -33,6 +37,10 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	private Texture? texGrey = null;
 	private Texture? texBlack = null;
 	private Texture? texTransparent = null;
+
+	// Fallback shaders:
+	private Shader? vsFallback = null;
+	private Shader? psFallback = null;
 
 	private readonly Lock textureLockObj = new();
 
@@ -68,6 +76,23 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	/// </summary>
 	public Texture TexTransparent => GetOrCreateDefaultTexture(ref texTransparent, new RgbaByte(0, 0, 0, 0));
 
+	/// <summary>
+	/// Gets a fallback vertex shader.
+	/// On first use, this shader is loaded from the engine's embedded resource files.
+	/// </summary>
+	/// <remarks>
+	/// Note: This vertex shader only uses basic vertex data, and produces basic vertex output.
+	/// </remarks>
+	public Shader VSFallback => GetOrLoadFallbackShader(ref vsFallback, ShaderStages.Vertex, "MainVertex");
+
+	/// <summary>
+	/// Gets a fallback pixel shader. On first use, this shader is loaded from the engine's embedded resource files.
+	/// </summary>
+	/// /// <remarks>
+	/// Note: This vertex shader only uses basic vertex output, and writes out color and depth.
+	/// </remarks>
+	public Shader PSFallback => GetOrLoadFallbackShader(ref psFallback, ShaderStages.Fragment, "MainPixel");
+
 	#endregion
 	#region Constructors
 
@@ -78,12 +103,16 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	/// <param name="_logger">The engine's logging service singleton.</param>
 	/// <exception cref="ArgumentNullException">Graphics service and logger may not be null.</exception>
 	/// <exception cref="Exception">Failure to create placeholder resource for missing textures.</exception>
-	public GraphicsResourceService(GraphicsService _graphicsService, ILogger _logger)
+	public GraphicsResourceService(GraphicsService _graphicsService, EngineConfig _config, ResourceService _resourceService, ILogger _logger)
 	{
 		ArgumentNullException.ThrowIfNull(_graphicsService);
+		ArgumentNullException.ThrowIfNull(_config);
+		ArgumentNullException.ThrowIfNull(_resourceService);
 		ArgumentNullException.ThrowIfNull(_logger);
 
 		graphicsService = _graphicsService;
+		config = _config.Graphics;
+		resourceService = _resourceService;
 		logger = _logger;
 
 		logger.LogStatus("# Initializing graphics resources service.");
@@ -126,6 +155,10 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		texGrey?.Dispose();
 		texBlack?.Dispose();
 		texTransparent?.Dispose();
+
+		// Dispose fallback shaders:
+		vsFallback?.Dispose();
+		psFallback?.Dispose();
 		//...
 	}
 
@@ -200,6 +233,39 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 			_outTexture = null;
 			return false;
 		}
+	}
+
+	private Shader GetOrLoadFallbackShader(ref Shader? _shader, ShaderStages _stage, string _entryPoint)
+	{
+		// If a shader is already loaded and assigned, return that:
+		if (_shader is not null && !_shader.IsDisposed)
+		{
+			return _shader;
+		}
+
+		// Verify input:
+		if (_stage == ShaderStages.None)
+		{
+			throw new ArgumentException("Cannot load fallback shader for invalid shader stage!", nameof(_stage));
+		}
+		ArgumentException.ThrowIfNullOrWhiteSpace(_entryPoint);
+
+		// Get or load shader asset through the resource service:
+		string resourceKey = _stage.GetFallbackShaderResourceKey();
+
+		if (!resourceService.GetResourceHandle(resourceKey, out ResourceHandle? resHandle) || resHandle is not ResourceHandle<Shader> shaderHandle)
+		{
+			logger.LogError($"Shader resource '{resourceKey}' could not be found; cannot create fallback shader!", LogEntrySeverity.High);
+			return null!;
+		}
+		if (!shaderHandle.GetOrLoadImmediately(out _shader))
+		{
+			logger.LogError($"Shader resource '{resourceKey}' could not be loaded; failed to create fallback shader!", LogEntrySeverity.High);
+			return null!;
+		}
+
+		// Return loaded shader:
+		return _shader;
 	}
 
 	#endregion
