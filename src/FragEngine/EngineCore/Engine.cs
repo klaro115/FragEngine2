@@ -9,6 +9,7 @@ using FragEngine.Graphics;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Resources;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FragEngine.EngineCore;
@@ -98,6 +99,7 @@ public sealed class Engine : IExtendedDisposable
 	public InputService InputService { get; }
 	public WindowService WindowService { get; }
 	public GraphicsService Graphics { get; }
+	public ResourceService Resources { get; }
 	//...
 
 	#endregion
@@ -137,11 +139,12 @@ public sealed class Engine : IExtendedDisposable
 
 		// Retrieve core services for easier access:
 		Logger = Provider.GetService<ILogger>() ?? new ConsoleLogger();
-		PlatformService = Provider.GetService<PlatformService>()!;
-		TimeService = Provider.GetService<TimeService>()!;
-		InputService = Provider.GetService<InputService>()!;
-		WindowService = Provider.GetService<WindowService>()!;
-		Graphics = Provider.GetService<GraphicsService>()!;
+		PlatformService = Provider.GetRequiredService<PlatformService>();
+		TimeService = Provider.GetRequiredService<TimeService>();
+		InputService = Provider.GetRequiredService<InputService>();
+		WindowService = Provider.GetRequiredService<WindowService>();
+		Graphics = Provider.GetRequiredService<GraphicsService>();
+		Resources = Provider.GetRequiredService<ResourceService>();
 		//...
 
 		// Create state machine states:

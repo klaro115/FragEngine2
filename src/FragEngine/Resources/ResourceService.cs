@@ -30,7 +30,7 @@ public sealed class ResourceService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	internal ResourceService(ILogger _logger, ResourceDataService _resourceDataService)
+	public ResourceService(ILogger _logger, ResourceDataService _resourceDataService)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_resourceDataService);
@@ -178,6 +178,31 @@ public sealed class ResourceService : IExtendedDisposable
 		}
 
 		return allResources.TryGetValue(_resourceKey, out _outHandle);
+	}
+
+	/// <summary>
+	/// Gets a typed handle for a resource.
+	/// </summary>
+	/// <typeparam name="T">The type of the resource instance.</typeparam>
+	/// <param name="_resourceKey">A unique identifier key for the resource.</param>
+	/// <param name="_outHandle">Outputs a handle for the resource, or null, if the resource could not be found, or if its type was incorrect.</param>
+	/// <returns>True if a resource handle was found and of the requested type, false otherwise.</returns>
+	public bool GetResourceHandle<T>(string _resourceKey, [NotNullWhen(true)] out ResourceHandle<T>? _outHandle) where T : class
+	{
+		if (!GetResourceHandle(_resourceKey, out ResourceHandle? handle))
+		{
+			_outHandle = null;
+			return false;
+		}
+		if (handle is not ResourceHandle<T> typedHandle)
+		{
+			logger.LogError($"Incorrect data type for resource key '{_resourceKey}'! (Expected: {typeof(T).Name}, Found handle: '{handle}')");
+			_outHandle = null;
+			return false;
+		}
+
+		_outHandle = typedHandle;
+		return true;
 	}
 
 	internal bool LoadResource(ResourceHandle _handle, bool _loadImmediately, FuncAssignLoadedResource _funcAssignResourceCallback)

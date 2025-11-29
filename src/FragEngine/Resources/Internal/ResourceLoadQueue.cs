@@ -59,6 +59,8 @@ internal sealed class ResourceLoadQueue(ILogger _logger) : IExtendedDisposable
 
 		IsDisposed = true;
 
+		if (readWriteLock.IsReadLockHeld) readWriteLock.ExitReadLock();
+		if (readWriteLock.IsWriteLockHeld) readWriteLock.ExitWriteLock();
 		readWriteLock.Dispose();
 	}
 
@@ -67,15 +69,25 @@ internal sealed class ResourceLoadQueue(ILogger _logger) : IExtendedDisposable
 	/// </summary>
 	public void Clear()
 	{
-		if (IsDisposed || readWriteLock.TryEnterWriteLock(readWriteLockTimeout))
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot clear load queue that has already been disposed!");
+			return;
+		}
+		if (!readWriteLock.TryEnterWriteLock(readWriteLockTimeout))
 		{
 			logger.LogError("Failed to acquire lock for clearing resource load queue!");
 			return;
 		}
 
-		list.Clear();
-
-		readWriteLock.ExitWriteLock();
+		try
+		{
+			list.Clear();
+		}
+		finally
+		{
+			readWriteLock.ExitWriteLock();
+		}
 	}
 
 	/// <summary>

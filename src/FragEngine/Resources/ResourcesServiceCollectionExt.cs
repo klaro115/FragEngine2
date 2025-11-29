@@ -19,7 +19,7 @@ public static class ResourcesServiceCollectionExt
 	/// reference to check if the service provider contains a realistic number of services for normal
 	/// engine operation.
 	/// </summary>
-	public const int defaultServiceCount = 2;
+	public const int defaultServiceCount = 6;
 
 	#endregion
 	#region Methods
@@ -28,9 +28,10 @@ public static class ResourcesServiceCollectionExt
 	{
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 
+		// Service count: 2
 		_serviceCollection
-			.AddSingleton<ResourceService>()
-			.AddSingleton<ResourceDataService>();
+			.AddSingleton<ResourceDataService>()
+			.AddSingleton<ResourceService>();
 			//...
 
 		if (!AddSerialization(_serviceCollection))
@@ -68,6 +69,7 @@ public static class ResourcesServiceCollectionExt
 			.AddSingleton<SerializerService>();
 			//...
 
+		// Service count: 2
 		return true;
 	}
 
@@ -78,6 +80,7 @@ public static class ResourcesServiceCollectionExt
 			.AddSingleton<EmbeddedResourceSource>();
 			//...
 
+		// Service count: 2
 		return true;
 	}
 

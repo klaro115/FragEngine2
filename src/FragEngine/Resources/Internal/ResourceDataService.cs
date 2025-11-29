@@ -16,7 +16,7 @@ namespace FragEngine.Resources.Internal;
 /// <summary>
 /// Service for locating resource manifests, and for mapping and accessing raw resource data for loading.
 /// </summary>
-internal sealed class ResourceDataService : IExtendedDisposable
+public sealed class ResourceDataService : IExtendedDisposable
 {
 	#region Fields
 
