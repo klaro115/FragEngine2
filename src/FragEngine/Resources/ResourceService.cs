@@ -6,11 +6,20 @@ using FragEngine.Resources.Internal;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Veldrid;
 
 namespace FragEngine.Resources;
 
 public sealed class ResourceService : IExtendedDisposable
 {
+	#region Events
+
+	/// <summary>
+	/// Event that is triggered whenever one or more new resources have been registered with this service.
+	/// </summary>
+	public event Action? NewResourcesAdded = null;
+
+	#endregion
 	#region Fields
 
 	private readonly ILogger logger;
@@ -39,6 +48,8 @@ public sealed class ResourceService : IExtendedDisposable
 		resourceDataService = _resourceDataService;
 
 		logger.LogStatus("# Initializing resource service.");
+
+		resourceDataService.ResourceDataScanCompleted += OnResourceDataScanCompleted;
 
 		queue = new(logger);
 
@@ -133,6 +144,54 @@ public sealed class ResourceService : IExtendedDisposable
 		{
 			logger.LogStatus($"{nameof(ResourceService)}: Background loading thread exited.");
 		}
+	}
+
+	private void OnResourceDataScanCompleted()
+	{
+		if (IsDisposed) return;
+
+		// Identify any resource keys that are new:
+		if (!resourceDataService.GetAllResourceData(out IReadOnlyDictionary<string, ResourceData>? allResourceData))
+		{
+			logger.LogError("Failed to update resource handles from latest data scan result!");
+			return;
+		}
+
+		int expectedNewResourceCount = Math.Max(allResourceData.Count - allResources.Count, 1);
+		Dictionary<string, ResourceHandle> newHandles = new(expectedNewResourceCount);
+
+		foreach ((string resourceKey, ResourceData data) in allResourceData)
+		{
+			if (allResourceData.ContainsKey(resourceKey))
+			{
+				continue;
+			}
+
+			ResourceHandle handle = ...;
+
+			//TODO [Critical]: Add resource handle factory!!!
+
+			newHandles.Add(resourceKey, handle);
+		}
+
+		// No new keys found? Exit here:
+		if (newHandles.Count == 0)
+		{
+			return;
+		}
+
+		// Register all newly detected handles:
+		int addedHandleCount = 0;
+		foreach ((string resourceKey, ResourceHandle newHandle) in newHandles)
+		{
+			if (allResources.TryAdd(resourceKey, newHandle))
+			{
+				addedHandleCount++;
+			}
+		}
+
+		logger.LogMessage($"Resource data scan detected {addedHandleCount} new resource keys.");
+		NewResourcesAdded?.Invoke();
 	}
 
 	/// <summary>

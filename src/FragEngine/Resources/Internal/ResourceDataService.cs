@@ -18,6 +18,14 @@ namespace FragEngine.Resources.Internal;
 /// </summary>
 public sealed class ResourceDataService : IExtendedDisposable
 {
+	#region Events
+
+	/// <summary>
+	/// Event that is triggered when a resource data scan was completed.
+	/// </summary>
+	public event Action? ResourceDataScanCompleted = null;
+
+	#endregion
 	#region Fields
 
 	private readonly ILogger logger;
@@ -133,18 +141,43 @@ public sealed class ResourceDataService : IExtendedDisposable
 	internal bool GetResourceData(string _resourceKey, [NotNullWhen(true)] out ResourceData? _outData)
 	{
 		ArgumentNullException.ThrowIfNull(_resourceKey);
-
-		Debug.Assert(!IsDisposed, $"{nameof(ResourceDataService)} has already been disposed!");
+		ObjectDisposedException.ThrowIf(IsDisposed, this);
 
 		if (!resourceDataLock.TryEnterReadLock(semaphoreWaitTimeoutMs))
 		{
-			logger.LogError("Failed to apply resource scan results; waiting for read-lock timed out!", LogEntrySeverity.High);
+			logger.LogError("Failed to get resource file data; waiting for read-lock timed out!", LogEntrySeverity.High);
 			_outData = null;
 			return false;
 		}
 		try
 		{
 			return allResourceData.TryGetValue(_resourceKey, out _outData);
+		}
+		finally
+		{
+			resourceDataLock.ExitReadLock();
+		}
+	}
+
+	/// <summary>
+	/// Tries to retrieve all resource file data.
+	/// </summary>
+	/// <param name="_outAllResourceData">Outputs a read-only dictionary of all resources that were identified during the last scan. Null on error.</param>
+	/// <returns>True if the resource data query succeeded, false otherwise.</returns>
+	internal bool GetAllResourceData([NotNullWhen(true)] out IReadOnlyDictionary<string, ResourceData>? _outAllResourceData)
+	{
+		ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+		if (!resourceDataLock.TryEnterReadLock(semaphoreWaitTimeoutMs))
+		{
+			logger.LogError("Failed to get all resource file data; waiting for read-lock timed out!", LogEntrySeverity.High);
+			_outAllResourceData = null;
+			return false;
+		}
+		try
+		{
+			_outAllResourceData = allResourceData;
+			return true;
 		}
 		finally
 		{
@@ -205,6 +238,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 			}
 
 			logger.LogMessage($"Resource data scan complete; Found {allResourceData.Count} keyed resources across {manifestCount} manifests.");
+			ResourceDataScanCompleted?.Invoke();
 			return true;
 		}
 		finally
