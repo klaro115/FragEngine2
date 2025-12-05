@@ -108,6 +108,21 @@ public abstract class ResourceHandle(ResourceService _resourceService) : IValida
 		return resourceService.GetResourceData(ResourceKey, out _outData);
 	}
 
+	public static int CreateResourceID(string _resourceKey, ResourceType _type)
+	{
+		if (string.IsNullOrEmpty(_resourceKey) || _type == ResourceType.Unknown)
+		{
+			return -1;
+		}
+
+		string idBase = $"{_type}_{_resourceKey}";
+
+		//TODO: Generate hash.
+		int id = idBase.GetHashCode();	//TEMP
+
+		return id;
+	}
+
 	#endregion
 }
 

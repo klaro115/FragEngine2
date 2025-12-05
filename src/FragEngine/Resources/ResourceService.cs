@@ -24,6 +24,7 @@ public sealed class ResourceService : IExtendedDisposable
 
 	private readonly ILogger logger;
 	private readonly ResourceDataService resourceDataService;
+	private readonly ResourceHandleFactory handleFactory;
 
 	private readonly ResourceLoadQueue queue;
 	private readonly Thread backgroundLoadThread;
@@ -39,13 +40,15 @@ public sealed class ResourceService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public ResourceService(ILogger _logger, ResourceDataService _resourceDataService)
+	public ResourceService(ILogger _logger, ResourceDataService _resourceDataService, ResourceHandleFactory _handleFactory)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_resourceDataService);
+		ArgumentNullException.ThrowIfNull(_handleFactory);
 
 		logger = _logger;
 		resourceDataService = _resourceDataService;
+		handleFactory = _handleFactory;
 
 		logger.LogStatus("# Initializing resource service.");
 
@@ -162,14 +165,16 @@ public sealed class ResourceService : IExtendedDisposable
 
 		foreach ((string resourceKey, ResourceData data) in allResourceData)
 		{
-			if (allResourceData.ContainsKey(resourceKey))
+			if (allResources.ContainsKey(resourceKey))
 			{
 				continue;
 			}
 
-			ResourceHandle handle = ...;
-
-			//TODO [Critical]: Add resource handle factory!!!
+			// Create new hard-typed resource handle via factory:
+			if (!handleFactory.TryCreateResourceHandle(data, out ResourceHandle? handle))
+			{
+				continue;
+			}
 
 			newHandles.Add(resourceKey, handle);
 		}

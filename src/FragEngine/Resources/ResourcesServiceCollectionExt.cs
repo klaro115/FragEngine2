@@ -19,7 +19,7 @@ public static class ResourcesServiceCollectionExt
 	/// reference to check if the service provider contains a realistic number of services for normal
 	/// engine operation.
 	/// </summary>
-	public const int defaultServiceCount = 6;
+	public const int defaultServiceCount = 7;
 
 	#endregion
 	#region Methods
@@ -28,9 +28,10 @@ public static class ResourcesServiceCollectionExt
 	{
 		ArgumentNullException.ThrowIfNull(_serviceCollection);
 
-		// Service count: 2
+		// Service count: 3
 		_serviceCollection
 			.AddSingleton<ResourceDataService>()
+			.AddSingleton<ResourceHandleFactory>()
 			.AddSingleton<ResourceService>();
 			//...
 
