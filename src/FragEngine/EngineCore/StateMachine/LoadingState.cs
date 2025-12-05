@@ -126,7 +126,10 @@ internal sealed class LoadingState(Engine _engine, IAppLogic _appLogic) : MainLo
 			engine.Logger.LogError("Failed to scan for resource data!", Logging.LogEntrySeverity.Critical);
 		}
 
-		dataScanCompletionSource?.SetResult(success);
+		if (dataScanCompletionSource is not null && !dataScanCompletionSource.Task.IsCompleted)
+		{
+			dataScanCompletionSource.SetResult(success);
+		}
 	}
 
 	#endregion

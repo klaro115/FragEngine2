@@ -96,8 +96,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		{
 			engine.InputService.AddInputAxesWASDQE();
 		}
-		
-		if (_currentState == EngineStateType.Loading)
+		else if (_currentState == EngineStateType.Loading)
 		{
 			escapeKeyState = engine.InputService.GetKeyState(Key.Escape);
 			fullscreenKeyState = engine.InputService.GetKeyState(Key.Tab);
@@ -107,13 +106,15 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			{
 				DisposeCamera();
 			}
+		}
+		else if (_currentState == EngineStateType.Running)
+		{
 			if (!CreateScene())
 			{
 				DisposeScene();
 			}
 		}
-		
-		if (_currentState >= EngineStateType.Unloading)
+		else if (_currentState >= EngineStateType.Unloading)
 		{
 			DisposeCamera();
 			DisposeScene();

@@ -35,7 +35,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 
 	private readonly ConcurrentDictionary<string, ResourceData> allResourceData = new(-1, ResourceConstants.allResourcesStartingCapacity);
 
-	private readonly ReaderWriterLockSlim resourceDataLock = new();
+	private readonly ReaderWriterLockSlim resourceDataLock = new(LockRecursionPolicy.SupportsRecursion);
 
 	#endregion
 	#region Constants
