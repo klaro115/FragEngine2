@@ -21,6 +21,17 @@ public sealed class SourceCodeShaderImporter(GraphicsService _graphicsService, E
 	private readonly ILogger logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly GraphicsConfig config = _config?.Graphics ?? throw new ArgumentNullException(nameof(_config));
 
+	/// <summary>
+	/// All supported file format extensions (aka format keys) that are supported by this importer.
+	/// </summary>
+	public static readonly string[] supportedFormatKeys =
+	[
+		".hlsl",
+		".glsl",
+		".metal",
+		".spirv",
+	];
+
 	#endregion
 	#region Methods
 

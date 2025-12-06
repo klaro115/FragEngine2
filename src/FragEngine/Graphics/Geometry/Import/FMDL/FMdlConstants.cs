@@ -10,6 +10,11 @@ public static class FMdlConstants
 	// IDENTIFIERS:
 
 	/// <summary>
+	/// File extension for the FMDL format.
+	/// </summary>
+	public const string fmdlFormatKey = ".fmdl";
+
+	/// <summary>
 	/// "Magic number" leading the file. These 4 bytes serve as an umambiguous identifier of the file format.
 	/// </summary>
 	public const uint magicNumbers = ((uint)'F' << 0) | ((uint)'M' << 8) | ((uint)'D' << 16) | ((uint)'L' << 24);

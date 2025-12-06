@@ -1,12 +1,13 @@
-﻿using FragEngine.Interfaces;
+﻿using FragEngine.Graphics;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources.Data;
 using FragEngine.Resources.Enums;
+using FragEngine.Resources.Interfaces;
 using FragEngine.Resources.Internal;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Veldrid;
 
 namespace FragEngine.Resources;
 
@@ -25,6 +26,7 @@ public sealed class ResourceService : IExtendedDisposable
 	private readonly ILogger logger;
 	private readonly ResourceDataService resourceDataService;
 	private readonly ResourceHandleFactory handleFactory;
+	private readonly HashSet<IImportService> importServices = [];
 
 	private readonly ResourceLoadQueue queue;
 	private readonly Thread backgroundLoadThread;
@@ -40,17 +42,20 @@ public sealed class ResourceService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
-	public ResourceService(ILogger _logger, ResourceDataService _resourceDataService, ResourceHandleFactory _handleFactory)
+	public ResourceService(ILogger _logger, ResourceDataService _resourceDataService, ResourceHandleFactory _handleFactory, GraphicsImportService _graphicsImportService)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_resourceDataService);
 		ArgumentNullException.ThrowIfNull(_handleFactory);
+		ArgumentNullException.ThrowIfNull(_graphicsImportService);
 
 		logger = _logger;
 		resourceDataService = _resourceDataService;
 		handleFactory = _handleFactory;
 
 		logger.LogStatus("# Initializing resource service.");
+
+		RegisterImportService(_graphicsImportService);
 
 		resourceDataService.ResourceDataScanCompleted += OnResourceDataScanCompleted;
 
@@ -406,17 +411,49 @@ public sealed class ResourceService : IExtendedDisposable
 
 		Debug.Assert(!IsDisposed, "Resource service that has already been disposed!");
 
+		// Retrieve the location, format, and type of the resource:
 		if (!resourceDataService.GetResourceData(_handle.ResourceKey, out ResourceData? resourceData))
 		{
 			logger.LogError($"Failed to retrieve resource file data for resource '{_handle.ResourceKey}'!");
 			return false;
 		}
 
+		// Try to find the most fitting import service for this resource's format and type:
+		IImportService? selectedImporter = null;
+		foreach (IImportService importService in importServices)
+		{
+			if (!importService.IsResourceFormatKeySupported(resourceData.FormatKey, ResourceOperationType.Import))
+			{
+				continue;
+			}
+			ResourceTypeSupport supportLevel = importService.IsResourceTypeSupported(resourceData.Type, resourceData.SubType);
+			if (supportLevel == ResourceTypeSupport.None)
+			{
+				continue;
+			}
+			
+			selectedImporter = importService;
+			if (supportLevel == ResourceTypeSupport.SubTypeSupported)
+			{
+				break;
+			}
+		}
 
-		//TODO [IMPORTANT]: Add actual import logic here.
+		if (selectedImporter is null)
+		{
+			logger.LogError($"No fitting importer could be found for resource '{_handle.ResourceKey}'");
+			return false;
+		}
 
+		// try importing the resource:
+		if (!selectedImporter.ImportResourceData(in resourceData, out object? resourceInstance))
+		{
+			return false;
+		}
 
-		return true;	//TEMP
+		// use callback to assign resource instance to its handle:
+		_funcAssignResourceCallback(resourceInstance);
+		return true;
 	}
 
 	/// <summary>
@@ -466,6 +503,35 @@ public sealed class ResourceService : IExtendedDisposable
 		}
 
 		return resourceDataService.GetResourceData(_resourceKey, out _outData);
+	}
+
+	/// <summary>
+	/// Registers a new import service that may be used by the resource system to import resources.
+	/// </summary>
+	/// <param name="_newImportService">The new resource service, providing support for additional resource types and sub-types,
+	/// or adding support for new file formats. May not be null or disposed.</param>
+	/// <returns>True if the service was registered, false if registration failed or if it was already registered.</returns>
+	/// <exception cref="ArgumentNullException">New import service may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">New import service may not disposed.</exception>
+	public bool RegisterImportService(IImportService _newImportService)
+	{
+		ArgumentNullException.ThrowIfNull(_newImportService);
+		ObjectDisposedException.ThrowIf(_newImportService is IExtendedDisposable { IsDisposed: true }, _newImportService);
+
+		if (IsDisposed)
+		{
+			logger.LogError("Cannot register new import service with disposed resource service!");
+			return false;
+		}
+
+		if (!importServices.Add(_newImportService))
+		{
+			logger.LogError($"Resource import service '{_newImportService}' has already been registered!");
+			return false;
+		}
+
+		logger.LogMessage($"Registered new resource import service: '{_newImportService.GetType().Name}'");
+		return true;
 	}
 
 	#endregion

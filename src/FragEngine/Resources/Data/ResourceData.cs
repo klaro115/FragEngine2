@@ -72,6 +72,11 @@ public sealed record class ResourceData : IValidated
 	/// A unique identifier for an importer or a file format. The engine's resource services will use
 	/// this key to identify the correct file sources and importers for the resource.
 	/// </summary>
+	/// <remarks>
+	/// If the format key is a file extension, it should be all lowercase and it must include the leading
+	/// period character.<br/>
+	/// Examples: <c>".jpg"</c>, <c>".fbx"</c>
+	/// </remarks>
 	public required string FormatKey { get; init; }
 	/// <summary>
 	/// The broad type of the resource.

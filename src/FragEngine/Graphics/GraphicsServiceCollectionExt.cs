@@ -28,7 +28,7 @@ public static class GraphicsServiceCollectionExt
 	/// reference to check if the service provider contains a realistic number of services for normal
 	/// engine operation.
 	/// </summary>
-	public const int defaultServiceCount = 8;
+	public const int defaultServiceCount = 9;
 
 	#endregion
 	#region Methods
@@ -116,7 +116,7 @@ public static class GraphicsServiceCollectionExt
 
 	private static bool AddPlatformAgnosticServices(IServiceCollection _serviceCollection, PlatformService _platformService, ILogger _logger)
 	{
-		// Service count: 7
+		// Service count: 8
 		_serviceCollection
 			// Singletons:
 			.AddSingleton<GraphicsResourceService>()
@@ -124,6 +124,7 @@ public static class GraphicsServiceCollectionExt
 			.AddSingleton<FMdlImporter>()
 			.AddSingleton<FMdlExporter>()
 			.AddSingleton<SourceCodeShaderImporter>()
+			.AddSingleton<GraphicsImportService>()
 			// Transient:
 			.AddTransient<Camera>()
 			.AddTransient<MeshSurface>();

@@ -1,4 +1,6 @@
-﻿namespace FragEngine.Resources.Enums;
+﻿using Veldrid;
+
+namespace FragEngine.Resources.Enums;
 
 /// <summary>
 /// Enumeration of different broad categories of assets and resources.
@@ -106,4 +108,42 @@ public enum ResourceSubType_Markup : int
 	HTML,
 	XAML,
 	//...
+}
+
+/************************************************************************************/
+// EXTENSIONS:
+
+/// <summary>
+/// Extension methods for the <see cref="ResourceType"/> enum.
+/// </summary>
+public static class ResourceTypeExt
+{
+	#region Methods
+
+	/// <summary>
+	/// Tries to get the shader stage corresponding to this resource type and sub-type.
+	/// </summary>
+	/// <param name="_resourceType">This resource type. Should be <see cref="ResourceType.Shader"/>.</param>
+	/// <param name="_resourceSubType">The sub-type of the shader resource, should map to a value of <see cref="ResourceSubType_Shader"/>.</param>
+	/// <returns>A shader stage, or '<see cref="ShaderStages.None"/>' for non-shader resources and invalid sub-types.</returns>
+	public static ShaderStages GetShaderStageForType(this ResourceType _resourceType, int _resourceSubType)
+	{
+		if (_resourceType != ResourceType.Shader)
+		{
+			return ShaderStages.None;
+		}
+
+		return (ResourceSubType_Shader)_resourceSubType switch
+		{
+			ResourceSubType_Shader.Compute => ShaderStages.Compute,
+			ResourceSubType_Shader.Vertex => ShaderStages.Vertex,
+			ResourceSubType_Shader.Geometry => ShaderStages.Geometry,
+			ResourceSubType_Shader.TesselationCtrl => ShaderStages.TessellationControl,
+			ResourceSubType_Shader.TesselationEval => ShaderStages.TessellationEvaluation,
+			ResourceSubType_Shader.Pixel => ShaderStages.Fragment,
+			_ => ShaderStages.None,
+		};
+	}
+
+	#endregion
 }
