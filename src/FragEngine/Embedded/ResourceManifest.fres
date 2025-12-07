@@ -3,7 +3,7 @@
 		{
 			"ResourceKey": "VS_Fallback",
 			"FallbackResourceKey": null,
-			"RelativePath": "Shaders/VS_Fallback.hlsl",
+			"RelativePath": "FragEngine.Embedded.Shaders.VS_Fallback.hlsl",
 			"DataOffset": 0,
 			"DataSize": 1054,
 			"FormatKey": ".hlsl",
@@ -15,9 +15,9 @@
 		{
 			"ResourceKey": "PS_Fallback",
 			"FallbackResourceKey": null,
-			"RelativePath": "Shaders/PS_Fallback.hlsl",
+			"RelativePath": "FragEngine.Embedded.Shaders.PS_Fallback.hlsl",
 			"DataOffset": 0,
-			"DataSize": 734,
+			"DataSize": 693,
 			"FormatKey": ".hlsl",
 			"Type": 14,
 			"SubType": 5,

@@ -11,7 +11,6 @@ struct VertexOutputBasic
 struct PixelOutputBasic
 {
     float4 color            : SV_Target0;
-    float depth             : SV_Depth;
 };
 
 // Pixel shader entry point:
