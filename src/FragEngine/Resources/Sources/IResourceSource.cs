@@ -16,7 +16,7 @@ public interface IResourceSource : IValidated, IExtendedDisposable
 	/// <param name="_sourceKey">A unique identifier key for locating a resource at the source.
 	/// This is typically either a URI, or a stringified ID.</param>
 	/// <param name="_sourceId">A unique ID number for locating a resource. May work in tandem with
-	/// the '<see cref="_resourceKey"/>' parameter. This could be the index of a sub-resource, or
+	/// the '<paramref name="_sourceKey"/>' parameter. This could be the index of a sub-resource, or
 	/// a hash value that identifies the resource.</param>
 	/// <returns>True if the resource exists within this source, false otherwise.</returns>
 	bool CheckIfResourceExists(string? _sourceKey, int _sourceId);
@@ -27,7 +27,7 @@ public interface IResourceSource : IValidated, IExtendedDisposable
 	/// <param name="_sourceKey">A unique identifier key for locating a resource at the source.
 	/// This is typically either a URI, or a stringified ID.</param>
 	/// <param name="_sourceId">A unique ID number for locating a resource. May work in tandem with
-	/// the '<see cref="_resourceKey"/>' parameter. This could be the index of a sub-resource, or
+	/// the '<paramref name="_sourceKey"/>' parameter. This could be the index of a sub-resource, or
 	/// a hash value that identifies the resource.</param>
 	/// <param name="_outStream">Outputs a stream from which the resource can be read. This stream
 	/// will generally be read-only. Null if retrieving the resource fails.</param>

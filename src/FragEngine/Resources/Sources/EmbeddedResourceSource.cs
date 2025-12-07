@@ -13,7 +13,7 @@ public sealed class EmbeddedResourceSource : IResourceSource
 	#region Fields
 
 	private readonly ILogger logger;
-	private readonly Assembly entryAssembly;
+	private readonly Assembly assembly;
 
 	#endregion
 	#region Properties
@@ -26,6 +26,9 @@ public sealed class EmbeddedResourceSource : IResourceSource
 	/// <summary>
 	/// Creates a new file source for embedded resources.
 	/// </summary>
+	/// <remarks>
+	/// Note: This constructor will specifically use the app's entry assembly, as provided by <see cref="RuntimeService"/>.
+	/// </remarks>
 	/// <param name="_logger">The engine's logging service singleton.</param>
 	/// <param name="_runtimeService">The engine's runtime service singleton.</param>
 	public EmbeddedResourceSource(ILogger _logger, RuntimeService _runtimeService)
@@ -34,7 +37,21 @@ public sealed class EmbeddedResourceSource : IResourceSource
 		ArgumentNullException.ThrowIfNull(_runtimeService);
 
 		logger = _logger;
-		entryAssembly = _runtimeService.EntryAssembly;
+		assembly = _runtimeService.EntryAssembly;
+	}
+
+	/// <summary>
+	/// Creates a new file source for embedded resources.
+	/// </summary>
+	/// <param name="_logger">The engine's logging service singleton.</param>
+	/// <param name="_assembly">An assembly from which to load embedded resource files.</param>
+	public EmbeddedResourceSource(ILogger _logger, Assembly _assembly)
+	{
+		ArgumentNullException.ThrowIfNull(_logger);
+		ArgumentNullException.ThrowIfNull(_assembly);
+
+		logger = _logger;
+		assembly = _assembly;
 	}
 
 	#endregion
@@ -53,7 +70,7 @@ public sealed class EmbeddedResourceSource : IResourceSource
 
 		try
 		{
-			string[] allResourceNames = entryAssembly.GetManifestResourceNames();
+			string[] allResourceNames = assembly.GetManifestResourceNames();
 			bool embeddedFileExists = allResourceNames.Contains(_sourceKey);
 			return embeddedFileExists;
 		}
@@ -73,7 +90,7 @@ public sealed class EmbeddedResourceSource : IResourceSource
 
 		try
 		{
-			_outStream = entryAssembly.GetManifestResourceStream(_sourceKey);
+			_outStream = assembly.GetManifestResourceStream(_sourceKey);
 			if (_outStream is null)
 			{
 				logger.LogError($"Failed to open embedded file stream for resource '{_sourceKey}'!", LogEntrySeverity.Normal);
@@ -95,6 +112,8 @@ public sealed class EmbeddedResourceSource : IResourceSource
 			return false;
 		}
 	}
+
+	public override string ToString() => $"{nameof(EmbeddedResourceSource)} (Assembly: '{assembly.FullName}')";
 
 	#endregion
 }

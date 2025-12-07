@@ -5,7 +5,7 @@ using FragEngine.Logging;
 using FragEngine.Resources.Data;
 using FragEngine.Resources.Enums;
 using FragEngine.Resources.Serialization;
-using System;
+using FragEngine.Resources.Sources;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -29,12 +29,18 @@ public sealed class ResourceDataService : IExtendedDisposable
 	#endregion
 	#region Fields
 
+	// Services:
 	private readonly ILogger logger;
 	private readonly RuntimeService runtimeService;
 	private readonly PlatformService platformService;
 	private readonly SerializerService serializerService;
 
-	private readonly Dictionary<string, Assembly> allEmbeddedResourceAssemblies = new(2);
+	// Resource sources:
+	private readonly FileSource fileSource;
+	private readonly NetworkSource networkSource;
+	private readonly Dictionary<string, EmbeddedResourceSource> allEmbeddedSources = new(2);
+
+	// Data:
 	private readonly ConcurrentDictionary<string, ResourceData> allResourceData = new(-1, ResourceConstants.allResourcesStartingCapacity);
 
 	private readonly ReaderWriterLockSlim resourceDataLock = new(LockRecursionPolicy.SupportsRecursion);
@@ -67,17 +73,27 @@ public sealed class ResourceDataService : IExtendedDisposable
 		ILogger _logger,
 		RuntimeService _runtimeService,
 		PlatformService _platformService,
-		SerializerService _serializerService)
+		SerializerService _serializerService,
+		FileSource _fileSource,
+		EmbeddedResourceSource _embeddedResourceSource,
+		NetworkSource _networkSource)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
 		ArgumentNullException.ThrowIfNull(_runtimeService);
 		ArgumentNullException.ThrowIfNull(_platformService);
 		ArgumentNullException.ThrowIfNull(_serializerService);
+		ArgumentNullException.ThrowIfNull(_fileSource);
+		ArgumentNullException.ThrowIfNull(_embeddedResourceSource);
+		ArgumentNullException.ThrowIfNull(_networkSource);
 
 		logger = _logger;
 		runtimeService = _runtimeService;
 		platformService = _platformService;
 		serializerService = _serializerService;
+		fileSource = _fileSource;
+		networkSource = _networkSource;
+
+		allEmbeddedSources.Add(runtimeService.EntryAssembly.GetName().Name!, _embeddedResourceSource);
 
 		logger.LogStatus("# Initializing resource data service.");
 
@@ -258,31 +274,14 @@ public sealed class ResourceDataService : IExtendedDisposable
 
 	private bool OpenResourceStreamFromAssetFile(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
 	{
-		if (!File.Exists(_data.RelativePath))
+		if (!fileSource.CheckIfResourceExists(_data.RelativePath, 0))
 		{
 			logger.LogError($"Invalid path for asset file resource '{_data.ResourceKey}'! Path: '{_data.RelativePath}'");
 			_outResourceStream = null;
 			return false;
 		}
 
-		try
-		{
-			// Try to open file stream:
-			_outResourceStream = File.Open(_data.RelativePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-			// Advance stream to the resource data's starting offset:
-			if (_data.DataOffset > 0)
-			{
-				_outResourceStream.Position = _data.DataOffset;
-			}
-			return true;
-		}
-		catch (Exception ex)
-		{
-			logger.LogException($"Failed to open resource stream for asset file resource '{_data.ResourceKey}'!", ex, LogEntrySeverity.Normal);
-			_outResourceStream = null;
-			return false;
-		}
+		return fileSource.OpenResourceStream(_data.RelativePath, 0, out _outResourceStream);
 	}
 
 	private bool OpenResourceStreamFromEmbeddedFile(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
@@ -296,42 +295,26 @@ public sealed class ResourceDataService : IExtendedDisposable
 			return false;
 		}
 
-		if (!allEmbeddedResourceAssemblies.TryGetValue(parts[0], out Assembly? assembly))
+		if (!allEmbeddedSources.TryGetValue(parts[0], out EmbeddedResourceSource? embeddedSource))
 		{
 			logger.LogError($"Invalid assembly name for embedded resource '{_data.ResourceKey}'! Assembly: '{parts[0]}'");
 			_outResourceStream = null;
 			return false;
 		}
 
-		try
-		{
-			// Try to open embedded file stream:
-			_outResourceStream = assembly.GetManifestResourceStream(parts[1]);
-			if (_outResourceStream is null)
-			{
-				logger.LogError($"Failed to open resource stream for embedded resource '{_data.ResourceKey}'!", LogEntrySeverity.Normal);
-				_outResourceStream = null;
-				return false;
-			}
-
-			// Advance stream to the resource data's starting offset:
-			if (_data.DataOffset > 0)
-			{
-				_outResourceStream.Position = _data.DataOffset;
-			}
-			return true;
-		}
-		catch (Exception ex)
-		{
-			logger.LogException($"Failed to open resource stream for embedded resource '{_data.ResourceKey}'!", ex, LogEntrySeverity.Normal);
-			_outResourceStream = null;
-			return false;
-		}
+		return embeddedSource.OpenResourceStream(parts[1], 0, out _outResourceStream);
 	}
 
 	private bool OpenResourceStreamFromNetwork(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
 	{
-		throw new NotImplementedException("Network sources for resource data have not been implemented yet.");
+		if (!networkSource.CheckIfResourceExists(_data.RelativePath, 0))
+		{
+			logger.LogError($"Invalid URL for network resource '{_data.ResourceKey}'! URL: '{_data.RelativePath}'");
+			_outResourceStream = null;
+			return false;
+		}
+
+		return networkSource.OpenResourceStream(_data.RelativePath, 0, out _outResourceStream);
 	}
 
 	/// <summary>
@@ -401,6 +384,8 @@ public sealed class ResourceDataService : IExtendedDisposable
 		ArgumentNullException.ThrowIfNull(_assembly);
 
 		bool hasManifests = false;
+		string assemblyName = _assembly.GetName().Name ?? string.Empty;
+
 		string[] allEmbeddedResources = _assembly.GetManifestResourceNames();
 
 		foreach (string resourceName in allEmbeddedResources)
@@ -415,7 +400,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 			Stream? stream = null;
 			try
 			{
-				string sourcePath = $"{_assembly.FullName}{embeddedPathPartSeparator}";
+				string sourcePath = $"{assemblyName}{embeddedPathPartSeparator}";
 
 				stream = _assembly.GetManifestResourceStream(resourceName)!;
 
@@ -440,9 +425,10 @@ public sealed class ResourceDataService : IExtendedDisposable
 		}
 
 		// If the assembly contained embedded manifests, map it for importing data later:
-		if (hasManifests && !string.IsNullOrEmpty(_assembly.FullName))
+		if (hasManifests && !string.IsNullOrEmpty(assemblyName) && !allEmbeddedSources.ContainsKey(assemblyName))
 		{
-			allEmbeddedResourceAssemblies.TryAdd(_assembly.FullName, _assembly);
+			EmbeddedResourceSource newEmbeddedSource = new(logger, _assembly);
+			allEmbeddedSources.TryAdd(assemblyName, newEmbeddedSource);
 		}
 
 		return true;
@@ -462,15 +448,13 @@ public sealed class ResourceDataService : IExtendedDisposable
 		IEnumerable<string> manifestFiles = Directory.EnumerateFiles(assetRootDir, manifestFileSearchPattern, SearchOption.AllDirectories);
 		foreach (string manifestFilePath in manifestFiles)
 		{
-			string sourcePath = Path.GetFullPath(manifestFilePath);
-
 			// Try parsing the manifest file:
 			Stream? stream = null;
 			try
 			{
 				stream = File.Open(manifestFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-				if (!ReadResourceManifestFromStream(in stream, _dstData, sourcePath, ResourceLocationType.AssetFile))
+				if (!ReadResourceManifestFromStream(in stream, _dstData, string.Empty, ResourceLocationType.AssetFile))
 				{
 					logger.LogError($"Failed to read resource manifest from embedded file! (File path: '{manifestFilePath}'");
 					return false;
@@ -492,7 +476,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 		return true;
 	}
 
-	private bool ReadResourceManifestFromStream(in Stream _stream, Dictionary<string, ResourceData> _dstData, string _sourcePath, ResourceLocationType _locationType)
+	private bool ReadResourceManifestFromStream(in Stream _stream, Dictionary<string, ResourceData> _dstData, string _relativePathPrefix, ResourceLocationType _locationType)
 	{
 		ArgumentNullException.ThrowIfNull(_stream);
 
@@ -525,7 +509,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 			ResourceData locatedData = data with
 			{
 				Location = _locationType,
-				RelativePath = $"{_sourcePath}{data.RelativePath}",
+				RelativePath = $"{_relativePathPrefix}{data.RelativePath}",
 			};
 
 			if (!_dstData.TryAdd(data.ResourceKey, locatedData))

@@ -9,6 +9,7 @@ using FragEngine.Logging;
 using FragEngine.Resources.Data;
 using FragEngine.Resources.Enums;
 using FragEngine.Resources.Interfaces;
+using FragEngine.Resources.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
 using Veldrid;
@@ -32,6 +33,7 @@ public sealed class GraphicsImportService : IImportService
 	//...
 
 	private GraphicsService? graphicsService = null;
+	private ResourceDataService? resourceDataService = null;
 
 	// Shaders:
 	private readonly SourceCodeShaderImporter sourceCodeShaderImporter;
@@ -53,6 +55,7 @@ public sealed class GraphicsImportService : IImportService
 	public bool HasExporters => true;
 
 	private GraphicsService GraphicsService => graphicsService ??= serviceProvider.GetRequiredService<GraphicsService>();
+	private ResourceDataService ResourceDataService => resourceDataService ??= serviceProvider.GetRequiredService<ResourceDataService>();
 
 	#endregion
 	#region Constructors
@@ -181,7 +184,12 @@ public sealed class GraphicsImportService : IImportService
 			return false;
 		}
 
-		Stream stream = null!;	//TODO [Critical]: Implement logic to get streams from resource sources!
+		if (!ResourceDataService.OpenResourceStream(in _resourceData, out Stream? stream))
+		{
+			logger.LogError($"{nameof(GraphicsImportService)} could not open stream for resource '{_resourceData}'!");
+			_outResourceInstance = null;
+			return false;
+		}
 
 		// Load surface data:
 		if (!importer.LoadMeshSurfaceData(stream, out MeshSurfaceData? surfaceData))
@@ -213,7 +221,12 @@ public sealed class GraphicsImportService : IImportService
 			return false;
 		}
 
-		Stream stream = null!;  //TODO [Critical]: Implement logic to get streams from resource sources!
+		if (!ResourceDataService.OpenResourceStream(in _resourceData, out Stream? stream))
+		{
+			logger.LogError($"{nameof(GraphicsImportService)} could not open stream for resource '{_resourceData}'!");
+			_outResourceInstance = null;
+			return false;
+		}
 
 		// Determine import parameters:
 		ShaderStages stage = _resourceData.Type.GetShaderStageForType(_resourceData.SubType);
@@ -227,7 +240,7 @@ public sealed class GraphicsImportService : IImportService
 		}
 
 		_outResourceInstance = shader;
-		return false;
+		return true;
 	}
 
 	#endregion

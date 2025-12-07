@@ -116,5 +116,7 @@ public sealed class FileSource : IResourceSource
 		}
 	}
 
+	public override string ToString() => $"{nameof(FileSource)} (Resource root directory: '{resourcesRootDir}')";
+
 	#endregion
 }
