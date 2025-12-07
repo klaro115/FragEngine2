@@ -5,6 +5,7 @@ using FragEngine.Logging;
 using FragEngine.Resources.Data;
 using FragEngine.Resources.Enums;
 using FragEngine.Resources.Serialization;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -33,6 +34,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 	private readonly PlatformService platformService;
 	private readonly SerializerService serializerService;
 
+	private readonly Dictionary<string, Assembly> allEmbeddedResourceAssemblies = new(2);
 	private readonly ConcurrentDictionary<string, ResourceData> allResourceData = new(-1, ResourceConstants.allResourcesStartingCapacity);
 
 	private readonly ReaderWriterLockSlim resourceDataLock = new(LockRecursionPolicy.SupportsRecursion);
@@ -41,6 +43,8 @@ public sealed class ResourceDataService : IExtendedDisposable
 	#region Constants
 
 	private const int semaphoreWaitTimeoutMs = 100;
+
+	private const string embeddedPathPartSeparator = "::";
 
 	#endregion
 	#region Properties
@@ -164,6 +168,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 	/// </summary>
 	/// <param name="_outAllResourceData">Outputs a read-only dictionary of all resources that were identified during the last scan. Null on error.</param>
 	/// <returns>True if the resource data query succeeded, false otherwise.</returns>
+	/// <exception cref="ObjectDisposedException">Resource data service has already been disposed.</exception>
 	internal bool GetAllResourceData([NotNullWhen(true)] out IReadOnlyDictionary<string, ResourceData>? _outAllResourceData)
 	{
 		ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -186,13 +191,157 @@ public sealed class ResourceDataService : IExtendedDisposable
 	}
 
 	/// <summary>
+	/// Tries to open a stream from which a resource's data may be imported.
+	/// </summary>
+	/// <param name="_data">The resource whose data we wish to import. Procedurally generated resources are not supported. May not be null.</param>
+	/// <param name="_outResourceStream">Outputs a stream from which the resource's data may be imported. The stream's read position will already be
+	/// moved to the resource's location within the stream's underlying data. Null if the resource could not be found or if it was invalid.<para/>
+	/// WARNING: Ownership of this stream is transferred to the caller! Remember to close the stream ASAP once you have finished importing data from
+	/// it. Failure to close a resource data stream may block further access to files or network ports pointing at the same source location.</param>
+	/// <returns>True if a resource stream could be opened, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">Resource data may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Resource data service has already been disposed.</exception>
+	public bool OpenResourceStream(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
+	{
+		ArgumentNullException.ThrowIfNull(_data);
+		ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+		// Check superficial validity of data:
+		if (!_data.IsValid())
+		{
+			logger.LogError($"Cannot open resource data stream; resource data for key '{_data.ResourceKey}' is invalid!");
+			_outResourceStream = null;
+			return false;
+		}
+
+		// Abort if the resource is not supported on the current platform:
+		if (_data.OSRestriction is not null && _data.OSRestriction != platformService.OperatingSystem)
+		{
+			logger.LogError($"Cannot open resource data stream; resource data for key '{_data.ResourceKey}' is restricted to OS '{_data.OSRestriction}'!");
+			_outResourceStream = null;
+			return false;
+		}
+		if (_data.GraphicsRestriction is not null && _data.GraphicsRestriction != platformService.GraphicsBackend)
+		{
+			logger.LogError($"Cannot open resource data stream; resource data for key '{_data.ResourceKey}' is restricted to graphics API '{_data.GraphicsRestriction}'!");
+			_outResourceStream = null;
+			return false;
+		}
+
+		bool success;
+
+		// Try to locate and access resource data from its source location:
+		switch (_data.Location)
+		{
+			case ResourceLocationType.AssetFile:
+				success = OpenResourceStreamFromAssetFile(in _data, out _outResourceStream);
+				break;
+			case ResourceLocationType.EmbeddedFile:
+				success = OpenResourceStreamFromEmbeddedFile(in _data, out _outResourceStream);
+				break;
+			case ResourceLocationType.Network:
+				success = OpenResourceStreamFromNetwork(in _data, out _outResourceStream);
+				break;
+			case ResourceLocationType.Procedural:
+			case ResourceLocationType.Unknown:
+			default:
+				{
+					logger.LogError($"Cannot open resource data stream; resource data for key '{_data.ResourceKey}' uses unsupported location '{_data.Location}'!");
+					_outResourceStream = null;
+					success = false;
+					break;
+				}
+		}
+
+		return success;
+	}
+
+	private bool OpenResourceStreamFromAssetFile(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
+	{
+		if (!File.Exists(_data.RelativePath))
+		{
+			logger.LogError($"Invalid path for asset file resource '{_data.ResourceKey}'! Path: '{_data.RelativePath}'");
+			_outResourceStream = null;
+			return false;
+		}
+
+		try
+		{
+			// Try to open file stream:
+			_outResourceStream = File.Open(_data.RelativePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+			// Advance stream to the resource data's starting offset:
+			if (_data.DataOffset > 0)
+			{
+				_outResourceStream.Position = _data.DataOffset;
+			}
+			return true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogException($"Failed to open resource stream for asset file resource '{_data.ResourceKey}'!", ex, LogEntrySeverity.Normal);
+			_outResourceStream = null;
+			return false;
+		}
+	}
+
+	private bool OpenResourceStreamFromEmbeddedFile(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
+	{
+		// Identify assembly and relative file path:
+		string[] parts = _data.RelativePath.Split(embeddedPathPartSeparator, StringSplitOptions.RemoveEmptyEntries);
+		if (parts.Length != 2)
+		{
+			logger.LogError($"Invalid path for embedded resource '{_data.ResourceKey}'! Path: '{_data.RelativePath}'");
+			_outResourceStream = null;
+			return false;
+		}
+
+		if (!allEmbeddedResourceAssemblies.TryGetValue(parts[0], out Assembly? assembly))
+		{
+			logger.LogError($"Invalid assembly name for embedded resource '{_data.ResourceKey}'! Assembly: '{parts[0]}'");
+			_outResourceStream = null;
+			return false;
+		}
+
+		try
+		{
+			// Try to open embedded file stream:
+			_outResourceStream = assembly.GetManifestResourceStream(parts[1]);
+			if (_outResourceStream is null)
+			{
+				logger.LogError($"Failed to open resource stream for embedded resource '{_data.ResourceKey}'!", LogEntrySeverity.Normal);
+				_outResourceStream = null;
+				return false;
+			}
+
+			// Advance stream to the resource data's starting offset:
+			if (_data.DataOffset > 0)
+			{
+				_outResourceStream.Position = _data.DataOffset;
+			}
+			return true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogException($"Failed to open resource stream for embedded resource '{_data.ResourceKey}'!", ex, LogEntrySeverity.Normal);
+			_outResourceStream = null;
+			return false;
+		}
+	}
+
+	private bool OpenResourceStreamFromNetwork(in ResourceData _data, [NotNullWhen(true)] out Stream? _outResourceStream)
+	{
+		throw new NotImplementedException("Network sources for resource data have not been implemented yet.");
+	}
+
+	/// <summary>
 	/// Tries to (re-)scan all asset sources for an up-to-date map of all asset/resource files.
 	/// This will search for resource manifest files in both embedded assembly files, and in the app's assets directory.
 	/// </summary>
 	/// <returns>True if the resource data map was updated, false on error.</returns>
-	/// <exception cref="ObjectDisposedException">Resource data service has already been disposed.</exception>
 	/// <exception cref="ArgumentNullException">Entry or engine assembly references were null, or file streams were null.</exception>
 	/// <exception cref="IOException">Failure to open or read resource manifest files.</exception>
+	/// <exception cref="ObjectDisposedException">Resource data service has already been disposed.</exception>
 	internal bool ScanForAllResourceData()
 	{
 		ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -251,6 +400,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 	{
 		ArgumentNullException.ThrowIfNull(_assembly);
 
+		bool hasManifests = false;
 		string[] allEmbeddedResources = _assembly.GetManifestResourceNames();
 
 		foreach (string resourceName in allEmbeddedResources)
@@ -265,15 +415,18 @@ public sealed class ResourceDataService : IExtendedDisposable
 			Stream? stream = null;
 			try
 			{
+				string sourcePath = $"{_assembly.FullName}{embeddedPathPartSeparator}";
+
 				stream = _assembly.GetManifestResourceStream(resourceName)!;
 
-				if (!ReadResourceManifestFromStream(in stream, _dstData, ResourceLocationType.EmbeddedFile))
+				if (!ReadResourceManifestFromStream(in stream, _dstData, sourcePath, ResourceLocationType.EmbeddedFile))
 				{
 					logger.LogError($"Failed to read resource manifest from embedded file! (File: '{resourceName}', Assembly: '{_assembly.GetName().Name}')");
 					return false;
 				}
 
 				_manifestCount++;
+				hasManifests = true;
 			}
 			catch (Exception ex)
 			{
@@ -284,6 +437,12 @@ public sealed class ResourceDataService : IExtendedDisposable
 			{
 				stream?.Close();
 			}
+		}
+
+		// If the assembly contained embedded manifests, map it for importing data later:
+		if (hasManifests && !string.IsNullOrEmpty(_assembly.FullName))
+		{
+			allEmbeddedResourceAssemblies.TryAdd(_assembly.FullName, _assembly);
 		}
 
 		return true;
@@ -303,13 +462,15 @@ public sealed class ResourceDataService : IExtendedDisposable
 		IEnumerable<string> manifestFiles = Directory.EnumerateFiles(assetRootDir, manifestFileSearchPattern, SearchOption.AllDirectories);
 		foreach (string manifestFilePath in manifestFiles)
 		{
+			string sourcePath = Path.GetFullPath(manifestFilePath);
+
 			// Try parsing the manifest file:
 			Stream? stream = null;
 			try
 			{
 				stream = File.Open(manifestFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-				if (!ReadResourceManifestFromStream(in stream, _dstData, ResourceLocationType.AssetFile))
+				if (!ReadResourceManifestFromStream(in stream, _dstData, sourcePath, ResourceLocationType.AssetFile))
 				{
 					logger.LogError($"Failed to read resource manifest from embedded file! (File path: '{manifestFilePath}'");
 					return false;
@@ -331,7 +492,7 @@ public sealed class ResourceDataService : IExtendedDisposable
 		return true;
 	}
 
-	private bool ReadResourceManifestFromStream(in Stream _stream, Dictionary<string, ResourceData> _dstData, ResourceLocationType _locationType)
+	private bool ReadResourceManifestFromStream(in Stream _stream, Dictionary<string, ResourceData> _dstData, string _sourcePath, ResourceLocationType _locationType)
 	{
 		ArgumentNullException.ThrowIfNull(_stream);
 
@@ -361,7 +522,11 @@ public sealed class ResourceDataService : IExtendedDisposable
 		// Add all resources with new keys to the dictionary:
 		foreach (ResourceData data in manifest.Resources)
 		{
-			ResourceData locatedData = data with { Location = _locationType };
+			ResourceData locatedData = data with
+			{
+				Location = _locationType,
+				RelativePath = $"{_sourcePath}{data.RelativePath}",
+			};
 
 			if (!_dstData.TryAdd(data.ResourceKey, locatedData))
 			{
