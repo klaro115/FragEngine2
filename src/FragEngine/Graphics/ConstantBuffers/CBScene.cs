@@ -25,6 +25,8 @@ public struct CBScene
 	#endregion
 	#region Constants
 
+	public const string resourceName = nameof(CBScene);
+
 	public const int byteSize =
 		3 * 4 * sizeof(float) +
 		4 * sizeof(uint);	// = 64 bytes
@@ -57,6 +59,11 @@ public struct CBScene
 	/// Gets the GPU buffer description for this constant buffer type.
 	/// </summary>
 	public static BufferDescription BufferDesc => new(packedByteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
+
+	/// <summary>
+	/// Gets the resource layout for this constant buffer type.
+	/// </summary>
+	public static ResourceLayoutElementDescription ResourceLayoutElementDesc => new(resourceName, ResourceKind.UniformBuffer, ShaderStages.Vertex | ShaderStages.Fragment);
 
 	#endregion
 }

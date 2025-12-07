@@ -128,21 +128,21 @@ public sealed class MeshSurface(GraphicsService _graphicsService, ILogger _logge
 		}
 
 		// Create, resize, and update geometry buffers:
-		UpdateOrResizeBuffer(_data.VerticesBasic, BasicVertex.byteSize, ref bufVerticesBasic, _cmdList);
+		UpdateOrResizeBuffer(_data.VerticesBasic, BasicVertex.byteSize, BufferUsage.VertexBuffer, ref bufVerticesBasic, _cmdList);
 
 		if (_data.HasExtendedVertexData)
 		{
-			UpdateOrResizeBuffer(_data.VerticesExt!, ExtendedVertex.byteSize, ref bufVerticesExt, _cmdList);
+			UpdateOrResizeBuffer(_data.VerticesExt!, ExtendedVertex.byteSize, BufferUsage.VertexBuffer, ref bufVerticesExt, _cmdList);
 		}
 
 		bool use16BitIndices = _data.IndexFormat == IndexFormat.UInt16;
 		if (use16BitIndices)
 		{
-			UpdateOrResizeBuffer(_data.Indices16!, sizeof(ushort), ref bufIndices, _cmdList);
+			UpdateOrResizeBuffer(_data.Indices16!, sizeof(ushort), BufferUsage.IndexBuffer, ref bufIndices, _cmdList);
 		}
 		else
 		{
-			UpdateOrResizeBuffer(_data.Indices32!, sizeof(int), ref bufIndices, _cmdList);
+			UpdateOrResizeBuffer(_data.Indices32!, sizeof(int), BufferUsage.IndexBuffer, ref bufIndices, _cmdList);
 		}
 
 		// Update geometry counts:
@@ -154,7 +154,7 @@ public sealed class MeshSurface(GraphicsService _graphicsService, ILogger _logge
 		return true;
 	}
 
-	private bool UpdateOrResizeBuffer<T>(in T[] _elements, int _elementByteSize, ref DeviceBuffer? _buffer, CommandList? _cmdList) where T : unmanaged
+	private bool UpdateOrResizeBuffer<T>(in T[] _elements, int _elementByteSize, BufferUsage _usage, ref DeviceBuffer? _buffer, CommandList? _cmdList) where T : unmanaged
 	{
 		int requiredTotalByteSize = _elementByteSize * _elements.Length;
 		if (_buffer is not null && !_buffer.IsDisposed && _buffer.SizeInBytes >= requiredTotalByteSize)
@@ -166,7 +166,7 @@ public sealed class MeshSurface(GraphicsService _graphicsService, ILogger _logge
 
 		try
 		{
-			BufferDescription desc = new((uint)requiredTotalByteSize, BufferUsage.VertexBuffer);
+			BufferDescription desc = new((uint)requiredTotalByteSize, _usage);
 
 			_buffer = graphicsService.ResourceFactory.CreateBuffer(ref desc);
 		}

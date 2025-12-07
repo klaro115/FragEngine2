@@ -16,11 +16,13 @@ public struct CBObject
 	#endregion
 	#region Constants
 
+	public const string resourceName = nameof(CBObject);
+
 	public const int byteSize =
 		16 * sizeof(float) +
 		2 * 3 * sizeof(float);	// = 88 bytes
 
-	public const int packedByteSize = 88;
+	public const int packedByteSize = 96;
 
 	#endregion
 	#region Properties
@@ -37,6 +39,11 @@ public struct CBObject
 	/// Gets the GPU buffer description for this constant buffer type.
 	/// </summary>
 	public static BufferDescription BufferDesc => new(packedByteSize, BufferUsage.UniformBuffer | BufferUsage.Dynamic);
+
+	/// <summary>
+	/// Gets the resource layout for this constant buffer type.
+	/// </summary>
+	public static ResourceLayoutElementDescription ResourceLayoutElementDesc => new(resourceName, ResourceKind.UniformBuffer, ShaderStages.Vertex | ShaderStages.Fragment);
 
 	#endregion
 }

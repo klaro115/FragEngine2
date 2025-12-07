@@ -10,7 +10,6 @@ using FragEngine.Graphics.Contexts;
 using FragEngine.Graphics.Geometry;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
-using FragEngine.Resources;
 using FragEngine.Scenes;
 using Microsoft.Extensions.DependencyInjection;
 using System.Numerics;
@@ -31,15 +30,19 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
 	private InputKeyState switchMonitorKeyState = InputKeyState.Invalid;
 
-	private CBScene cbSceneData;
+	private CBScene cbSceneData = CBScene.Default;
+	private CBObject cbObjectCube = CBObject.Default;
 
 	private Camera? camera = null;
 	private CommandList? cmdList = null;
 	private DeviceBuffer? bufCbScene = null;
+	private DeviceBuffer? bufCbObjectCube = null;
 
 	private MeshSurface? cubeMesh = null;
 	private Shader? shaderVertex = null;
 	private Shader? shaderPixel = null;
+	private ResourceLayout? cubeResLayout = null;
+	private Pipeline? cubePipeline = null;
 
 	#endregion
 	#region Properties
@@ -220,7 +223,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		try
 		{
 			bufCbScene ??= engine.Graphics.ResourceFactory.CreateBuffer(CBScene.BufferDesc);
+			bufCbScene.Name = CBScene.resourceName;
+
 			cmdList ??= engine.Graphics.ResourceFactory.CreateCommandList();
+			cmdList.Name = "CmdList";
 		}
 		catch (Exception ex)
 		{
@@ -233,14 +239,22 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private void DisposeScene()
 	{
+		cubePipeline?.Dispose();
+		cubeResLayout?.Dispose();
 		cubeMesh?.Dispose();
+		bufCbObjectCube?.Dispose();
 
+		cubePipeline = null;
+		cubeResLayout = null;
 		cubeMesh = null;
+		bufCbObjectCube = null;
 	}
 
 	private bool CreateScene()
 	{
 		PrimitivesFactory factory = engine.Provider.GetRequiredService<PrimitivesFactory>();
+		GraphicsResourceService graphicsResources = engine.Provider.GetRequiredService<GraphicsResourceService>();
+		GraphicsService graphicsService = engine.Graphics;
 
 		if (!factory.CreateCubeMesh(Vector3.One, out cubeMesh, _createExtendedVertexData: false))
 		{
@@ -248,7 +262,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			return false;
 		}
 
-		GraphicsResourceService graphicsResources = engine.Provider.GetRequiredService<GraphicsResourceService>();
 		if ((shaderVertex = graphicsResources.VSFallback) is null ||
 			(shaderPixel = graphicsResources.PSFallback) is null)
 		{
@@ -256,7 +269,61 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			return false;
 		}
 
-		//...
+		ResourceLayoutDescription resLayoutDesc = new(
+			CBGraphics.ResourceLayoutElementDesc,
+			CBScene.ResourceLayoutElementDesc,
+			CBCamera.ResourceLayoutElementDesc,
+			CBObject.ResourceLayoutElementDesc);
+
+		VertexLayoutDescription[] vertexLayoutDescs = cubeMesh.HasExtendedVertexData
+			? [
+				BasicVertex.LayoutDescription,
+				ExtendedVertex.LayoutDescription,
+			]
+			: [
+				BasicVertex.LayoutDescription,
+			];
+
+		ShaderSetDescription shaderDesc = new(
+			vertexLayoutDescs,
+			[
+				shaderVertex,
+				shaderPixel,
+			]);
+
+		try
+		{
+			cubeResLayout = graphicsService.ResourceFactory.CreateResourceLayout(ref resLayoutDesc);
+			cubeResLayout.Name = "ResLayout_Cube";
+		}
+		catch (Exception ex)
+		{
+			engine.Logger.LogException("Failed to create cube resource layout!", ex, LogEntrySeverity.Critical);
+			return false;
+		}
+
+		GraphicsPipelineDescription pipelineDesc = new(
+			BlendStateDescription.SingleOverrideBlend,
+			DepthStencilStateDescription.DepthOnlyLessEqual,
+			RasterizerStateDescription.Default,
+			PrimitiveTopology.TriangleList,
+			shaderDesc,
+			cubeResLayout,
+			camera!.OutputSettings.CreateBasicOutputDescription());
+
+		try
+		{
+			cubePipeline = graphicsService.ResourceFactory.CreateGraphicsPipeline(ref pipelineDesc);
+			cubePipeline.Name = "Pipeline_Cube";
+
+			bufCbObjectCube ??= engine.Graphics.ResourceFactory.CreateBuffer(CBObject.BufferDesc);
+			bufCbObjectCube.Name = $"{CBObject.resourceName}_Cube";
+		}
+		catch (Exception ex)
+		{
+			engine.Logger.LogException("Failed to create cube pipeline and constant buffers!", ex, LogEntrySeverity.Critical);
+			return false;
+		}
 
 		return true;
 	}
@@ -290,7 +357,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		bool success = true;
 
-
 		cmdList.UpdateBuffer(bufCbScene, 0, ref cbSceneData);
 
 		if (!camera!.BeginFrame(in sceneCtx, 0u))
@@ -301,9 +367,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		success &= camera.BeginPass(in sceneCtx, cmdList!, 0u, out CameraPassContext? _);
 
-
-		//TODO [later]: Draw stuff.
-
+		success &= DrawScene();
 
 		camera.EndPass();
 		camera.EndFrame();
@@ -316,6 +380,30 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		}
 
 		return success;
+	}
+
+	private bool DrawScene()
+	{
+		if (cmdList is null || cubeMesh is null)
+		{
+			return true;
+		}
+
+		cmdList.UpdateBuffer(bufCbObjectCube, 0, ref cbObjectCube);
+
+		cmdList.SetVertexBuffer(0, cubeMesh.BufVerticesBasic);
+		if (cubeMesh.HasExtendedVertexData)
+		{
+			cmdList.SetVertexBuffer(1, cubeMesh.BufVerticesExt);
+		}
+
+		cmdList.SetIndexBuffer(cubeMesh.BufIndices, cubeMesh.IndexFormat);
+
+		cmdList.SetPipeline(cubePipeline);
+
+		cmdList.DrawIndexed((uint)cubeMesh.IndexCount);
+
+		return true;
 	}
 
 	#endregion
