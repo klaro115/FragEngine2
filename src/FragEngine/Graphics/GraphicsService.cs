@@ -11,6 +11,7 @@ using FragEngine.Graphics.Settings;
 using FragEngine.Helpers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -26,6 +27,7 @@ namespace FragEngine.Graphics;
 /// Draw calls are written to command lists and committed to this service.
 /// Committed lists are executed and the output rendered to screen once per update cycle.
 /// </summary>
+///	<param name="_serviceProvider">The engine's service provider.</param>
 /// <param name="_logger">The engine's logging service.</param>
 /// <param name="_windowService">The engine's window management service.</param>
 /// <param name="_platformService">The engine's platform info service.</param>
@@ -33,6 +35,7 @@ namespace FragEngine.Graphics;
 /// <param name="_settingsService">The engine's settings helper service.</param>
 /// <param name="_config">The main engine configuration.</param>
 public abstract class GraphicsService(
+	IServiceProvider _serviceProvider,
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
@@ -65,6 +68,7 @@ public abstract class GraphicsService(
 	#endregion
 	#region Fields
 
+	protected readonly IServiceProvider serviceProvider = _serviceProvider;
 	protected readonly ILogger logger = _logger;
 	protected readonly PlatformService platformService = _platformService;
 	protected readonly WindowService windowService = _windowService;
@@ -75,6 +79,7 @@ public abstract class GraphicsService(
 
 	private bool isInitialized = false;
 
+	private GraphicsResourceService? graphicsResourceService = null;
 	private GraphicsSettings? settings = null;
 
 	protected ConcurrentQueue<(CommandList CmdList, int Priority)> committedCommandLists = new();
@@ -134,6 +139,14 @@ public abstract class GraphicsService(
 		get => settings ??= GetGraphicsSettings();
 		set => SetGraphicsSettings(value);
 	}
+
+	/// <summary>
+	/// Gets the engine's graphics resource management service. This holds standard and fallback resources.
+	/// </summary>
+	/// <remarks>
+	/// NOTE: Run-time use only! Do not access this property in the graphics service's constructor, it would crash the dependency injection system.
+	/// </remarks>
+	protected GraphicsResourceService GraphicsResourceService => graphicsResourceService ??= serviceProvider.GetRequiredService<GraphicsResourceService>();
 
 	/// <summary>
 	/// Gets flags of all GPU features supported by the graphics device.
@@ -433,6 +446,8 @@ public abstract class GraphicsService(
 	/// the resources referenced therein, as they may be subject to change in-between frames.</param>
 	/// <returns>True if the frame was started successfully, false otherwise.</returns>
 	/// <exception cref="ArgumentNullException">Command list may not be null.</exception>
+	/// <exception cref="Exception">Failure to get or create resource layouts.</exception>
+	/// <exception cref="InvalidOperationException">Service provider could not find service <see cref="GraphicsResourceService"/>.</exception>
 	/// <exception cref="ObjectDisposedException">Command list has already been disposed.</exception>
 	public virtual bool BeginFrame(CommandList _firstCmdList, [NotNullWhen(true)] out GraphicsContext? _outGraphicsCtx)
 	{
@@ -456,12 +471,24 @@ public abstract class GraphicsService(
 
 		_firstCmdList.UpdateBuffer(bufCbGraphics, 0, ref cbGraphicsData);
 
+		// Get or create camera resource layout:
+		ResourceLayout resLayoutCamera = GraphicsResourceService.ResLayoutCamera;
+
+		// Generate a checksum that tells us if any context resources have changed:
+		int checksum =
+			bufCbGraphics.GetHashCode() ^
+			resLayoutCamera.GetHashCode();
+			//...
+
 		// Assemble context object:
 		_outGraphicsCtx = new()
 		{
 			Graphics = this,
+			Checksum = (ulong)Math.Abs(checksum),
+
 			CbGraphics = cbGraphicsData,
 			BufCbGraphics = bufCbGraphics,
+			ResLayoutCamera = resLayoutCamera,
 			//...
 		};
 		return true;

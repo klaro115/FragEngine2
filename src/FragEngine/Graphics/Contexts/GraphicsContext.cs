@@ -12,14 +12,18 @@ namespace FragEngine.Graphics.Contexts;
 /// to keep any references to this object or the resources referenced therein, as they may
 /// be subject to change in-between frames.
 /// </remarks>
-public sealed class GraphicsContext : IValidated
+public sealed class GraphicsContext : IValidated, IChecksumVersioned
 {
-	#region Properties
+	#region Properties General
 
 	/// <summary>
 	/// The engine's graphics service.
 	/// </summary>
 	public required GraphicsService Graphics { get; init; }
+	public required ulong Checksum { get; init; }
+
+	#endregion
+	#region Properties Resources
 
 	/// <summary>
 	/// Contents of the graphics constant buffer 'CBGraphics'.
@@ -29,6 +33,11 @@ public sealed class GraphicsContext : IValidated
 	/// A constant buffer containing engine-wide graphics-related information and settings.
 	/// </summary>
 	public required DeviceBuffer BufCbGraphics { get; init; }
+
+	/// <summary>
+	/// The camera's resource layout.
+	/// </summary>
+	public required ResourceLayout ResLayoutCamera { get; init; }
 
 	#endregion
 	#region Methods

@@ -16,16 +16,23 @@ namespace FragEngine.Graphics.Dx11;
 /// <summary>
 /// Graphics service implementation for the Direct3D 11 graphics API.
 /// </summary>
-/// <param name="_logger">The logger service.</param>
+///	<param name="_serviceProvider">The engine's service provider.</param>
+/// <param name="_logger">The engine's logging service.</param>
+/// <param name="_windowService">The engine's window management service.</param>
+/// <param name="_platformService">The engine's platform info service.</param>
+/// <param name="_timeService">The engine's time management service.</param>
+/// <param name="_settingsService">The engine's settings helper service.</param>
+/// <param name="_config">The main engine configuration.</param>
 [SupportedOSPlatform("windows")]
 internal sealed class Dx11GraphicsService(
+	IServiceProvider _serviceProvider,
 	ILogger _logger,
 	PlatformService _platformService,
 	WindowService _windowService,
 	TimeService _timeService,
 	SettingsService _settingsService,
 	EngineConfig _config)
-	: GraphicsService(_logger, _platformService, _windowService, _timeService, _settingsService, _config)
+	: GraphicsService(_serviceProvider, _logger, _platformService, _windowService, _timeService, _settingsService, _config)
 {
 	#region Methods
 

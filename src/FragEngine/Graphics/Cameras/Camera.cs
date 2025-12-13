@@ -81,8 +81,11 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 
 	private CameraTargets? ownTarget = null;
 
+	private ResourceSet? resSetCamera = null;
+
 	private ulong projectionChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 	private ulong ownTargetChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
+	private ulong sceneCtxChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 
 	private static int initializedCameraCount = 0;
 
@@ -248,9 +251,10 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 
 		IsDisposed = true;
 
+		resSetCamera?.Dispose();
+
 		bufCbCamera?.Dispose();
 		ownTarget?.Dispose();
-
 	}
 
 	/// <summary>
@@ -260,6 +264,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 	{
 		projectionChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 		ownTargetChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
+		sceneCtxChecksum = CameraConstants.UNINITIALIZED_CHECKSUM;
 	}
 
 	/// <summary>
@@ -271,7 +276,9 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 	/// with a call to '<see cref="BeginPass(in SceneContext, CommandList, uint, out CameraPassContext?)"/>', and
 	/// ending with a call to '<see cref="EndPass"/>'. Draw calls to render objects may happen within a camera pass.
 	/// </remarks>
-	/// <param name="_sceneCtx">A context object with scene-wide GPU resources and settings.</param>
+	/// <param name="_sceneCtx">A context object with scene-wide GPU resources and settings.<para/>
+	/// NOTE: A new instance is created each time <see cref="BeginFrame(in SceneContext, uint)"/> is called! Do not
+	/// persist this value in consuming renderers.</param>
 	/// <param name="_cameraIndex">The index of this camera. This index may be used to map camera-specific resources
 	/// and is exposed to shaders via the pass-specific '<see cref="CBCamera"/>' constant buffer.</param>
 	/// <returns>True if a new frame was started successfully, false otherwise.</returns>
@@ -326,6 +333,23 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 		// Recalculate viewport frustum's bounding box:
 		_ = GetBoundingBox();
 
+		// Update resource set:
+		if (resSetCamera is null || resSetCamera.IsDisposed || sceneCtxChecksum != _sceneCtx.Checksum)
+		{
+			resSetCamera?.Dispose();
+
+			ResourceSetDescription resSetDesc = new(
+				_sceneCtx.GraphicsCtx.ResLayoutCamera,
+				_sceneCtx.GraphicsCtx.BufCbGraphics,
+				_sceneCtx.BufCbScene,
+				bufCbCamera);
+
+			resSetCamera = graphicsService.ResourceFactory.CreateResourceSet(ref resSetDesc);
+			resSetCamera.Name = "ResSetCamera";
+
+			sceneCtxChecksum = _sceneCtx.Checksum;
+		}
+
 		// Check if any previously assigned override targets are still alive:
 		if (OverrideTarget is not null && OverrideTarget.IsDisposed)
 		{
@@ -379,11 +403,13 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 
 		if (!IsDrawingFrame)
 		{
+			logger.LogError("Cannot begin camera pass! Begin a new frame before starting camera passes!");
 			_outCameraPassCtx = null;
 			return false;
 		}
 		if (IsDrawingPass)
 		{
+			logger.LogError("Camera is already in the process of drawing a pass! End the current pass before beginning a new one!");
 			_outCameraPassCtx = null;
 			return false;
 		}
@@ -418,12 +444,23 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 		CheckAndClearRenderTargets(_cmdList, _passIndex);
 
 		// Assemble camera pass context:
+		ulong passChecksum =
+			_sceneCtx.Checksum ^
+			(ulong)Math.Abs(
+				resSetCamera!.GetHashCode() ^
+				bufCbCamera.GetHashCode());
+
 		_outCameraPassCtx = new(_sceneCtx)
 		{
+			Checksum = passChecksum,
+
 			CmdList = _cmdList,
+			ResSetCamera = resSetCamera,
 			CbCamera = cbCameraData,
-			BufCbCamera = bufCbCamera!,
+			BufCbCamera = bufCbCamera,
+
 			ViewportFrustumBounds = viewportFrustumBounds,
+
 			//...
 		};
 

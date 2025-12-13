@@ -1,5 +1,6 @@
 ﻿using FragEngine.EngineCore.Config;
 using FragEngine.Extensions.Veldrid;
+using FragEngine.Graphics.Cameras;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources;
@@ -42,12 +43,22 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	private Shader? vsFallback = null;
 	private Shader? psFallback = null;
 
+	// Resource layouts:
+	private ResourceLayout? resLayoutCamera = null;
+
 	private readonly Lock textureLockObj = new();
+
+	#endregion
+	#region Constants
+
+	private readonly ResourceLayoutDescription resLayoutCameraDesc = CameraConstants.ResLayoutCameraDesc;
 
 	#endregion
 	#region Properties
 
 	public bool IsDisposed { get; private set; } = false;
+
+	// TEXTURES:
 
 	/// <summary>
 	/// A placeholder texture for when another texture is missing.
@@ -76,6 +87,8 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	/// </summary>
 	public Texture TexTransparent => GetOrCreateDefaultTexture(ref texTransparent, new RgbaByte(0, 0, 0, 0));
 
+	// SHADERS:
+
 	/// <summary>
 	/// Gets a fallback vertex shader.
 	/// On first use, this shader is loaded from the engine's embedded resource files.
@@ -83,15 +96,24 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 	/// <remarks>
 	/// Note: This vertex shader only uses basic vertex data, and produces basic vertex output.
 	/// </remarks>
-	public Shader VSFallback => GetOrLoadFallbackShader(ref vsFallback, ShaderStages.Vertex, "MainVertex");
+	public Shader VSFallback => GetOrLoadFallbackShader(ref vsFallback, ShaderStages.Vertex);
 
 	/// <summary>
-	/// Gets a fallback pixel shader. On first use, this shader is loaded from the engine's embedded resource files.
+	/// Gets a fallback pixel shader.
+	/// On first use, this shader is loaded from the engine's embedded resource files.
 	/// </summary>
-	/// /// <remarks>
-	/// Note: This vertex shader only uses basic vertex output, and writes out color and depth.
+	/// <remarks>
+	/// Note: This pixel shader only uses basic vertex output, and writes out color and depth.
 	/// </remarks>
-	public Shader PSFallback => GetOrLoadFallbackShader(ref psFallback, ShaderStages.Fragment, "MainPixel");
+	public Shader PSFallback => GetOrLoadFallbackShader(ref psFallback, ShaderStages.Fragment);
+
+	// RESSOURCE LAYOUTS:
+
+	/// <summary>
+	/// Gets the standard resource layout for camera-wide resources.
+	/// On first use, this layout is created accroding to the contents of '<see cref="CameraConstants.ResLayoutCameraDesc"/>'.
+	/// </summary>
+	public ResourceLayout ResLayoutCamera => GetOrCreateResourceLayout(ref resLayoutCamera, in resLayoutCameraDesc, "Camera");
 
 	#endregion
 	#region Constructors
@@ -159,6 +181,9 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		// Dispose fallback shaders:
 		vsFallback?.Dispose();
 		psFallback?.Dispose();
+
+		// Dispose resource layouts:
+		resLayoutCamera?.Dispose();
 		//...
 	}
 
@@ -235,7 +260,7 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		}
 	}
 
-	private Shader GetOrLoadFallbackShader(ref Shader? _shader, ShaderStages _stage, string _entryPoint)
+	private Shader GetOrLoadFallbackShader(ref Shader? _shader, ShaderStages _stage)
 	{
 		// If a shader is already loaded and assigned, return that:
 		if (_shader is not null && !_shader.IsDisposed)
@@ -248,7 +273,6 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 		{
 			throw new ArgumentException("Cannot load fallback shader for invalid shader stage!", nameof(_stage));
 		}
-		ArgumentException.ThrowIfNullOrWhiteSpace(_entryPoint);
 
 		// Get or load shader asset through the resource service:
 		string resourceKey = _stage.GetFallbackShaderResourceKey();
@@ -266,6 +290,28 @@ public sealed class GraphicsResourceService : IExtendedDisposable
 
 		// Return loaded shader:
 		return _shader;
+	}
+
+	private ResourceLayout GetOrCreateResourceLayout(ref ResourceLayout? _resLayout, in ResourceLayoutDescription _resLayoutDesc, string _resLayoutName)
+	{
+		// If a layout is already assigned, return that:
+		if (_resLayout is not null && !_resLayout.IsDisposed)
+		{
+			return _resLayout;
+		}
+
+		// Create the resource set:
+		try
+		{
+			_resLayout = graphicsService.ResourceFactory.CreateResourceLayout(_resLayoutDesc);
+			_resLayout.Name = $"ResLayout_{_resLayoutName}";
+			return _resLayout;
+		}
+		catch (Exception ex)
+		{
+			logger.LogException($"Failed to create standard resource layout!", ex);
+			return null!;
+		}
 	}
 
 	#endregion

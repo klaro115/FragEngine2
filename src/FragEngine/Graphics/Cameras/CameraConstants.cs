@@ -1,4 +1,7 @@
-﻿namespace FragEngine.Graphics.Cameras;
+﻿using FragEngine.Graphics.ConstantBuffers;
+using Veldrid;
+
+namespace FragEngine.Graphics.Cameras;
 
 /// <summary>
 /// Constants used by the <see cref="Camera"/> class and related types.
@@ -59,6 +62,26 @@ public static class CameraConstants
 	/// The maximum supported resolution of output render targets, in pixels.
 	/// </summary>
 	public const uint maxOutputResolution = 8192;
+
+	#endregion
+	#region Constants Resources
+
+	/// <summary>
+	/// Gets a description for the camera's resource set layout.
+	/// </summary>
+	/// <remarks>
+	/// <b>Layout contents:</b>
+	/// <list type="bullet">
+	///		<item><see cref="CBGraphics"/>: Constant buffer with engine-wide graphics settings.</item>
+	///		<item><see cref="CBScene"/>: Constant buffer with scene-wide graphics settings.</item>
+	///		<item><see cref="CBCamera"/>: Constant buffer with graphics settings specific to a camera pass.</item>
+	/// </list>
+	/// </remarks>
+	public static ResourceLayoutDescription ResLayoutCameraDesc => new(
+		new ResourceLayoutElementDescription(CBGraphics.resourceName, ResourceKind.UniformBuffer, (ShaderStages)0b111111, ResourceLayoutElementOptions.None),
+		new ResourceLayoutElementDescription(CBScene.resourceName, ResourceKind.UniformBuffer, (ShaderStages)0b111111, ResourceLayoutElementOptions.None),
+		new ResourceLayoutElementDescription(CBCamera.resourceName, ResourceKind.UniformBuffer, ShaderStages.Fragment, ResourceLayoutElementOptions.None));
+		//...
 
 	#endregion
 }

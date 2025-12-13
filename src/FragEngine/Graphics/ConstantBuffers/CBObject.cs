@@ -32,6 +32,9 @@ public struct CBObject
 	/// </summary>
 	public static CBObject Default => new()
 	{
+		mtxWorld = Matrix4x4.Identity,
+		minBounds = -Vector3.One,
+		maxBounds = Vector3.One,
 		//...
 	};
 
