@@ -23,6 +23,18 @@
 			"SubType": 5,
 			"OSRestriction": null,
 			"GraphicsRestriction": 0
+		},
+		{
+			"ResourceKey": "VS_Basic",
+			"FallbackResourceKey": null,
+			"RelativePath": "FragEngine.Embedded.Shaders.VS_Basic.hlsl",
+			"DataOffset": 0,
+			"DataSize": 682,
+			"FormatKey": ".hlsl",
+			"Type": 14,
+			"SubType": 1,
+			"OSRestriction": null,
+			"GraphicsRestriction": 0
 		}
 	],
 	"OSRestriction": null,

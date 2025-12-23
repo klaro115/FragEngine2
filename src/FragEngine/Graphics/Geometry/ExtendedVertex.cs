@@ -58,6 +58,16 @@ public record struct ExtendedVertex
 		new VertexElementDescription(nameof(uv2), VertexElementFormat.Float2, VertexElementSemantic.TextureCoordinate));
 
 	#endregion
+	#region Constructors
+
+	public ExtendedVertex(Vector3 _tangent, Vector3 _binormal, Vector2 _uv2)
+	{
+		tangent = _tangent;
+		binormal = _binormal;
+		uv2 = _uv2;
+	}
+
+	#endregion
 	#region Methods
 
 	public readonly override string ToString() => $"(Tangents: {tangent}; Binormals: {binormal}, UV2: {uv2})";
