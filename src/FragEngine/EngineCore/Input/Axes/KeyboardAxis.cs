@@ -154,11 +154,6 @@ public sealed class KeyboardAxis : InputAxis
 				CurrentValue = rawCurrentValue;
 			}
 		}
-
-		if (positveKey == Key.D)
-		{
-			Console.WriteLine($"Keyboard Axis ({negativeKey}/{positveKey}), Value={CurrentValue:0.000}, Raw={rawCurrentValue:0.000}");
-		}
 	}
 
 	internal override void ResetState()
