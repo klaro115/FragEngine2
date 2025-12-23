@@ -74,6 +74,15 @@ public sealed class TimeService : IExtendedDisposable
 	public TimeSpan LevelTime => ingameTimeStopwatch.Elapsed - levelStartIngameTimestamp;
 
 	/// <summary>
+	/// Gets the duration of computation of the last frame.
+	/// </summary>
+	/// <remarks>
+	/// This will be different from <see cref="AppDeltaTime"/> if frame rate is capped,
+	/// as it only accounts for the actual computation time of the frame, where regular
+	/// delta time also includes thread sleep time in-between frames.
+	/// </remarks>
+	public TimeSpan ComputeDeltaTime { get; private set; } = TimeSpan.Zero;
+	/// <summary>
 	/// Gets the duration of the last frame.
 	/// </summary>
 	public TimeSpan AppDeltaTime { get; private set; } = TimeSpan.Zero;
@@ -310,10 +319,23 @@ public sealed class TimeService : IExtendedDisposable
 		// Increment global frame index:
 		CurrentFrameIndex++;
 
-		// Update app delta times:
+		// Update total frame computation time:
 		TimeSpan currentFrameEndTime = applicationTimeStopwatch.Elapsed;
 
-		AppDeltaTime = currentFrameEndTime - CurrentFrameStartTime;
+		ComputeDeltaTime = currentFrameEndTime - CurrentFrameStartTime;
+
+		// Calculate thread sleep time:
+		if (ComputeDeltaTime < TargetDeltaTime)
+		{
+			_outFrameSleepTime = TargetDeltaTime - ComputeDeltaTime;
+		}
+		else
+		{
+			_outFrameSleepTime = TimeSpan.Zero;
+		}
+
+		// Calculate the actual frame length delta time:
+		AppDeltaTime = ComputeDeltaTime + _outFrameSleepTime;
 		AppDeltaTimeSeconds = (float)AppDeltaTime.TotalSeconds;
 
 		// Update ingame delta times:
@@ -341,16 +363,6 @@ public sealed class TimeService : IExtendedDisposable
 		}
 		averageFrameTime /= frameTimeBuffer.Length;
 		CurrentFrameRate = 1.0f / (float)averageFrameTime.TotalSeconds;
-
-		// Calculate thread sleep time:
-		if (AppDeltaTime < TargetDeltaTime)
-		{
-			_outFrameSleepTime = TargetDeltaTime - AppDeltaTime;
-		}
-		else
-		{
-			_outFrameSleepTime = TimeSpan.Zero;
-		}
 
 		semaphore.Release();
 		return true;
