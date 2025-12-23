@@ -94,5 +94,7 @@ public sealed class InputKeyState
 		return EventType != InputKeyEventType.Unchanged;
 	}
 
+	public override string ToString() => $"Key state ({key}), IsPressed={IsPressed}, Event={EventType}";
+
 	#endregion
 }

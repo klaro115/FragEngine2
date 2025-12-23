@@ -81,6 +81,15 @@ public abstract class InputAxis(string _name)
 	/// <param name="_deltatime">The duration of the last frame, in seconds.</param>
 	internal abstract void Update(InputSnapshot? _snapshot, float _deltatime);
 
+	/// <summary>
+	/// Resets all axis values to a neutral position.
+	/// </summary>
+	internal virtual void ResetState()
+	{
+		PreviousValue = 0;
+		CurrentValue = 0;
+	}
+
 	#endregion
 	#region Methods Static
 

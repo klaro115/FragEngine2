@@ -122,10 +122,6 @@ public sealed class InputService
 
 		if (snapshot is null || snapshot.KeyEvents.Count == 0)
 		{
-			foreach (InputKeyState key in keyStates)
-			{
-				key.UpdateState(false, versionIdx);
-			}
 			return true;
 		}
 
@@ -134,15 +130,7 @@ public sealed class InputService
 			int keyIdx = (int)keyEvent.Key;
 			InputKeyState keyState = keyStates[keyIdx];
 
-			if (keyState.UpdateState(keyEvent.Down, versionIdx))
-			{
-				keyEvents.TryAdd(keyState.key, keyState.EventType);
-			}
-		}
-
-		foreach (InputKeyState keyState in keyStates)
-		{
-			if (keyState.VersionIdx != versionIdx && keyState.UpdateState(false, versionIdx))
+			if (!keyEvent.Repeat && keyState.UpdateState(keyEvent.Down, versionIdx))
 			{
 				keyEvents.TryAdd(keyState.key, keyState.EventType);
 			}
@@ -159,6 +147,24 @@ public sealed class InputService
 		}
 
 		return true;
+	}
+
+	/// <summary>
+	/// Reset all button press states, and reset all input axes to neutral.
+	/// </summary>
+	public void ResetAllInputStates()
+	{
+		versionIdx++;
+
+		foreach (InputKeyState keyState in keyStates)
+		{
+			keyState.UpdateState(false, versionIdx);
+		}
+		foreach ((string _, InputAxis axis) in axes)
+		{
+			axis.ResetState();
+		}
+		keyEvents.Clear();
 	}
 
 	#endregion

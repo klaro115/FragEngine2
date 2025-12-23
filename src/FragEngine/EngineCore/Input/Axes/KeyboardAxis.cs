@@ -8,17 +8,17 @@ namespace FragEngine.EngineCore.Input.Axes;
 /// positive button make up the axis. Values are discrete by default, but linear interpolation
 /// is supported as a form of temporal smoothing.
 /// </summary>
-internal sealed class KeyboardAxis : InputAxis
+public sealed class KeyboardAxis : InputAxis
 {
 	#region Fields
 
 	public readonly Key negativeKey;
 	public readonly Key positveKey;
 
-	private InputKeyState negativeState;
-	private InputKeyState positiveState;
+	private readonly InputKeyState negativeState;
+	private readonly InputKeyState positiveState;
 
-	private bool useSnapshot;
+	private readonly bool useSnapshot;
 	private InputAxisType type = InputAxisType.Discrete;
 
 	private float interpolationRate = 3.0f;
@@ -99,7 +99,7 @@ internal sealed class KeyboardAxis : InputAxis
 		{
 			int eventCount = 0;
 
-			for (int i = _snapshot.KeyEvents.Count; i >= 0; i--)
+			for (int i = _snapshot.KeyEvents.Count - 1; i >= 0; i--)
 			{
 				Key key = _snapshot.KeyEvents[i].Key;
 				if (key == negativeKey)
@@ -128,22 +128,24 @@ internal sealed class KeyboardAxis : InputAxis
 			rawCurrentValue = targetValue;
 			CurrentValue = targetValue;
 		}
-		// In interpolated mode, smmothly transition to target value:
+		// In interpolated mode, smoothly transition to target value:
 		else
 		{
-			float k = interpolationRate * _deltatime;
-			rawCurrentValue = (1.0f - k) * rawCurrentValue + k * targetValue;
+			float maxChange = interpolationRate * _deltatime;
+			float targetDiff = targetValue - rawCurrentValue;
+			float change = Math.Clamp(targetDiff, -maxChange, maxChange);
+			rawCurrentValue = Math.Clamp(rawCurrentValue + change, -1, 1);
 
 			// Snap to maximum value when within 0.05% of it:
 			if (rawCurrentValue >= 0.995f)
 			{
 				CurrentValue = 1;
 			}
-			else if (CurrentValue <= -0.995f)
+			else if (rawCurrentValue <= -0.995f)
 			{
 				CurrentValue = -1;
 			}
-			else if (Math.Abs(CurrentValue) < DeadZone)
+			else if (Math.Abs(rawCurrentValue) < DeadZone)
 			{
 				CurrentValue = 0;
 			}
@@ -152,7 +154,21 @@ internal sealed class KeyboardAxis : InputAxis
 				CurrentValue = rawCurrentValue;
 			}
 		}
+
+		if (positveKey == Key.D)
+		{
+			Console.WriteLine($"Keyboard Axis ({negativeKey}/{positveKey}), Value={CurrentValue:0.000}, Raw={rawCurrentValue:0.000}");
+		}
 	}
+
+	internal override void ResetState()
+	{
+		base.ResetState();
+
+		rawCurrentValue = 0;
+	}
+
+	public override string ToString() => $"Keyboard Axis ({negativeKey}/{positveKey}), Value={CurrentValue:0.000}";
 
 	#endregion
 }
