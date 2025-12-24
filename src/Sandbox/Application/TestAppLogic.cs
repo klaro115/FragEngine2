@@ -1,6 +1,7 @@
 ﻿using FragEngine.Application;
 using FragEngine.EngineCore;
 using FragEngine.EngineCore.Input;
+using FragEngine.EngineCore.Input.Axes;
 using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics;
@@ -8,10 +9,11 @@ using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
 using FragEngine.Graphics.Geometry;
+using FragEngine.Graphics.Renderers;
 using FragEngine.Interfaces;
 using FragEngine.Logging;
+using FragEngine.Resources;
 using FragEngine.Scenes;
-using Microsoft.Extensions.DependencyInjection;
 using System.Numerics;
 using Veldrid;
 
@@ -32,6 +34,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
 	private InputKeyState switchMonitorKeyState = InputKeyState.Invalid;
 
+	private KeyboardAxis axisHorizontal = (InputAxis.Invalid as KeyboardAxis)!;
+	private KeyboardAxis axisVertical = (InputAxis.Invalid as KeyboardAxis)!;
+	private InputKeyState testKeyState = InputKeyState.Invalid;
+
 	// SCENE & CAMERA:
 
 	private CBScene cbSceneData = CBScene.Default;
@@ -40,19 +46,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private CommandList? cmdList = null;
 	private DeviceBuffer? bufCbScene = null;
 
-	// CUBE:
-
-	private CBObject cbObjectCube = CBObject.Default;
-	private DeviceBuffer? bufCbObjectCube = null;
-
-	private MeshSurface? cubeMesh = null;
-	private Shader? shaderVertex = null;
-	private Shader? shaderPixel = null;
-	private ResourceSet? resSetCube = null;
-	private ResourceLayout? cubeResLayout = null;
-
-	private ulong cubePipelineChecksum = 0ul;
-	private Pipeline? cubePipeline = null;
+	private SimpleMeshRenderer? cubeRenderer = null;
 
 	#endregion
 	#region Properties
@@ -114,6 +108,13 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			escapeKeyState = engine.InputService.GetKeyState(Key.Escape);
 			fullscreenKeyState = engine.InputService.GetKeyState(Key.Tab);
 			switchMonitorKeyState = engine.InputService.GetKeyState(Key.KeypadMultiply);
+
+			axisHorizontal = (engine.InputService.GetInputAxis(InputServiceExt.AxisNameAD) as KeyboardAxis)!;
+			axisVertical = (engine.InputService.GetInputAxis(InputServiceExt.AxisNameSW) as KeyboardAxis)!;
+			axisHorizontal.ValuesAreDiscrete = false;
+			axisHorizontal.InterpolationRate = 1;
+
+			testKeyState = engine.InputService.GetKeyState(Key.D);
 
 			if (!CreateCamera())
 			{
@@ -224,7 +225,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		// Create camera instance:
 		//if (!CameraHelper.CreatePerspectiveCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 1, -5))), _attachToWindowHandle: mainWindow))
-		if (!CameraHelper.CreateOrthographicsCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 1, -5))), _attachToWindowHandle: mainWindow))
+		if (!CameraHelper.CreateOrthographicsCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 0, -1))), _attachToWindowHandle: mainWindow))
 		{
 			engine.Logger.LogError("Failed to create main camera!", LogEntrySeverity.Critical);
 			return false;
@@ -250,85 +251,66 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private void DisposeScene()
 	{
-		cubePipeline?.Dispose();
-		resSetCube?.Dispose();
-		cubeResLayout?.Dispose();
-		cubeMesh?.Dispose();
-		bufCbObjectCube?.Dispose();
-
-		cubePipeline = null;
-		resSetCube = null;
-		cubeResLayout = null;
-		cubeMesh = null;
-		bufCbObjectCube = null;
+		cubeRenderer?.Dispose();
+		cubeRenderer = null;
 	}
 
 	private bool CreateScene()
 	{
-		PrimitivesFactory factory = engine.Provider.GetRequiredService<PrimitivesFactory>();
-		GraphicsResourceService graphicsResources = engine.Provider.GetRequiredService<GraphicsResourceService>();
+		//PrimitivesFactory factory = engine.Provider.GetRequiredService<PrimitivesFactory>();
 		GraphicsService graphicsService = engine.Graphics;
+		ResourceService resourceService = engine.Resources;
 
 		// Create geometry:
+		MeshSurfaceData testData = new();
+		testData.SetVertices(
+			[
+				new(new(0, 0, 0), -Vector3.UnitZ, new(0, 0)),
+				new(new(1, 0, 0), -Vector3.UnitZ, new(1, 0)),
+				new(new(0, 1, 0), -Vector3.UnitZ, new(0, 1)),
+			],
+			[
+				new(Vector3.UnitY, Vector3.UnitX, new(0, 0)),
+				new(Vector3.UnitY, Vector3.UnitX, new(1, 0)),
+				new(Vector3.UnitY, Vector3.UnitX, new(0, 1)),
+			],
+			3,
+			engine.Logger);
+		testData.SetIndices16(
+			[
+				0, 1, 2,
+			],
+			3,
+			IndexFormat.UInt16,
+			engine.Logger);
+
+		MeshSurface cubeMesh = new(engine.Graphics, engine.Logger);
+		cubeMesh.SetData(in testData);
+
+		/*
 		if (!factory.CreateCubeMesh(Vector3.One, out cubeMesh, _createExtendedVertexData: false))
 		{
 			engine.Logger.LogError("Failed to create cube mesh!");
 			return false;
 		}
-
-		// Load shaders:
-		if ((shaderVertex = graphicsResources.VSFallback) is null ||
-			(shaderPixel = graphicsResources.PSFallback) is null)
-		{
-			engine.Logger.LogError("Failed to load fallback shaders!");
-			return false;
-		}
-
-		// Create resource layout:
-		ResourceLayoutDescription cubeResLayoutDesc = new(
-			CBObject.ResourceLayoutElementDesc);
-			//...
+		*/
 
 		try
 		{
-			cubeResLayout ??= graphicsService.ResourceFactory.CreateResourceLayout(ref cubeResLayoutDesc);
-			cubeResLayout.Name = "ResLayout_Cube";
+			cubeRenderer = new(graphicsService, resourceService, engine.Logger)
+			{
+				DontDrawUntilFullyLoaded = true,
+				Mesh = cubeMesh,
+				VertexShaderKey = "VS_Basic",
+				PixelShaderKey = "PS_Fallback",
+			};
+			return true;
 		}
 		catch (Exception ex)
 		{
-			engine.Logger.LogException("Failed to create cube resource layout!", ex, LogEntrySeverity.Critical);
+			engine.Logger.LogException("Failed to create cube renderer!", ex);
 			return false;
 		}
-
-		// Create object constant buffer:
-		try
-		{
-			bufCbObjectCube ??= engine.Graphics.ResourceFactory.CreateBuffer(CBObject.BufferDesc);
-			bufCbObjectCube.Name = $"{CBObject.resourceName}_Cube";
-		}
-		catch (Exception ex)
-		{
-			engine.Logger.LogException("Failed to create cube constant buffer!", ex, LogEntrySeverity.Critical);
-			return false;
-		}
-
-		// Create resource set:
-		ResourceSetDescription resSetCubeDesc = new(
-			cubeResLayout,
-			bufCbObjectCube);
-
-		try
-		{
-			resSetCube ??= engine.Graphics.ResourceFactory.CreateResourceSet(ref resSetCubeDesc);
-			resSetCube.Name = "ResSet_Cube";
-		}
-		catch (Exception ex)
-		{
-			engine.Logger.LogException("Failed to create cube resource set!", ex);
-			return false;
-		}
-
-		return true;
 	}
 
 	private bool GetMainWindow(out WindowHandle? _outMainWindow)
@@ -345,6 +327,27 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private bool DrawCamera()
 	{
 		cmdList!.Begin();
+
+		//TEST
+		CameraClearingSettings clearSettings = new()
+		{
+			ClearColorTargets = CameraClearingFlags.EachFrame,
+			ClearDepthBuffer = CameraClearingFlags.EachFrame,
+			ClearStencilBuffer = CameraClearingFlags.Never,
+			
+			ColorValues =
+			[
+				new(Math.Max(axisHorizontal.CurrentValue, 0),
+					Math.Max(-axisHorizontal.CurrentValue, 0),
+					1,
+					1),
+			],
+			DepthValue = 1,
+			StencilValue = 0,
+		};
+		camera!.SetClearingSettings(clearSettings);
+		//Console.WriteLine(camera.ClearingSettings.ColorValues[0]);
+		//TEST
 
 		if (!engine.Graphics.BeginFrame(cmdList, out GraphicsContext? graphicsCtx))
 		{
@@ -379,7 +382,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		if (success)
 		{
-			success &= DrawScene(cameraCtx!);
+			success &= DrawScene(in cameraCtx!);
 		}
 
 		camera.EndPass();
@@ -395,91 +398,15 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		return success;
 	}
 
-	private bool DrawScene(CameraPassContext _cameraCtx)
+	private bool DrawScene(in CameraPassContext _cameraCtx)
 	{
-		if (cmdList is null || cubeMesh is null)
+		if (cmdList is null || cubeRenderer is null)
 		{
 			return true;
 		}
 
-		// Create or update pipeline:
-		if (cubePipeline is null || cubePipeline.IsDisposed || cubePipelineChecksum != _cameraCtx.GraphicsCtx.Checksum)
-		{
-			cubePipeline?.Dispose();
-			cubePipelineChecksum = 0;
-
-			// Define vertex layout:
-			VertexLayoutDescription[] vertexLayoutDescs = cubeMesh.HasExtendedVertexData
-			? [
-				BasicVertex.LayoutDescription,
-				ExtendedVertex.LayoutDescription,
-			]
-			: [
-				BasicVertex.LayoutDescription,
-			];
-
-			// Define shader set:
-			ShaderSetDescription shaderDesc = new(
-				vertexLayoutDescs,
-				[
-					shaderVertex,
-					shaderPixel,
-				]);
-
-			// Define resource layouts:
-			ResourceLayout[] resLayouts =
-			[
-				_cameraCtx.GraphicsCtx.ResLayoutCamera,
-				cubeResLayout!,
-			];
-
-			// Create pipeline:
-			GraphicsPipelineDescription pipelineDesc = new(
-				BlendStateDescription.SingleOverrideBlend,
-				DepthStencilStateDescription.DepthOnlyLessEqual,
-				RasterizerStateDescription.Default,
-				PrimitiveTopology.TriangleList,
-				shaderDesc,
-				resLayouts,
-				camera!.OutputSettings.CreateBasicOutputDescription());
-
-			try
-			{
-				cubePipeline = engine.Graphics.ResourceFactory.CreateGraphicsPipeline(ref pipelineDesc);
-				cubePipeline.Name = "Pipeline_Cube";
-			}
-			catch (Exception ex)
-			{
-				engine.Logger.LogException("Failed to create cube pipeline!", ex);
-				return false;
-			}
-
-			cubePipelineChecksum = _cameraCtx.GraphicsCtx.Checksum;
-		}
-
-		// Update constant buffers:
-		cmdList.UpdateBuffer(bufCbObjectCube, 0, ref cbObjectCube);
-
-		// Bind pipeline:
-		cmdList.SetPipeline(cubePipeline);
-
-		// Bind resources:
-		cmdList.SetGraphicsResourceSet(0, _cameraCtx.ResSetCamera);
-		cmdList.SetGraphicsResourceSet(1, resSetCube);
-
-		// Bind geometry:
-		cmdList.SetVertexBuffer(0, cubeMesh.BufVerticesBasic);
-		if (cubeMesh.HasExtendedVertexData)
-		{
-			cmdList.SetVertexBuffer(1, cubeMesh.BufVerticesExt);
-		}
-
-		cmdList.SetIndexBuffer(cubeMesh.BufIndices, cubeMesh.IndexFormat);
-
-		// Issue draw call:
-		cmdList.DrawIndexed((uint)cubeMesh.IndexCount);
-
-		return true;
+		bool success = cubeRenderer.Draw(in _cameraCtx);
+		return success;
 	}
 
 	#endregion
