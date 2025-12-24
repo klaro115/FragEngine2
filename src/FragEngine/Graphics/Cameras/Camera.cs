@@ -80,6 +80,7 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 	private readonly DeviceBuffer bufCbCamera;
 
 	private CameraTargets? ownTarget = null;
+	private OutputDescription outputDesc = default;
 
 	private ResourceSet? resSetCamera = null;
 
@@ -456,6 +457,9 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 
 			CmdList = _cmdList,
 			ResSetCamera = resSetCamera,
+			OutputFramebuffer = CurrentTarget.Framebuffer,
+			OutputDescription = CurrentTarget.OutputDescription,
+			
 			CbCamera = cbCameraData,
 			BufCbCamera = bufCbCamera,
 

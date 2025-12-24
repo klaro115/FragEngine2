@@ -43,6 +43,15 @@ public sealed class CameraPassContext(SceneContext _sceneCtx) : IChecksumVersion
 	public required ResourceSet ResSetCamera { get; init; }
 
 	/// <summary>
+	/// The framebuffer to which output shall be rendered.
+	/// </summary>
+	public required Framebuffer OutputFramebuffer { get; init; }
+	/// <summary>
+	/// A description of the camera's framebuffer and output format.
+	/// </summary>
+	public required OutputDescription OutputDescription { get; init; }
+
+	/// <summary>
 	/// Contents of the camera constant buffer 'CBCamera'.
 	/// </summary>
 	public required CBCamera CbCamera { get; init; }
