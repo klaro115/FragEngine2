@@ -245,7 +245,7 @@ public sealed class ResourceHandle<T>(ResourceService _resourceService) : Resour
 			return false;
 		}
 
-		return await resourceService.LoadResourceAsync(this, OnResourceLoaded);
+		return await resourceService.LoadResourceAsync(this, OnLoadingStateUpdated, OnResourceLoaded);
 	}
 
 	public override void Unload()

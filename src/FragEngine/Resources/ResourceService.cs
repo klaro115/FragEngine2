@@ -42,6 +42,16 @@ public sealed class ResourceService : IExtendedDisposable
 	#endregion
 	#region Constructors
 
+	/// <summary>
+	/// Creates a new instance of the resource service singleton.
+	/// </summary>
+	/// <param name="_logger">The engine's main logging service.</param>
+	/// <param name="_resourceDataService">The engine's resource data service, used to scan for resource files.</param>
+	/// <param name="_handleFactory">A factory service for creating <see cref="ResourceHandle{T}"/> instances.</param>
+	/// <param name="_graphicsImportService">An import service for graphics resources.</param>
+	/// <exception cref="ArgumentNullException">Engine services may not be null.</exception>
+	/// <exception cref="Exception">Failure to start background resource loading thread.</exception>
+	/// <exception cref="ObjectDisposedException">Graphics import service may not be disposed.</exception>
 	public ResourceService(ILogger _logger, ResourceDataService _resourceDataService, ResourceHandleFactory _handleFactory, GraphicsImportService _graphicsImportService)
 	{
 		ArgumentNullException.ThrowIfNull(_logger);
@@ -274,6 +284,17 @@ public sealed class ResourceService : IExtendedDisposable
 		return true;
 	}
 
+	/// <summary>
+	/// Starts the process for loading or importing a resource.
+	/// </summary>
+	/// <param name="_handle">A handle to the resource we wish to load.</param>
+	/// <param name="_loadImmediately">Whether to load the resource immediately. If true, the loading will happen immediately
+	/// on the calling thread and block until done. If false, the resource will be queued up for asynchronous loading on a
+	/// background thread instead.</param>
+	/// <param name="_funcUpdateLoadingState">Callback method for updating the loading state of a resource handle.</param>
+	/// <param name="_funcAssignResourceCallback">Callback method for assigning the fully loaded resource data to its handle.</param>
+	/// <returns>True if loading was queued up successfully, or if the resource is fully loaded. False on error.</returns>
+	/// <exception cref="ArgumentNullException">Resource handle and callback methods may not be null.</exception>
 	internal bool LoadResource(ResourceHandle _handle, bool _loadImmediately, FuncUpdateLoadingState _funcUpdateLoadingState, FuncAssignLoadedResource _funcAssignResourceCallback)
 	{
 		ArgumentNullException.ThrowIfNull(_handle);
@@ -346,9 +367,19 @@ public sealed class ResourceService : IExtendedDisposable
 		return true;
 	}
 
-	internal async Task<bool> LoadResourceAsync(ResourceHandle _handle, FuncAssignLoadedResource _funcAssignResourceCallback)
+	/// <summary>
+	/// Starts the process for loading or importing a resource asynchronously.
+	/// </summary>
+	/// <param name="_handle">A handle to the resource we wish to load.</param>
+	/// <param name="_funcUpdateLoadingState">Callback method for updating the loading state of a resource handle.</param>
+	/// <param name="_funcAssignResourceCallback">Callback method for assigning the fully loaded resource data to its handle.</param>
+	/// <returns>A task with the result of the loading process. Awaiting this task will return once the loading process either
+	/// succeeds or fails. True if the resource is fully loaded. False on error.</returns>
+	/// <exception cref="ArgumentNullException">Resource handle and callback methods may not be null.</exception>
+	internal async Task<bool> LoadResourceAsync(ResourceHandle _handle, FuncUpdateLoadingState _funcUpdateLoadingState, FuncAssignLoadedResource _funcAssignResourceCallback)
 	{
 		ArgumentNullException.ThrowIfNull(_handle);
+		ArgumentNullException.ThrowIfNull(_funcUpdateLoadingState);
 		ArgumentNullException.ThrowIfNull(_funcAssignResourceCallback);
 
 		if (IsDisposed)
@@ -400,6 +431,7 @@ public sealed class ResourceService : IExtendedDisposable
 		// Wait for the loading process to finish:
 		if (loadingHandle is not null)
 		{
+			_funcUpdateLoadingState(ResourceLoadingState.Pending);
 			await loadingHandle.WaitTask;
 		}
 
@@ -494,6 +526,18 @@ public sealed class ResourceService : IExtendedDisposable
 		return true;
 	}
 
+	/// <summary>
+	/// Retrieves data about a resource's location and import process.
+	/// </summary>
+	/// <remarks>
+	/// Note that resources of certain types and origins may not have a <see cref="ResourceData"/> associated
+	/// with them. Especially procedural resources will not return successfully, if queried by this method.
+	/// </remarks>
+	/// <param name="_resourceKey">A unique identifier key for the resource.</param>
+	/// <param name="_outData">Outputs the resource data object for the requested resource, or null, if no resource
+	/// was found with this key.</param>
+	/// <returns>True if the resource's data was found, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">Resource key may not be null.</exception>
 	internal bool GetResourceData(string _resourceKey, [NotNullWhen(true)] out ResourceData? _outData)
 	{
 		ArgumentNullException.ThrowIfNull(_resourceKey);
