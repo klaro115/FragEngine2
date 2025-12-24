@@ -173,6 +173,13 @@ public sealed class ResourceHandle<T>(ResourceService _resourceService) : Resour
 		return isValid;
 	}
 	
+	private void OnLoadingStateUpdated(ResourceLoadingState _newState)
+	{
+		LoadingState = IsDisposed
+			? ResourceLoadingState.NotLoaded
+			: _newState;
+	}
+
 	private void OnResourceLoaded(object _loadedResource)
 	{
 		ArgumentNullException.ThrowIfNull(_loadedResource);
@@ -223,7 +230,7 @@ public sealed class ResourceHandle<T>(ResourceService _resourceService) : Resour
 			return true;
 		}
 
-		return resourceService.LoadResource(this, _loadImmediately, OnResourceLoaded);
+		return resourceService.LoadResource(this, _loadImmediately, OnLoadingStateUpdated, OnResourceLoaded);
 	}
 
 	public override async Task<bool> LoadAsync()

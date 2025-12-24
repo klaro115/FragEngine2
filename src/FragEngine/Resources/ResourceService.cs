@@ -274,9 +274,10 @@ public sealed class ResourceService : IExtendedDisposable
 		return true;
 	}
 
-	internal bool LoadResource(ResourceHandle _handle, bool _loadImmediately, FuncAssignLoadedResource _funcAssignResourceCallback)
+	internal bool LoadResource(ResourceHandle _handle, bool _loadImmediately, FuncUpdateLoadingState _funcUpdateLoadingState, FuncAssignLoadedResource _funcAssignResourceCallback)
 	{
 		ArgumentNullException.ThrowIfNull(_handle);
+		ArgumentNullException.ThrowIfNull(_funcUpdateLoadingState);
 		ArgumentNullException.ThrowIfNull(_funcAssignResourceCallback);
 
 		if (IsDisposed)
@@ -340,6 +341,8 @@ public sealed class ResourceService : IExtendedDisposable
 			logger.LogError("Failed to queue up resource for background loading!");
 			return false;
 		}
+
+		_funcUpdateLoadingState(ResourceLoadingState.Pending);
 		return true;
 	}
 
