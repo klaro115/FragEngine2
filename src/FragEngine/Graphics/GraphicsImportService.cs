@@ -16,6 +16,10 @@ using Veldrid;
 
 namespace FragEngine.Graphics;
 
+/// <summary>
+/// Engine service for importing and exporting graphics resources.
+/// This service maintains a map of supported file formats and their associated compatible importers.
+/// </summary>
 public sealed class GraphicsImportService : IImportService
 {
 	#region Types
@@ -60,6 +64,15 @@ public sealed class GraphicsImportService : IImportService
 	#endregion
 	#region Constructors
 
+	/// <summary>
+	/// Creates a new instance of the graphics resource import service.
+	/// </summary>
+	/// <param name="_serviceProvider">The engine's main service provider, used for querying further services at run-time.</param>
+	/// <param name="_logger">A logging service, for outputting error reports.</param>
+	/// <param name="_fmdlImporter">A 3D model importer for the engine's native FMDL file format.</param>
+	/// <param name="_fmdlExporter">A 3D model exporter for the engine's native FMDL file format.</param>
+	/// <param name="_sourceCodeShaderImporter">A shader importer for uncompiled shader source code.</param>
+	/// <exception cref="ArgumentNullException">Engine services, importers, and exporters may not be null.</exception>
 	public GraphicsImportService(
 		IServiceProvider _serviceProvider,
 		ILogger _logger,
@@ -120,6 +133,13 @@ public sealed class GraphicsImportService : IImportService
 	#endregion
 	#region Methods
 
+	/// <summary>
+	/// Checks the level support for a given resource type and sub-type.
+	/// </summary>
+	/// <param name="_type">The resource type.</param>
+	/// <param name="_subType">The ID of a sub-type of the resource type '<paramref name="_type"/>'.</param>
+	/// <returns>An enum indicating the level of support.
+	/// Returns '<see cref="ResourceTypeSupport.None"/>' if the resource is not supported at all.</returns>
 	public ResourceTypeSupport IsResourceTypeSupported(ResourceType _type, int _subType = 0)
 	{
 		return _type switch
@@ -133,6 +153,12 @@ public sealed class GraphicsImportService : IImportService
 		};
 	}
 
+	/// <summary>
+	/// Checks whether 
+	/// </summary>
+	/// <param name="_formatKey">The resource file's format key, typically a file extension. Must be in lowercase.</param>
+	/// <param name="_operation">The type of operation that is required; basically, whether to import or export data.</param>
+	/// <returns>True if the requested format is supported for the requested operation, false otherwise.</returns>
 	public bool IsResourceFormatKeySupported(string _formatKey, ResourceOperationType _operation)
 	{
 		List<string> supportedKeysForOperation = _operation == ResourceOperationType.Import
@@ -142,6 +168,13 @@ public sealed class GraphicsImportService : IImportService
 		return supportedKeysForOperation.Contains(_formatKey);
 	}
 
+	/// <summary>
+	/// Tries to import a graphics resource from serialized data.
+	/// </summary>
+	/// <param name="_resourceData">Resource data describing the format and location of a resource. May not be null.</param>
+	/// <param name="_outResourceInstance">Outputs the fully loaded graphics resource instance, or null, if the format
+	/// is not supported or if import failed.</param>
+	/// <returns>True if the resource could be imported successfully, false otherwise.</returns>
 	public bool ImportResourceData(in ResourceData _resourceData, [NotNullWhen(true)] out object? _outResourceInstance)
 	{
 		ArgumentNullException.ThrowIfNull(_resourceData);

@@ -11,6 +11,22 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace FragEngine.Resources;
 
+/// <summary>
+/// Main service for managing the engine's assets and resources.
+/// A singleton of this class serves as a database for all resources that can be loaded by the app at run-time.
+/// </summary>
+/// <remarks>
+/// Resources are managed through handles of the abstract type '<see cref="ResourceHandle"/>', or the generic
+/// '<see cref="ResourceHandle{T}"/>' class. Assets are first detected in the app's directories and in embedded
+/// assembly resources by the '<see cref="ResourceDataService"/>'. They are then registered with this service,
+/// and can be queried via '<see cref="GetResourceHandle(string, out FragEngine.Resources.ResourceHandle?)"/>'
+/// or its overloads. Finally, resources can be used after loading, which is done either immediately on the
+/// calling thread, or asynchronously on a background thread.<para/>
+/// To add custom import logic to the engine, additional importers can be registered. These must implement the
+/// '<see cref="IImportService"/>' interface, and can be added via '<see cref="RegisterImportService(IImportService)"/>'.
+/// The resource system will automatically use the most qualified importers or exporters for each format, based
+/// on capabilities and data format compatibility.
+/// </remarks>
 public sealed class ResourceService : IExtendedDisposable
 {
 	#region Events
