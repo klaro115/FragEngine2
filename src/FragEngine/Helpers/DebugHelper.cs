@@ -14,10 +14,12 @@ public static class DebugHelper
 	/// </summary>
 	/// <remarks>
 	/// The condition check will be skipped if the preprocessor macro "DEBUG" is not defined.
+	/// When using this as the condition of an <see langword="if"/>-block, the code inside the
+	/// conditional scope will never be executed in release builds.
 	/// </remarks>
 	/// <param name="_condition">The condition to check for, may not be null.</param>
 	/// <returns>True if the condition is met, false otherwise.
-	/// This will always return true in release builds.</returns>
+	/// This will always return <see langword="false"/> in release builds.</returns>
 	/// <exception cref="ArgumentNullException">Condition delegate may not be null.</exception>
 	public static bool Check(Func<bool> _condition)
 	{
@@ -25,7 +27,7 @@ public static class DebugHelper
 		ArgumentNullException.ThrowIfNull(_condition);
 		return _condition();
 #else
-		return true;
+		return false;
 #endif
 	}
 
