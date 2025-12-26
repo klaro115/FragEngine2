@@ -3,6 +3,7 @@ using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Time;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Extensions.Veldrid;
+using FragEngine.Interfaces;
 using FragEngine.Logging;
 using Veldrid;
 
@@ -11,7 +12,7 @@ namespace FragEngine.EngineCore.Input;
 /// <summary>
 /// Engine service that handles input events and axes.
 /// </summary>
-public sealed class InputService
+public sealed class InputService : IExtendedDisposable
 {
 	#region Events
 
@@ -36,6 +37,8 @@ public sealed class InputService
 
 	private readonly Dictionary<string, InputAxis> axes = [];
 
+	private readonly SemaphoreSlim axesSemaphore = new(1, 1);
+
 	private uint versionIdx = 0u;
 
 	#endregion
@@ -45,6 +48,8 @@ public sealed class InputService
 
 	#endregion
 	#region Properties
+
+	public bool IsDisposed { get; private set; } = false;
 
 	/// <summary>
 	/// Gets the total number of input axes that are currently registered.
@@ -81,8 +86,25 @@ public sealed class InputService
 		logger.LogMessage("- Input service initialized.");
 	}
 
+	~InputService()
+	{
+		if (!IsDisposed) Dispose(false);
+	}
+
 	#endregion
 	#region Methods
+
+	public void Dispose()
+	{
+		GC.SuppressFinalize(this);
+		Dispose(true);
+	}
+	private void Dispose(bool _)
+	{
+		IsDisposed = true;
+
+		axesSemaphore.Dispose();
+	}
 
 	/// <summary>
 	/// Resets and initializes all input signals for an upcoming frame.
@@ -149,11 +171,23 @@ public sealed class InputService
 
 	private bool UpdateAxes(InputSnapshot? snapshot, float deltaTime)
 	{
-		foreach (var axis in axes)
+		if (!axesSemaphore.Wait(1000))
 		{
-			axis.Value.Update(snapshot, deltaTime);
+			logger.LogError("Failed to update input axes; semaphore timed out!");
+			return false;
 		}
 
+		try
+		{
+			foreach (var axis in axes)
+			{
+				axis.Value.Update(snapshot, deltaTime);
+			}
+		}
+		finally
+		{
+			axesSemaphore.Release();
+		}
 		return true;
 	}
 
@@ -168,11 +202,25 @@ public sealed class InputService
 		{
 			keyState.UpdateState(false, versionIdx);
 		}
-		foreach ((string _, InputAxis axis) in axes)
-		{
-			axis.ResetState();
-		}
+
 		keyEvents.Clear();
+
+		if (!axesSemaphore.Wait(1000))
+		{
+			logger.LogError("Failed to reset input axes; semaphore timed out!");
+		}
+
+		try
+		{
+			foreach ((string _, InputAxis axis) in axes)
+			{
+				axis.ResetState();
+			}
+		}
+		finally
+		{
+			axesSemaphore.Release();
+		}
 	}
 
 	#endregion
@@ -238,27 +286,40 @@ public sealed class InputService
 	/// <returns>True if the new axis could be registered and is valid, false otherwise.</returns>
 	public bool AddInputAxis(string _name, Key _negativeKey, Key _positiveKey, out InputAxis _outNewAxis, bool _useSnapshotEvents = false)
 	{
-		if (!CheckIfInputAxisCanBeAdded(_name))
+		if (!axesSemaphore.Wait(1000))
 		{
-			_outNewAxis = InputAxis.Invalid;
-			return false;
+			logger.LogError("Failed to reset input axes; semaphore timed out!");
 		}
 
-		if (!_negativeKey.IsValid() || !_positiveKey.IsValid())
+		try
 		{
-			logger.LogError($"Cannot add input axis with invalid keyboard buttons! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
-			_outNewAxis = InputAxis.Invalid;
-			return false;
+			if (!CheckIfInputAxisCanBeAdded(_name))
+			{
+				_outNewAxis = InputAxis.Invalid;
+				return false;
+			}
+
+			if (!_negativeKey.IsValid() || !_positiveKey.IsValid())
+			{
+				logger.LogError($"Cannot add input axis with invalid keyboard buttons! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
+				_outNewAxis = InputAxis.Invalid;
+				return false;
+			}
+
+			_outNewAxis = new KeyboardAxis(_name, _negativeKey, _positiveKey, keyStates, _useSnapshotEvents);
+			if (!_outNewAxis.IsValid)
+			{
+				logger.LogError($"Cannot add input axis; initial state is invalid! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
+				return false;
+			}
+
+			axes.Add(_name, _outNewAxis);
+		}
+		finally
+		{
+			axesSemaphore.Release();
 		}
 
-		_outNewAxis = new KeyboardAxis(_name, _negativeKey, _positiveKey, keyStates, _useSnapshotEvents);
-		if (!_outNewAxis.IsValid)
-		{
-			logger.LogError($"Cannot add input axis; initial state is invalid! (Negative: '{_negativeKey}', Positive: '{_positiveKey}')");
-			return false;
-		}
-
-		axes.Add(_name, _outNewAxis);
 		AxisAdded?.Invoke(_outNewAxis);
 		return true;
 	}
@@ -292,7 +353,25 @@ public sealed class InputService
 			return false;
 		}
 
-		bool removed = axes.Remove(_name, out InputAxis? removedAxis);
+		if (!axesSemaphore.Wait(1000))
+		{
+			logger.LogError($"Failed to remove input axis '{_name}'; semaphore timed out!");
+			return false;
+		}
+
+		// Remove axis from dictionary:
+		bool removed;
+		InputAxis? removedAxis;
+		try
+		{
+			removed = axes.Remove(_name, out removedAxis);
+		}
+		finally
+		{
+			axesSemaphore.Release();
+		}
+
+		// Report removal:
 		if (removed)
 		{
 			AxisRemoved?.Invoke(removedAxis!);
@@ -314,9 +393,27 @@ public sealed class InputService
 	/// <returns>An input axis, or <see cref="InputAxis.Invalid"/>, if no valid axis with this name was found.</returns>
 	public InputAxis GetInputAxis(string _name)
 	{
-		return !string.IsNullOrEmpty(_name) && axes.TryGetValue(_name, out InputAxis? axis)
-			? axis
-			: InputAxis.Invalid;
+		if (string.IsNullOrEmpty(_name))
+		{
+			return InputAxis.Invalid;
+		}
+
+		if (!axesSemaphore.Wait(1000))
+		{
+			logger.LogError($"Failed to get input axis '{_name}'; semaphore timed out!");
+			return InputAxis.Invalid;
+		}
+
+		try
+		{
+			return axes.TryGetValue(_name, out InputAxis? axis)
+				? axis
+				: InputAxis.Invalid;
+		}
+		finally
+		{
+			axesSemaphore.Release();
+		}
 	}
 
 	/// <summary>
