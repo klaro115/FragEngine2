@@ -121,10 +121,12 @@ public sealed class CameraClearingSettings : IValidated, IChecksumVersioned
 	{
 		ulong newChecksum = 0ul;
 
+		// Clearing flags:
 		newChecksum |= (ulong)ClearColorTargets << 0;
 		newChecksum |= (ulong)ClearDepthBuffer << 3;
 		newChecksum |= (ulong)ClearStencilBuffer << 6;
 
+		// Apply color values to checksum:
 		if (ClearColorTargets != CameraClearingFlags.Never)
 		{
 			ulong colorsChecksum = (ulong)ColorValues.Count;
@@ -136,6 +138,7 @@ public sealed class CameraClearingSettings : IValidated, IChecksumVersioned
 
 			newChecksum |= colorsChecksum << 9;
 		}
+		// Apply depth/stencil values to checksum:
 		if (ClearDepthBuffer != CameraClearingFlags.Never)
 		{
 			ulong depthChecksum = (ulong)(DepthValue * 1024);
@@ -144,11 +147,13 @@ public sealed class CameraClearingSettings : IValidated, IChecksumVersioned
 				depthChecksum ^= (ulong)StencilValue << 7;
 			}
 
-			newChecksum = depthChecksum << 9;
+			newChecksum |= depthChecksum << 9;
 		}
 
 		return newChecksum;
 
+
+		// Local helper function for packing color into a 10-bpc packed integer:
 		static ulong ColorTo10bit(RgbaFloat _color)
 		{
 			ulong r10 = (ulong)Math.Clamp(_color.R * 512, 0, 1024);

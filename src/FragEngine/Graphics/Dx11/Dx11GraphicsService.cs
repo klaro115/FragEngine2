@@ -219,6 +219,8 @@ internal sealed class Dx11GraphicsService(
 			{
 				Device.SubmitCommands(cmdList);
 			}
+
+			Device.WaitForIdle();
 		}
 		catch (Exception ex)
 		{
