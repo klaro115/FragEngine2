@@ -120,19 +120,27 @@ public sealed class InputService
 	{
 		keyEvents.Clear();
 
-		if (snapshot is null || snapshot.KeyEvents.Count == 0)
+		// Update changed key states from events:
+		if (snapshot is not null && snapshot.KeyEvents.Count != 0)
 		{
-			return true;
+			foreach (KeyEvent keyEvent in snapshot.KeyEvents)
+			{
+				int keyIdx = (int)keyEvent.Key;
+				InputKeyState keyState = keyStates[keyIdx];
+
+				if (!keyEvent.Repeat && keyState.UpdateState(keyEvent.Down, versionIdx))
+				{
+					keyEvents.TryAdd(keyState.key, keyState.EventType);
+				}
+			}
 		}
 
-		foreach (KeyEvent keyEvent in snapshot.KeyEvents)
+		// Update remaining (unchanged) key states:
+		foreach (InputKeyState keyState in keyStates)
 		{
-			int keyIdx = (int)keyEvent.Key;
-			InputKeyState keyState = keyStates[keyIdx];
-
-			if (!keyEvent.Repeat && keyState.UpdateState(keyEvent.Down, versionIdx))
+			if (keyState.VersionIdx != versionIdx)
 			{
-				keyEvents.TryAdd(keyState.key, keyState.EventType);
+				keyState.UpdateState(keyState.IsPressed, versionIdx);
 			}
 		}
 

@@ -80,7 +80,6 @@ public sealed class Camera : IExtendedDisposable, IWindowClient, IPhysicalObject
 	private readonly DeviceBuffer bufCbCamera;
 
 	private CameraTargets? ownTarget = null;
-	private OutputDescription outputDesc = default;
 
 	private ResourceSet? resSetCamera = null;
 

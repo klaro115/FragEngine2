@@ -33,6 +33,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private InputKeyState escapeKeyState = InputKeyState.Invalid;
 	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
 	private InputKeyState switchMonitorKeyState = InputKeyState.Invalid;
+	private InputKeyState resetCameraKeyState = InputKeyState.Invalid;
 
 	private KeyboardAxis axisHorizontal = (InputAxis.Invalid as KeyboardAxis)!;
 	private KeyboardAxis axisVertical = (InputAxis.Invalid as KeyboardAxis)!;
@@ -108,6 +109,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			escapeKeyState = engine.InputService.GetKeyState(Key.Escape);
 			fullscreenKeyState = engine.InputService.GetKeyState(Key.Tab);
 			switchMonitorKeyState = engine.InputService.GetKeyState(Key.KeypadMultiply);
+			resetCameraKeyState = engine.InputService.GetKeyState(Key.Number0);
 
 			axisHorizontal = (engine.InputService.GetInputAxis(InputServiceExt.AxisNameAD) as KeyboardAxis)!;
 			axisVertical = (engine.InputService.GetInputAxis(InputServiceExt.AxisNameSW) as KeyboardAxis)!;
@@ -178,6 +180,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			mainWindow.GetScreenIndex(out int screenIdx);
 			screenIdx = (screenIdx + 1) % screenCount;
 			mainWindow.MoveToScreen(screenIdx);
+		}
+		if (resetCameraKeyState.EventType == InputKeyEventType.Released && camera is not null)
+		{
+			camera.MarkDirty();
 		}
 
 		return true;
