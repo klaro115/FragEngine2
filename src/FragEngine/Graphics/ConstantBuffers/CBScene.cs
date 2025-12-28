@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using FragEngine.Extensions;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Veldrid;
 
@@ -64,6 +65,16 @@ public struct CBScene
 	/// Gets the resource layout for this constant buffer type.
 	/// </summary>
 	public static ResourceLayoutElementDescription ResourceLayoutElementDesc => new(resourceName, ResourceKind.UniformBuffer, ShaderStages.Vertex | ShaderStages.Fragment);
+
+	#endregion
+	#region Methods
+
+	public readonly override string ToString()
+	{
+		return $"{nameof(CBScene)} (AmbientHigh='#{ambientLightBottomUp.ToHexColorString()}', AmbientHor='#{ambientLightBottomUp.ToHexColorString()}', " +
+			   $"AmbientLow='#{ambientLightHorizon.ToHexColorString()}', Renderers={rendererCount}, Lights={lightCount}, ShadowMapped={lightCountShadowMapped}, " +
+			   $"Cameras={cameraCount})";
+	}
 
 	#endregion
 }

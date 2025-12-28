@@ -103,5 +103,11 @@ public struct CBGraphics
 		//...
 	}
 
+	public readonly override string ToString()
+	{
+		return $"{nameof(CBGraphics)} (AppTime={appTime:0.0}s, LevelTime={levelTime:0.0}s, IngameTime={ingameTime:0.0}s, deltaTime={deltaTime:0.000}s, " +
+			   $"FrameRate={frameRate:0.0}Hz, FrameIdx={frameIndex}, Windows={windowCount}, Cameras={cameraCount})";
+	}
+
 	#endregion
 }

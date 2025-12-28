@@ -48,5 +48,10 @@ public struct CBObject
 	/// </summary>
 	public static ResourceLayoutElementDescription ResourceLayoutElementDesc => new(resourceName, ResourceKind.UniformBuffer, ShaderStages.Vertex | ShaderStages.Fragment);
 
+	public readonly override string ToString()
+	{
+		return $"{nameof(CBObject)} (MinBounds={minBounds}, MaxBounds={maxBounds})";
+	}
+
 	#endregion
 }

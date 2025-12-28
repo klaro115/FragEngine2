@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using FragEngine.Extensions;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Veldrid;
 
@@ -74,6 +75,15 @@ public struct CBCamera
 	/// Gets the resource layout for this constant buffer type.
 	/// </summary>
 	public static ResourceLayoutElementDescription ResourceLayoutElementDesc => new(resourceName, ResourceKind.UniformBuffer, ShaderStages.Vertex | ShaderStages.Fragment);
+
+	#endregion
+	#region Methods
+
+	public readonly override string ToString()
+	{
+		return $"{nameof(CBCamera)} (BgColor='#{backgroundColor.ToHexColorString()}', CamIdx={cameraIndex}, PassIdx={cameraPassIndex}, " +
+			   $"ResX={resolutionX}, ResY={resolutionY}, NearClip={nearClipPlane:0.##}, FarClip={farClipPlane:0.##})";
+	}
 
 	#endregion
 }

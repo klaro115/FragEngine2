@@ -626,6 +626,10 @@ public abstract class GraphicsService(
 		return true;
 	}
 
+	/// <summary>
+	/// Schedules copying to staging buffers for all resources that are pending for download.
+	/// </summary>
+	/// <returns>True if all buffer/texture copies were pushed to command list successfully, false otherwise.</returns>
 	protected bool ScheduleResourceDownloads()
 	{
 		if (downloadScheduleQueue.IsEmpty)
@@ -670,6 +674,10 @@ public abstract class GraphicsService(
 		return true;
 	}
 
+	/// <summary>
+	/// Executes the download of all pending staging resources to CPU-side memory.
+	/// </summary>
+	/// <returns>True if all resources were downloaded successfully, false otherwise.</returns>
 	protected bool DownloadResources()
 	{
 		if (downloadQueue.Count == 0)
