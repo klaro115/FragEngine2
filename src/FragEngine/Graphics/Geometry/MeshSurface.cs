@@ -178,11 +178,11 @@ public sealed class MeshSurface(GraphicsService _graphicsService, ILogger _logge
 
 		if (_cmdList is not null)
 		{
-			_cmdList.UpdateBuffer(bufVerticesBasic, 0, _elements);
+			_cmdList.UpdateBuffer(_buffer, 0, _elements);
 		}
 		else
 		{
-			graphicsService.Device.UpdateBuffer(bufVerticesBasic, 0, _elements);
+			graphicsService.Device.UpdateBuffer(_buffer, 0, _elements);
 		}
 		return true;
 	}
