@@ -1,4 +1,5 @@
-﻿using FragEngine.EngineCore.Windows;
+﻿using FragEngine.EngineCore.Time;
+using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics.Settings;
 
 namespace FragEngine.Graphics;
@@ -45,3 +46,14 @@ public delegate void FuncGraphicsSettingsChanged(GraphicsSettings? _previousSett
 /// </remarks>
 /// <param name="_mainWindowHandle">A handle to the main window.</param>
 public delegate void FuncMainSwapchainSwapped(WindowHandle _mainWindowHandle);
+
+/// <summary>
+/// Delegate for listener methods that respond when the <see cref="GraphicsService"/> has started
+/// a new frame.
+/// </summary>
+/// <remarks>
+/// You may use this event to start behaviors that require the previous frame's draw calls to have
+/// finished, and the current frame's logic to be up-to-date.
+/// </remarks>
+/// <param name="_frameIndex">The index of the new frame, as provided by the <see cref="TimeService"/>.</param>
+public delegate void FuncFrameStarted(uint _frameIndex);

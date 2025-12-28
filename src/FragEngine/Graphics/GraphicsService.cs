@@ -65,6 +65,11 @@ public abstract class GraphicsService(
 	/// </summary>
 	public event FuncMainSwapchainSwapped? MainSwapchainSwapped;
 
+	/// <summary>
+	/// Event that is triggered whenever a new frame has started.
+	/// </summary>
+	public event FuncFrameStarted? FrameStarted;
+
 	#endregion
 	#region Fields
 
@@ -88,6 +93,11 @@ public abstract class GraphicsService(
 
 	protected CBGraphics cbGraphicsData = CBGraphics.Default;
 	protected DeviceBuffer? bufCbGraphics = null;
+
+	private CommandList? downloadCmdList = null;
+	private readonly ConcurrentQueue<IGraphicsResourceDownloadRequest> downloadScheduleQueue = [];
+	private readonly Queue<IGraphicsResourceDownloadRequest> downloadQueue = [];
+	private readonly ReaderWriterLock downloadLock = new();
 
 	#endregion
 	#region Constants
@@ -174,12 +184,28 @@ public abstract class GraphicsService(
 
 		IsDisposed = true;
 
+		ClearDownloadQueues();
+
 		bufCbGraphics?.Dispose();
 
 		MainWindow?.Dispose();
 		Device?.Dispose();
 
 		commandListLock?.Dispose();
+	}
+
+	/// <summary>
+	/// Purges and cancels any pending GPU resource downloads.
+	/// </summary>
+	protected void ClearDownloadQueues()
+	{
+		downloadLock.AcquireWriterLock(1000);
+		downloadScheduleQueue.Clear();
+		downloadQueue.Clear();
+		downloadLock.ReleaseWriterLock();
+
+		downloadCmdList?.Dispose();
+		downloadCmdList = null;
 	}
 
 	/// <summary>
@@ -491,6 +517,9 @@ public abstract class GraphicsService(
 			ResLayoutCamera = resLayoutCamera,
 			//...
 		};
+
+		// Notify listeners that a new frame started:
+		FrameStarted?.Invoke(timeService.CurrentFrameIndex);
 		return true;
 	}
 
@@ -564,6 +593,104 @@ public abstract class GraphicsService(
 		logger.LogError(errorMessageTxt, LogEntrySeverity.Fatal);
 
 		return false;
+	}
+
+	/// <summary>
+	/// Issues a request to download the contents of a GPU resource (i.e. a buffer or texture) to CPU-side memory.
+	/// </summary>
+	/// <param name="_request">A new download request, may not be null or disposed.</param>
+	/// <returns>True if the download was scheduled, false otherwise.</returns>
+	/// <exception cref="ArgumentNullException">Request may not be null.</exception>
+	/// <exception cref="ObjectDisposedException">Request may not be disposed.</exception>
+	internal bool RequestResourceDownload(IGraphicsResourceDownloadRequest _request)
+	{
+		ArgumentNullException.ThrowIfNull(_request);
+		ObjectDisposedException.ThrowIf(_request.IsDisposed, _request);
+
+		if (!IsInitialized)
+		{
+			logger.LogError("Cannot schedule resource download on uninitialized graphics service!");
+			return false;
+		}
+		if (!_request.IsValid())
+		{
+			logger.LogError("Cannot schedule invalid graphics resource download!");
+			return false;
+		}
+
+		// Queue request up for later execution:
+		downloadLock.AcquireReaderLock(500);
+		downloadScheduleQueue.Enqueue(_request);
+		downloadLock.ReleaseReaderLock();
+
+		return true;
+	}
+
+	protected bool ScheduleResourceDownloads()
+	{
+		if (downloadScheduleQueue.IsEmpty)
+		{
+			return true;
+		}
+
+		downloadCmdList ??= ResourceFactory.CreateCommandList();
+		downloadCmdList.Begin();
+
+		bool success = true;
+		try
+		{
+			downloadLock.AcquireWriterLock(1000);
+			while (downloadScheduleQueue.TryDequeue(out IGraphicsResourceDownloadRequest? request))
+			{
+				bool wasScheduled = request.ScheduleCopy(downloadCmdList);
+				if (wasScheduled)
+				{
+					downloadQueue.Enqueue(request);
+				}
+				success &= wasScheduled;
+			}
+		}
+		catch (Exception ex)
+		{
+			logger.LogException("Failed to schedule resource copy for graphics resource download!", ex);
+			return false;
+		}
+		finally
+		{
+			downloadLock.ReleaseWriterLock();
+		}
+
+		downloadCmdList.End();
+		commandListExecutionQueue.Enqueue(downloadCmdList, int.MaxValue);
+
+		if (!success)
+		{
+			logger.LogWarning("Some graphics resource copies have failed!");
+		}
+		return true;
+	}
+
+	protected bool DownloadResources()
+	{
+		if (downloadQueue.Count == 0)
+		{
+			return true;
+		}
+
+		bool success = true;
+		while (downloadQueue.TryDequeue(out IGraphicsResourceDownloadRequest? request))
+		{
+			if (!request.IsDisposed)
+			{
+				success &= request.DownloadData();
+			}
+		}
+
+		if (!success)
+		{
+			logger.LogWarning("Some graphics resource downloads have failed!");
+		}
+		return success;
 	}
 
 	#endregion

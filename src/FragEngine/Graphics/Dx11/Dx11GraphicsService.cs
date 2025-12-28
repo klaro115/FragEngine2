@@ -76,6 +76,8 @@ internal sealed class Dx11GraphicsService(
 			return false;
 		}
 
+		ClearDownloadQueues();
+
 		MainWindow?.CloseWindow();
 		Device.Dispose();
 
@@ -212,6 +214,11 @@ internal sealed class Dx11GraphicsService(
 			return false;
 		}
 
+		if (!ScheduleResourceDownloads())
+		{
+			return false;
+		}
+
 		// Submit all command lists to device:
 		try
 		{
@@ -238,6 +245,13 @@ internal sealed class Dx11GraphicsService(
 			Device.SwapBuffers();
 			OnMainSwapchainSwapped();
 		}
+
+		// Finish resource downloads:
+		if (!DownloadResources())
+		{
+			return false;
+		}
+
 		return true;
 	}
 

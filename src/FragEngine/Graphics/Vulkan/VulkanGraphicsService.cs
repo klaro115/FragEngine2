@@ -81,6 +81,8 @@ internal sealed class VulkanGraphicsService(
 			return false;
 		}
 
+		ClearDownloadQueues();
+
 		MainWindow?.CloseWindow();
 		Device.Dispose();
 
@@ -270,6 +272,11 @@ internal sealed class VulkanGraphicsService(
 			return false;
 		}
 
+		if (!ScheduleResourceDownloads())
+		{
+			return false;
+		}
+
 		// Submit all command lists to device:
 		try
 		{
@@ -296,6 +303,13 @@ internal sealed class VulkanGraphicsService(
 			Device.SwapBuffers();
 			OnMainSwapchainSwapped();
 		}
+
+		// Finish resource downloads:
+		if (!DownloadResources())
+		{
+			return false;
+		}
+
 		return true;
 	}
 
