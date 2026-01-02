@@ -5,6 +5,7 @@ using FragEngine.EngineCore.Input.Axes;
 using FragEngine.EngineCore.Input.Keys;
 using FragEngine.EngineCore.Windows;
 using FragEngine.Graphics;
+using FragEngine.Graphics.Buffers;
 using FragEngine.Graphics.Cameras;
 using FragEngine.Graphics.ConstantBuffers;
 using FragEngine.Graphics.Contexts;
@@ -16,6 +17,7 @@ using FragEngine.Resources;
 using FragEngine.Scenes;
 using System.Numerics;
 using Veldrid;
+using Vortice.DXGI;
 
 namespace Sandbox.Application;
 
@@ -34,6 +36,8 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private InputKeyState fullscreenKeyState = InputKeyState.Invalid;
 	private InputKeyState switchMonitorKeyState = InputKeyState.Invalid;
 	private InputKeyState resetCameraKeyState = InputKeyState.Invalid;
+	private InputKeyState cbCameraDownloadKeyState = InputKeyState.Invalid;
+	private InputKeyState bufferDownloadKeyState = InputKeyState.Invalid;
 
 	private KeyboardAxis axisHorizontal = (InputAxis.Invalid as KeyboardAxis)!;
 	private KeyboardAxis axisVertical = (InputAxis.Invalid as KeyboardAxis)!;
@@ -48,6 +52,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private DeviceBuffer? bufCbScene = null;
 
 	private SimpleMeshRenderer? cubeRenderer = null;
+
+	private DeviceBufferDownload<CBCamera>? cbCameraDownload = null;
+	private DeviceBufferDownload<BasicVertex>? bufferDownload = null;
 
 	#endregion
 	#region Properties
@@ -110,6 +117,8 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			fullscreenKeyState = engine.InputService.GetKeyState(Key.Tab);
 			switchMonitorKeyState = engine.InputService.GetKeyState(Key.KeypadMultiply);
 			resetCameraKeyState = engine.InputService.GetKeyState(Key.Number0);
+			cbCameraDownloadKeyState = engine.InputService.GetKeyState(Key.Number8);
+			bufferDownloadKeyState = engine.InputService.GetKeyState(Key.Number9);
 
 			axisHorizontal = (engine.InputService.GetInputAxis(InputServiceExt.AxisNameAD) as KeyboardAxis)!;
 			axisVertical = (engine.InputService.GetInputAxis(InputServiceExt.AxisNameSW) as KeyboardAxis)!;
@@ -257,6 +266,11 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private void DisposeScene()
 	{
+		cbCameraDownload?.Dispose();
+		bufferDownload?.Dispose();
+		cbCameraDownload = null;
+		bufferDownload = null;
+
 		cubeRenderer?.Dispose();
 		cubeRenderer = null;
 	}
@@ -271,9 +285,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		MeshSurfaceData testData = new();
 		testData.SetVertices(
 			[
-				new(new(0, 0, 0), -Vector3.UnitZ, new(0, 0)),
-				new(new(1, 0, 0), -Vector3.UnitZ, new(1, 0)),
-				new(new(0, 1, 0), -Vector3.UnitZ, new(0, 1)),
+				new(new(0, 0, 0.5f), -Vector3.UnitZ, new(0, 0)),
+				new(new(1, 0, 0.5f), -Vector3.UnitZ, new(1, 0)),
+				new(new(0, 1, 0.5f), -Vector3.UnitZ, new(0, 1)),
 			],
 			[
 				new(Vector3.UnitY, Vector3.UnitX, new(0, 0)),
@@ -284,9 +298,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			engine.Logger);
 		testData.SetIndices16(
 			[
+				0, 2, 1,
 				0, 1, 2,
 			],
-			3,
+			6,
 			IndexFormat.UInt16,
 			engine.Logger);
 
@@ -310,13 +325,24 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 				VertexShaderKey = "VS_Basic",
 				PixelShaderKey = "PS_Fallback",
 			};
-			return true;
 		}
 		catch (Exception ex)
 		{
 			engine.Logger.LogException("Failed to create cube renderer!", ex);
 			return false;
 		}
+
+		try
+		{
+			cbCameraDownload = new(engine.Graphics, engine.Logger, 1, CBCamera.byteSize);
+			bufferDownload = new(engine.Graphics, engine.Logger, 6, BasicVertex.byteSize);
+		}
+		catch (Exception ex)
+		{
+			engine.Logger.LogException("Failed to create GPU buffer download!", ex);
+			return false;
+		}
+		return true;
 	}
 
 	private bool GetMainWindow(out WindowHandle? _outMainWindow)
@@ -335,6 +361,8 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		cmdList!.Begin();
 
 		//TEST
+		float deltaTime = engine.TimeService.IngameDeltaTimeSeconds;
+		RgbaFloat c = camera!.ClearingSettings.ColorValues[0];
 		CameraClearingSettings clearSettings = new()
 		{
 			ClearColorTargets = CameraClearingFlags.EachFrame,
@@ -343,8 +371,8 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			
 			ColorValues =
 			[
-				new(Math.Max(axisHorizontal.CurrentValue, 0),
-					Math.Max(-axisHorizontal.CurrentValue, 0),
+				new(Math.Clamp(c.R + axisHorizontal.CurrentValue * deltaTime, 0, 1),
+					Math.Clamp(c.G + axisVertical.CurrentValue * deltaTime, 0, 1),
 					1,
 					1),
 			],
@@ -352,7 +380,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 			StencilValue = 0,
 		};
 		camera!.SetClearingSettings(clearSettings);
-		//Console.WriteLine(camera.ClearingSettings.ColorValues[0]);
 		//TEST
 
 		if (!engine.Graphics.BeginFrame(cmdList, out GraphicsContext? graphicsCtx))
@@ -376,6 +403,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		bool success = true;
 
+		engine.Graphics.Device.UpdateBuffer(bufCbScene, 0, ref cbSceneData);
 		cmdList.UpdateBuffer(bufCbScene, 0, ref cbSceneData);
 
 		if (!camera!.BeginFrame(in sceneCtx, 0u))
@@ -409,6 +437,26 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		if (cmdList is null || cubeRenderer is null)
 		{
 			return true;
+		}
+
+		if (cbCameraDownloadKeyState.EventType == InputKeyEventType.Released && cbCameraDownload is not null)
+		{
+			cbCameraDownload.RequestDownload(_cameraCtx.BufCbCamera, 0, 1, result =>
+			{
+				Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}, CBCamera='{result.DownloadedData[0]}'");
+			});
+		}
+		if (bufferDownloadKeyState.EventType == InputKeyEventType.Released && bufferDownload is not null)
+		{
+			int vertexCount = cubeRenderer.Mesh!.VertexCount;
+			bufferDownload.RequestDownload(cubeRenderer.Mesh!.BufVerticesBasic!, 0, (uint)vertexCount, result =>
+			{
+				Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+				for (uint i = 0; i < vertexCount; ++i)
+				{
+					Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
+				}
+			});
 		}
 
 		bool success = cubeRenderer.Draw(in _cameraCtx);

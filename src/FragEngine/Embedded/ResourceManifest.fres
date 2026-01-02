@@ -10,7 +10,7 @@
 			"Type": 14,
 			"SubType": 1,
 			"OSRestriction": null,
-			"GraphicsRestriction": 0
+			"GraphicsRestriction": null
 		},
 		{
 			"ResourceKey": "PS_Fallback",
@@ -22,7 +22,7 @@
 			"Type": 14,
 			"SubType": 5,
 			"OSRestriction": null,
-			"GraphicsRestriction": 0
+			"GraphicsRestriction": null
 		},
 		{
 			"ResourceKey": "VS_Basic",
@@ -34,7 +34,7 @@
 			"Type": 14,
 			"SubType": 1,
 			"OSRestriction": null,
-			"GraphicsRestriction": 0
+			"GraphicsRestriction": null
 		}
 	],
 	"OSRestriction": null,
