@@ -17,7 +17,6 @@ using FragEngine.Resources;
 using FragEngine.Scenes;
 using System.Numerics;
 using Veldrid;
-using Vortice.DXGI;
 
 namespace Sandbox.Application;
 
@@ -54,7 +53,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private SimpleMeshRenderer? cubeRenderer = null;
 
 	private DeviceBufferDownload<CBCamera>? cbCameraDownload = null;
-	private DeviceBufferDownload<BasicVertex>? bufferDownload = null;
+	private DeviceBufferDownload<BasicVertex>? bufferDownloadBasic = null;
+	private DeviceBufferDownload<ExtendedVertex>? bufferDownloadExt = null;
+	private DeviceBufferDownload<int>? bufferDownloadIndices = null;
 
 	#endregion
 	#region Properties
@@ -267,9 +268,13 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private void DisposeScene()
 	{
 		cbCameraDownload?.Dispose();
-		bufferDownload?.Dispose();
+		bufferDownloadBasic?.Dispose();
+		bufferDownloadExt?.Dispose();
+		bufferDownloadIndices?.Dispose();
 		cbCameraDownload = null;
-		bufferDownload = null;
+		bufferDownloadBasic = null;
+		bufferDownloadExt = null;
+		bufferDownloadIndices = null;
 
 		cubeRenderer?.Dispose();
 		cubeRenderer = null;
@@ -288,21 +293,28 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 				new(new(0, 0, 0.5f), -Vector3.UnitZ, new(0, 0)),
 				new(new(1, 0, 0.5f), -Vector3.UnitZ, new(1, 0)),
 				new(new(0, 1, 0.5f), -Vector3.UnitZ, new(0, 1)),
+				new(new(1, 1, 0.5f), -Vector3.UnitZ, new(1, 1)),
 			],
 			[
 				new(Vector3.UnitY, Vector3.UnitX, new(0, 0)),
 				new(Vector3.UnitY, Vector3.UnitX, new(1, 0)),
 				new(Vector3.UnitY, Vector3.UnitX, new(0, 1)),
+				new(Vector3.UnitY, Vector3.UnitX, new(1, 1)),
 			],
-			3,
+			4,
 			engine.Logger);
 		testData.SetIndices16(
 			[
+				// Front:
 				0, 2, 1,
+				1, 2, 3,
+
+				// Rear:
 				0, 1, 2,
+				2, 1, 3,
 			],
-			6,
-			IndexFormat.UInt16,
+			12,
+			IndexFormat.UInt32,
 			engine.Logger);
 
 		MeshSurface cubeMesh = new(engine.Graphics, engine.Logger);
@@ -335,7 +347,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		try
 		{
 			cbCameraDownload = new(engine.Graphics, engine.Logger, 1, CBCamera.byteSize);
-			bufferDownload = new(engine.Graphics, engine.Logger, 6, BasicVertex.byteSize);
+			bufferDownloadBasic = new(engine.Graphics, engine.Logger, (uint)testData.VertexCount, BasicVertex.byteSize);
+			bufferDownloadExt = new(engine.Graphics, engine.Logger, (uint)testData.VertexCount, ExtendedVertex.byteSize);
+			bufferDownloadIndices = new(engine.Graphics, engine.Logger, (uint)testData.IndexCount, testData.IndexByteSize);
 		}
 		catch (Exception ex)
 		{
@@ -446,17 +460,44 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 				Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}, CBCamera='{result.DownloadedData[0]}'");
 			});
 		}
-		if (bufferDownloadKeyState.EventType == InputKeyEventType.Released && bufferDownload is not null)
+		if (bufferDownloadKeyState.EventType == InputKeyEventType.Released && bufferDownloadBasic is not null)
 		{
 			int vertexCount = cubeRenderer.Mesh!.VertexCount;
-			bufferDownload.RequestDownload(cubeRenderer.Mesh!.BufVerticesBasic!, 0, (uint)vertexCount, result =>
+			int indexCount = cubeRenderer.Mesh!.IndexCount;
+			int triangleCount = cubeRenderer.Mesh!.TriangleCount;
+			if (cubeRenderer.Mesh!.GetGeometryBuffers(out DeviceBuffer? bufVerticesBasic, out DeviceBuffer? bufVerticesExt, out DeviceBuffer? bufIndices, cmdList))
 			{
-				Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
-				for (uint i = 0; i < vertexCount; ++i)
+				bufferDownloadBasic.RequestDownload(bufVerticesBasic!, 0, (uint)vertexCount, result =>
 				{
-					Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
+					Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+					for (uint i = 0; i < vertexCount; ++i)
+					{
+						Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
+					}
+				});
+				if (bufVerticesExt is not null)
+				{
+					bufferDownloadExt!.RequestDownload(bufVerticesExt!, 0, (uint)vertexCount, result =>
+					{
+						Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+						for (uint i = 0; i < vertexCount; ++i)
+						{
+							Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
+						}
+					});
 				}
-			});
+				bufferDownloadIndices!.RequestDownload(bufIndices!, 0, (uint)indexCount, result =>
+				{
+					Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+					for (uint i = 0; i < triangleCount; ++i)
+					{
+						int index0 = result.DownloadedData[3 * i + 0];
+						int index1 = result.DownloadedData[3 * i + 1];
+						int index2 = result.DownloadedData[3 * i + 2];
+						Console.WriteLine($"- Triangle {i}: '{index0}, {index1}, {index2}'");
+					}
+				});
+			}
 		}
 
 		bool success = cubeRenderer.Draw(in _cameraCtx);

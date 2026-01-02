@@ -314,6 +314,13 @@ public sealed class SimpleMeshRenderer : IExtendedDisposable
 
 		CommandList cmdList = _cameraPassCtx.CmdList;
 
+		// Prepare geometry buffers:
+		if (!mesh.GetGeometryBuffers(out DeviceBuffer? bufVerticesBasic, out DeviceBuffer? bufVerticesExt, out DeviceBuffer? bufIndices, cmdList))
+		{
+			logger.LogError($"Failed to prepare geometry buffers for drawing {nameof(SimpleMeshRenderer)}!");
+			return false;
+		}
+
 		// Update constant buffer (once per frame):
 		if (currentFrameIdx != _cameraPassCtx.GraphicsCtx.CbGraphics.frameIndex)
 		{
@@ -329,13 +336,13 @@ public sealed class SimpleMeshRenderer : IExtendedDisposable
 		cmdList.SetGraphicsResourceSet(1, resSetMesh);
 
 		// Bind geometry:
-		cmdList.SetVertexBuffer(0, mesh.BufVerticesBasic);
+		cmdList.SetVertexBuffer(0, bufVerticesBasic);
 		if (mesh.HasExtendedVertexData)
 		{
-			cmdList.SetVertexBuffer(1, mesh.BufVerticesExt);
+			cmdList.SetVertexBuffer(1, bufVerticesExt!);
 		}
 
-		cmdList.SetIndexBuffer(mesh.BufIndices, mesh.IndexFormat);
+		cmdList.SetIndexBuffer(bufIndices, mesh.IndexFormat);
 
 		// Issue draw call:
 		cmdList.DrawIndexed((uint)mesh.IndexCount);

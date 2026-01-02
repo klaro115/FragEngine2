@@ -20,7 +20,8 @@ public partial class PrimitivesFactory
 	/// <param name="_size">The dimensions of the cube.</param>
 	/// <param name="_outMesh">Outputs the newly created mesh, or null, if mesh creation failed.</param>
 	/// <param name="_cmdList">Optional. A command list through which the GPU upload is scheduled.
-	/// If null, the geometry data is instead uploaded immediately via the graphics device.</param>
+	/// If null, the geometry data is instead uploaded immediately via the graphics device.
+	/// If non-null, creation of GPU-side geometry buffers and upload of data to the GPU will be queued up via the command list.</param>
 	/// <param name="_createExtendedVertexData">Whether to also generate extended vertex data for this mesh.</param>
 	/// <returns>True if the mesh was created successfully, false otherwise.</returns>
 	public bool CreateCubeMesh(in Vector3 _size, [NotNullWhen(true)] out MeshSurface? _outMesh, CommandList? _cmdList = null, bool _createExtendedVertexData = true)
@@ -56,7 +57,17 @@ public partial class PrimitivesFactory
 		}
 
 		// Populate mesh:
-		return _outMesh.SetData(in _data, _cmdList);
+		bool uploadImmediately = _cmdList is null;
+		if (!_outMesh.SetData(in _data, uploadImmediately, uploadImmediately))
+		{
+			return false;
+		}
+		if (!uploadImmediately && !_outMesh.GetGeometryBuffers(out _, out _, out _, _cmdList))
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	#endregion
