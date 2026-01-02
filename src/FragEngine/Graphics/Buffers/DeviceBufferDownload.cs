@@ -43,7 +43,7 @@ public sealed class DeviceBufferDownload<T> : IExtendedDisposable where T : unma
 
 	private readonly T[] downloadedData;
 	private readonly uint elementByteSize;
-	private readonly DeviceBuffer stagingBuffer;
+	private readonly DeviceBuffer stagingBuffer = null!;
 
 	private uint startIndex;
 	private uint elementCount;
@@ -124,7 +124,7 @@ public sealed class DeviceBufferDownload<T> : IExtendedDisposable where T : unma
 	private void Dispose(bool _disposing)
 	{
 		IsDisposed = true;
-		stagingBuffer.Dispose();
+		stagingBuffer?.Dispose();
 
 		if (Status == DownloadStatus.Busy)
 		{

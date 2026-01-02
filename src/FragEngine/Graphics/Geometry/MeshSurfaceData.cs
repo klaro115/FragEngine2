@@ -73,6 +73,12 @@ public sealed class MeshSurfaceData : IValidated
 	///	</remarks>
 	public IndexFormat IndexFormat { get; private set; } = IndexFormat.UInt16;
 
+	/// <summary>
+	/// Gets the byte size of each index. This will be either 2 bytes (16-bit
+	/// <see langword="ushort"/>) or 4 bytes (32-bit <see langword="int"/>).
+	/// </summary>
+	public uint IndexByteSize => IndexFormat == IndexFormat.UInt16 ? (uint)sizeof(ushort) : sizeof(int);
+
 	#endregion
 	#region Methods
 
@@ -224,6 +230,7 @@ public sealed class MeshSurfaceData : IValidated
 			_newIndices.CopyTo(Indices16, 0, _indexCount);
 		}
 
+		IndexFormat = _indexFormat;
 		IndexCount = _indexCount;
 		TriangleCount = IndexCount / 3;
 
@@ -270,6 +277,7 @@ public sealed class MeshSurfaceData : IValidated
 			_newIndices.CopyTo(Indices16.AsSpan(0, _indexCount));
 		}
 
+		IndexFormat = _indexFormat;
 		IndexCount = _indexCount;
 		TriangleCount = IndexCount / 3;
 
@@ -311,7 +319,6 @@ public sealed class MeshSurfaceData : IValidated
 			{
 				Indices16[i] = (ushort)_newIndices[i];
 			}
-
 		}
 		else if (_newIndices != Indices32)
 		{
@@ -320,6 +327,7 @@ public sealed class MeshSurfaceData : IValidated
 			_newIndices.CopyTo(Indices32, 0, _indexCount);
 		}
 
+		IndexFormat = _indexFormat;
 		IndexCount = _indexCount;
 		TriangleCount = IndexCount / 3;
 
@@ -367,6 +375,7 @@ public sealed class MeshSurfaceData : IValidated
 			_newIndices.CopyTo(Indices32.AsSpan(0, _indexCount));
 		}
 
+		IndexFormat = _indexFormat;
 		IndexCount = _indexCount;
 		TriangleCount = IndexCount / 3;
 
