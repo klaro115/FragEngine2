@@ -53,9 +53,9 @@ public record struct BasicVertex
 	/// Gets a description of the GPU-side vertex layout for this structure.
 	/// </summary>
 	public static VertexLayoutDescription LayoutDescription => new(byteSize,
-		new VertexElementDescription(nameof(position), VertexElementFormat.Float3, VertexElementSemantic.Position),
-		new VertexElementDescription(nameof(normal), VertexElementFormat.Float3, VertexElementSemantic.Normal),
-		new VertexElementDescription(nameof(uvs), VertexElementFormat.Float2, VertexElementSemantic.TextureCoordinate));
+		new VertexElementDescription(nameof(position), VertexElementSemantic.Position, VertexElementFormat.Float3, 0),
+		new VertexElementDescription(nameof(normal), VertexElementSemantic.Normal, VertexElementFormat.Float3, 3 * sizeof(float)),
+		new VertexElementDescription(nameof(uvs), VertexElementSemantic.TextureCoordinate, VertexElementFormat.Float2, 6 * sizeof(float)));
 
 	#endregion
 	#region Constructors

@@ -53,9 +53,9 @@ public record struct ExtendedVertex
 	/// Gets a description of the GPU-side vertex layout for this structure.
 	/// </summary>
 	public static VertexLayoutDescription LayoutDescription => new(byteSize,
-		new VertexElementDescription(nameof(tangent), VertexElementFormat.Float3, VertexElementSemantic.Normal),
-		new VertexElementDescription(nameof(binormal), VertexElementFormat.Float3, VertexElementSemantic.Normal),
-		new VertexElementDescription(nameof(uv2), VertexElementFormat.Float2, VertexElementSemantic.TextureCoordinate));
+		new VertexElementDescription(nameof(tangent), VertexElementSemantic.Normal, VertexElementFormat.Float3, 0),
+		new VertexElementDescription(nameof(binormal), VertexElementSemantic.Normal, VertexElementFormat.Float3, 3 * sizeof(float)),
+		new VertexElementDescription(nameof(uv2), VertexElementSemantic.TextureCoordinate, VertexElementFormat.Float2, 6 * sizeof(float)));
 
 	#endregion
 	#region Constructors

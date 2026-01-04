@@ -226,8 +226,6 @@ internal sealed class Dx11GraphicsService(
 			{
 				Device.SubmitCommands(cmdList);
 			}
-
-			Device.WaitForIdle();
 		}
 		catch (Exception ex)
 		{
@@ -244,6 +242,10 @@ internal sealed class Dx11GraphicsService(
 		{
 			Device.SwapBuffers();
 			OnMainSwapchainSwapped();
+		}
+		else
+		{
+			Device.WaitForIdle();
 		}
 
 		// Finish resource downloads:

@@ -284,8 +284,6 @@ internal sealed class VulkanGraphicsService(
 			{
 				Device.SubmitCommands(cmdList);
 			}
-
-			Device.WaitForIdle();
 		}
 		catch (Exception ex)
 		{
@@ -302,6 +300,10 @@ internal sealed class VulkanGraphicsService(
 		{
 			Device.SwapBuffers();
 			OnMainSwapchainSwapped();
+		}
+		else
+		{
+			Device.WaitForIdle();
 		}
 
 		// Finish resource downloads:
