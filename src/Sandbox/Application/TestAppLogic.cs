@@ -241,7 +241,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		// Create camera instance:
 		//if (!CameraHelper.CreatePerspectiveCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 1, -5))), _attachToWindowHandle: mainWindow))
-		if (!CameraHelper.CreateOrthographicsCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 0, -1))), _attachToWindowHandle: mainWindow))
+		if (!CameraHelper.CreateOrthographicsCamera(engine.Provider, out camera, _poseSource: new ConstantPoseSource(new(new(0, 0, 0))), _attachToWindowHandle: mainWindow))
 		{
 			engine.Logger.LogError("Failed to create main camera!", LogEntrySeverity.Critical);
 			return false;
@@ -448,7 +448,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private bool DrawScene(in CameraPassContext _cameraCtx)
 	{
-		if (cmdList is null || cubeRenderer is null)
+		if (cubeRenderer is null)
 		{
 			return true;
 		}
@@ -460,48 +460,61 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 				Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}, CBCamera='{result.DownloadedData[0]}'");
 			});
 		}
-		if (bufferDownloadKeyState.EventType == InputKeyEventType.Released && bufferDownloadBasic is not null)
+		if (bufferDownloadKeyState.EventType == InputKeyEventType.Released)
 		{
-			int vertexCount = cubeRenderer.Mesh!.VertexCount;
-			int indexCount = cubeRenderer.Mesh!.IndexCount;
-			int triangleCount = cubeRenderer.Mesh!.TriangleCount;
-			if (cubeRenderer.Mesh!.GetGeometryBuffers(out DeviceBuffer? bufVerticesBasic, out DeviceBuffer? bufVerticesExt, out DeviceBuffer? bufIndices, cmdList))
-			{
-				bufferDownloadBasic.RequestDownload(bufVerticesBasic!, 0, (uint)vertexCount, result =>
-				{
-					Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
-					for (uint i = 0; i < vertexCount; ++i)
-					{
-						Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
-					}
-				});
-				if (bufVerticesExt is not null)
-				{
-					bufferDownloadExt!.RequestDownload(bufVerticesExt!, 0, (uint)vertexCount, result =>
-					{
-						Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
-						for (uint i = 0; i < vertexCount; ++i)
-						{
-							Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
-						}
-					});
-				}
-				bufferDownloadIndices!.RequestDownload(bufIndices!, 0, (uint)indexCount, result =>
-				{
-					Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
-					for (uint i = 0; i < triangleCount; ++i)
-					{
-						int index0 = result.DownloadedData[3 * i + 0];
-						int index1 = result.DownloadedData[3 * i + 1];
-						int index2 = result.DownloadedData[3 * i + 2];
-						Console.WriteLine($"- Triangle {i}: '{index0}, {index1}, {index2}'");
-					}
-				});
-			}
+			DownloadMesh(_cameraCtx.CmdList);
 		}
 
 		bool success = cubeRenderer.Draw(in _cameraCtx);
 		return success;
+	}
+
+	private void DownloadMesh(CommandList _cmdList)
+	{
+		if (cubeRenderer?.Mesh is null || bufferDownloadBasic is null || bufferDownloadExt is null || bufferDownloadIndices is null)
+		{
+			return;
+		}
+
+		if (!cubeRenderer.Mesh.GetGeometryBuffers(out DeviceBuffer? bufVerticesBasic, out DeviceBuffer? bufVerticesExt, out DeviceBuffer? bufIndices, _cmdList))
+		{
+			return;
+		}
+
+		int vertexCount = cubeRenderer.Mesh.VertexCount;
+		int indexCount = cubeRenderer.Mesh.IndexCount;
+		int triangleCount = cubeRenderer.Mesh.TriangleCount;
+
+		bufferDownloadBasic!.RequestDownload(bufVerticesBasic!, 0, (uint)vertexCount, result =>
+		{
+			Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+			for (uint i = 0; i < vertexCount; ++i)
+			{
+				Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
+			}
+		});
+		if (bufVerticesExt is not null)
+		{
+			bufferDownloadExt.RequestDownload(bufVerticesExt!, 0, (uint)vertexCount, result =>
+			{
+				Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+				for (uint i = 0; i < vertexCount; ++i)
+				{
+					Console.WriteLine($"- Vertex {i}: '{result.DownloadedData[i]}'");
+				}
+			});
+		}
+		bufferDownloadIndices.RequestDownload(bufIndices!, 0, (uint)indexCount, result =>
+		{
+			Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
+			for (uint i = 0; i < triangleCount; ++i)
+			{
+				int index0 = result.DownloadedData[3 * i + 0];
+				int index1 = result.DownloadedData[3 * i + 1];
+				int index2 = result.DownloadedData[3 * i + 2];
+				Console.WriteLine($"- Triangle {i}: '{index0}, {index1}, {index2}'");
+			}
+		});
 	}
 
 	#endregion

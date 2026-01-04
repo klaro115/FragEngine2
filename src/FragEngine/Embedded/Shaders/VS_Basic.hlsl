@@ -19,7 +19,7 @@ struct VertexOutputBasic
 VertexOutputBasic MainVertex(const in BasicVertex _vertexBasic)
 {
     VertexOutputBasic o;
-    o.position = float4(_vertexBasic.position, 0);
+    o.position = _vertexBasic.position.xyzz;
     o.worldPosition = _vertexBasic.position.xyz;
     o.worldNormal = normalize(_vertexBasic.normal.xyz);
     o.uvs = _vertexBasic.uvs;

@@ -345,7 +345,7 @@ public sealed class SimpleMeshRenderer : IExtendedDisposable
 		cmdList.SetIndexBuffer(bufIndices, mesh.IndexFormat);
 
 		// Issue draw call:
-		cmdList.DrawIndexed((uint)mesh.IndexCount);
+		cmdList.DrawIndexed((uint)mesh.IndexCount, 1, 0, 0, 0);
 
 		return true;
 	}
@@ -402,7 +402,7 @@ public sealed class SimpleMeshRenderer : IExtendedDisposable
 		VertexLayoutDescription[] vertexLayoutDescs = mesh!.HasExtendedVertexData
 		? [
 			BasicVertex.LayoutDescription,
-				ExtendedVertex.LayoutDescription,
+			ExtendedVertex.LayoutDescription,
 		]
 		: [
 			BasicVertex.LayoutDescription,
@@ -425,7 +425,7 @@ public sealed class SimpleMeshRenderer : IExtendedDisposable
 
 		// Create pipeline:
 		GraphicsPipelineDescription pipelineDesc = new(
-			BlendStateDescription.SingleAdditiveBlend,
+			BlendStateDescription.SingleOverrideBlend,
 			DepthStencilStateDescription.DepthOnlyLessEqual,
 			RasterizerStateDescription.CullNone,
 			PrimitiveTopology.TriangleList,

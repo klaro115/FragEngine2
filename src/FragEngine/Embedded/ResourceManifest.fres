@@ -29,7 +29,7 @@
 			"FallbackResourceKey": null,
 			"RelativePath": "FragEngine.Embedded.Shaders.VS_Basic.hlsl",
 			"DataOffset": 0,
-			"DataSize": 682,
+			"DataSize": 676,
 			"FormatKey": ".hlsl",
 			"Type": 14,
 			"SubType": 1,
