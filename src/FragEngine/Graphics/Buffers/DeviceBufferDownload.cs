@@ -5,21 +5,47 @@ using Veldrid;
 namespace FragEngine.Graphics.Buffers;
 
 /// <summary>
-/// Container type for downloading the contents of a <see cref="DeviceBuffer"/> on the GPU to CPU.side memory.
-/// An instance of this type may be used repeatedly, and only needs to be disposed if you don't need any further
-/// GPU readbacks.
+/// Container type for downloading the contents of a <see cref="DeviceBuffer"/> on the GPU to CPU-side memory.
 /// </summary>
+/// <remarks>
+/// Note: This will issue a download request to the <see cref="GraphicsDevice"/> each time the method
+/// '<see cref="RequestDownload(DeviceBuffer, uint, uint, FuncBufferDownloadCompleted{T}?)"/>' is called.
+/// Only one buffer download may be in process at once for each instance of this type. Check the value of
+/// '<see cref="Status"/>' to check the progress of a previously issued request.<para/>
+/// An instance of this type may be used repeatedly, and only needs to be disposed if you don't need any further
+/// GPU readbacks, or if you need to download more elements than this instance's '<see cref="MaxCapacity"/>'.
+/// </remarks>
 /// <typeparam name="T">The type each data element in the GPU buffer. Must be an unmanaged struct type with
 /// a known byte size.</typeparam>
 public sealed class DeviceBufferDownload<T> : IExtendedDisposable where T : unmanaged
 {
 	#region Types
 
+	/// <summary>
+	/// Enumeration of different download progress states and results.
+	/// </summary>
 	public enum DownloadStatus
 	{
+		/// <summary>
+		/// Buffer download has not started yet.
+		/// </summary>
+		/// <remarks>
+		/// Call '<see cref="RequestDownload(DeviceBuffer, uint, uint, FuncBufferDownloadCompleted{T}?)"/>'
+		/// to issue a new buffer download request.
+		/// </remarks>
 		NotStarted,
+		/// <summary>
+		/// A previously issued download request is still in progress. It should finish after the current
+		/// frame has finished rendering.
+		/// </summary>
 		Busy,
+		/// <summary>
+		/// Download has completed successfully. A new download request may be issued at any time.
+		/// </summary>
 		Success,
+		/// <summary>
+		/// Download has failed or was aborted. A new download request may be issued at any time.
+		/// </summary>
 		Failure,
 	}
 
@@ -55,7 +81,15 @@ public sealed class DeviceBufferDownload<T> : IExtendedDisposable where T : unma
 	#region Properties
 
 	public bool IsDisposed { get; private set; } = false;
+
+	/// <summary>
+	/// Gets the progress state of a previously issued download request.
+	/// </summary>
 	public DownloadStatus Status { get; private set; } = DownloadStatus.NotStarted;
+	/// <summary>
+	/// Gets the maximum number of elements of type '<see cref="T"/>' that can be downloaded from a source buffer.
+	/// </summary>
+	public uint MaxCapacity { get; }
 
 	#endregion
 	#region Constructors
@@ -90,16 +124,17 @@ public sealed class DeviceBufferDownload<T> : IExtendedDisposable where T : unma
 		graphicsService = _graphicsService;
 		logger = _logger;
 
-		downloadedData = new T[_maxCapacity];
+		MaxCapacity = _maxCapacity;
+		downloadedData = new T[MaxCapacity];
 		elementByteSize = _elementByteSize;
 
-		uint totalByteSize = _maxCapacity * elementByteSize;
+		uint totalByteSize = MaxCapacity * elementByteSize;
 		BufferDescription bufferDesc = new(totalByteSize, BufferUsage.Staging);
 
 		try
 		{
 			stagingBuffer = _graphicsService.ResourceFactory.CreateBuffer(ref bufferDesc);
-			stagingBuffer.Name = $"BufStaging_{nameof(DeviceBufferDownload<T>)}_Capacity={_maxCapacity}_ElemSize={elementByteSize}";
+			stagingBuffer.Name = $"BufStaging_{nameof(DeviceBufferDownload<T>)}_Capacity={MaxCapacity}_ElemSize={elementByteSize}";
 		}
 		catch (Exception ex)
 		{

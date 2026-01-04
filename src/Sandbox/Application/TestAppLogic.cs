@@ -290,10 +290,10 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		MeshSurfaceData testData = new();
 		testData.SetVertices(
 			[
-				new(new(0, 0, 0.5f), -Vector3.UnitZ, new(0, 0)),
-				new(new(1, 0, 0.5f), -Vector3.UnitZ, new(1, 0)),
-				new(new(0, 1, 0.5f), -Vector3.UnitZ, new(0, 1)),
-				new(new(1, 1, 0.5f), -Vector3.UnitZ, new(1, 1)),
+				new(new(-1, -1, 0.5f), -Vector3.UnitZ, new(0, 0)),
+				new(new( 1, -1, 0.5f), -Vector3.UnitZ, new(1, 0)),
+				new(new(-1,  1, 0.5f), -Vector3.UnitZ, new(0, 1)),
+				new(new( 1,  1, 0.5f), -Vector3.UnitZ, new(1, 1)),
 			],
 			[
 				new(Vector3.UnitY, Vector3.UnitX, new(0, 0)),
