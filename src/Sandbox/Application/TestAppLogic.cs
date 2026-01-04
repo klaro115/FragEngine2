@@ -15,6 +15,7 @@ using FragEngine.Interfaces;
 using FragEngine.Logging;
 using FragEngine.Resources;
 using FragEngine.Scenes;
+using Microsoft.Extensions.DependencyInjection;
 using System.Numerics;
 using Veldrid;
 
@@ -55,7 +56,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private DeviceBufferDownload<CBCamera>? cbCameraDownload = null;
 	private DeviceBufferDownload<BasicVertex>? bufferDownloadBasic = null;
 	private DeviceBufferDownload<ExtendedVertex>? bufferDownloadExt = null;
-	private DeviceBufferDownload<int>? bufferDownloadIndices = null;
+	//private DeviceBufferDownload<int>? bufferDownloadIndices = null;
 
 	#endregion
 	#region Properties
@@ -270,11 +271,11 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		cbCameraDownload?.Dispose();
 		bufferDownloadBasic?.Dispose();
 		bufferDownloadExt?.Dispose();
-		bufferDownloadIndices?.Dispose();
+		//bufferDownloadIndices?.Dispose();
 		cbCameraDownload = null;
 		bufferDownloadBasic = null;
 		bufferDownloadExt = null;
-		bufferDownloadIndices = null;
+		//bufferDownloadIndices = null;
 
 		cubeRenderer?.Dispose();
 		cubeRenderer = null;
@@ -282,11 +283,12 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private bool CreateScene()
 	{
-		//PrimitivesFactory factory = engine.Provider.GetRequiredService<PrimitivesFactory>();
+		PrimitivesFactory factory = engine.Provider.GetRequiredService<PrimitivesFactory>();
 		GraphicsService graphicsService = engine.Graphics;
 		ResourceService resourceService = engine.Resources;
 
 		// Create geometry:
+		/*
 		MeshSurfaceData testData = new();
 		testData.SetVertices(
 			[
@@ -319,14 +321,13 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 		MeshSurface cubeMesh = new(engine.Graphics, engine.Logger);
 		cubeMesh.SetData(in testData);
+		*/
 
-		/*
-		if (!factory.CreateCubeMesh(Vector3.One, out cubeMesh, _createExtendedVertexData: false))
+		if (!factory.CreateCubeMesh(Vector3.One, out MeshSurface? cubeMesh, _createExtendedVertexData: false))
 		{
 			engine.Logger.LogError("Failed to create cube mesh!");
 			return false;
 		}
-		*/
 
 		try
 		{
@@ -347,9 +348,9 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 		try
 		{
 			cbCameraDownload = new(engine.Graphics, engine.Logger, 1, CBCamera.byteSize);
-			bufferDownloadBasic = new(engine.Graphics, engine.Logger, (uint)testData.VertexCount, BasicVertex.byteSize);
-			bufferDownloadExt = new(engine.Graphics, engine.Logger, (uint)testData.VertexCount, ExtendedVertex.byteSize);
-			bufferDownloadIndices = new(engine.Graphics, engine.Logger, (uint)testData.IndexCount, testData.IndexByteSize);
+			bufferDownloadBasic = new(engine.Graphics, engine.Logger, (uint)cubeMesh.VertexCount, BasicVertex.byteSize);
+			bufferDownloadExt = new(engine.Graphics, engine.Logger, (uint)cubeMesh.VertexCount, ExtendedVertex.byteSize);
+			//bufferDownloadIndices = new(engine.Graphics, engine.Logger, (uint)cubeMesh.IndexCount, cubeMesh.IndexByteSize);
 		}
 		catch (Exception ex)
 		{
@@ -373,28 +374,6 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 	private bool DrawCamera()
 	{
 		cmdList!.Begin();
-
-		//TEST
-		float deltaTime = engine.TimeService.IngameDeltaTimeSeconds;
-		RgbaFloat c = camera!.ClearingSettings.ColorValues[0];
-		CameraClearingSettings clearSettings = new()
-		{
-			ClearColorTargets = CameraClearingFlags.EachFrame,
-			ClearDepthBuffer = CameraClearingFlags.EachFrame,
-			ClearStencilBuffer = CameraClearingFlags.Never,
-			
-			ColorValues =
-			[
-				new(Math.Clamp(c.R + axisHorizontal.CurrentValue * deltaTime, 0, 1),
-					Math.Clamp(c.G + axisVertical.CurrentValue * deltaTime, 0, 1),
-					1,
-					1),
-			],
-			DepthValue = 1,
-			StencilValue = 0,
-		};
-		camera!.SetClearingSettings(clearSettings);
-		//TEST
 
 		if (!engine.Graphics.BeginFrame(cmdList, out GraphicsContext? graphicsCtx))
 		{
@@ -471,7 +450,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 
 	private void DownloadMesh(CommandList _cmdList)
 	{
-		if (cubeRenderer?.Mesh is null || bufferDownloadBasic is null || bufferDownloadExt is null || bufferDownloadIndices is null)
+		if (cubeRenderer?.Mesh is null || bufferDownloadBasic is null || bufferDownloadExt is null)// || bufferDownloadIndices is null)
 		{
 			return;
 		}
@@ -504,6 +483,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 				}
 			});
 		}
+		/*
 		bufferDownloadIndices.RequestDownload(bufIndices!, 0, (uint)indexCount, result =>
 		{
 			Console.WriteLine($"DOWNLOAD: Success={result.IsSuccess}");
@@ -515,6 +495,7 @@ internal sealed class TestAppLogic : IAppLogic, IExtendedDisposable
 				Console.WriteLine($"- Triangle {i}: '{index0}, {index1}, {index2}'");
 			}
 		});
+		*/
 	}
 
 	#endregion
